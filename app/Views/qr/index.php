@@ -1,4 +1,6 @@
 <h1>My QR Codes</h1>
-<p class="notice">Placeholder — QR code listing not yet implemented.</p>
-<p>Your QR codes will appear here once you are logged in.</p>
-<p><a href="/qr/create">Create a new QR Code</a></p>
+<p class="notice">QR code listing not yet implemented.</p>
+<p>Your QR codes will appear here.</p>
+<p>
+    <a href="/qr/create" class="btn">Create a QR Code</a>
+</p>

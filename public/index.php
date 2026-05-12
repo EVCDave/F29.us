@@ -12,12 +12,19 @@ require APP_PATH . '/Controllers/QrController.php';
 $router = new Router();
 
 // ── Public routes ────────────────────────────────────────────────────────────
-$router->get('/',          [HomeController::class,      'index']);
+$router->get('/',          [HomeController::class, 'index']);
+$router->get('/login',     [AuthController::class, 'loginPage']);
+$router->post('/login',    [AuthController::class, 'loginSubmit']);
+$router->get('/register',  [AuthController::class, 'registerPage']);
+$router->post('/register', [AuthController::class, 'registerSubmit']);
+
+// ── Authenticated routes ─────────────────────────────────────────────────────
 $router->get('/dashboard', [DashboardController::class, 'index']);
-$router->get('/login',     [AuthController::class,      'loginPage']);
-$router->get('/register',  [AuthController::class,      'registerPage']);
 $router->get('/qr',        [QrController::class,        'index']);
 $router->get('/qr/create', [QrController::class,        'create']);
+
+// ── Logout (POST only) ───────────────────────────────────────────────────────
+$router->post('/logout',   [AuthController::class, 'logout']);
 
 $router->dispatch(
     $_SERVER['REQUEST_METHOD'],

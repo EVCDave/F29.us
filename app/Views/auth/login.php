@@ -1,20 +1,38 @@
 <h1>Login</h1>
-<p class="notice">Placeholder — login logic not yet implemented.</p>
+
+<?php if (!empty($errors)): ?>
+<ul class="errors">
+    <?php foreach ($errors as $e): ?>
+    <li><?= View::e($e) ?></li>
+    <?php endforeach; ?>
+</ul>
+<?php endif; ?>
 
 <form method="post" action="/login">
-    <p>
-        <label>Email
-            <input type="email" name="email" autocomplete="email" required>
-        </label>
-    </p>
-    <p>
-        <label>Password
-            <input type="password" name="password" autocomplete="current-password" required>
-        </label>
-    </p>
-    <p>
-        <button type="submit">Login</button>
-    </p>
+    <div class="form-group">
+        <label for="email">Email</label>
+        <input
+            type="email"
+            id="email"
+            name="email"
+            value="<?= View::e($oldEmail ?? '') ?>"
+            autocomplete="email"
+            required
+        >
+    </div>
+    <div class="form-group">
+        <label for="password">Password</label>
+        <input
+            type="password"
+            id="password"
+            name="password"
+            autocomplete="current-password"
+            required
+        >
+    </div>
+    <div class="form-group">
+        <button type="submit" class="btn">Login</button>
+    </div>
 </form>
 
-<p><a href="/register">Don't have an account? Register</a></p>
+<p><a href="/register">Don't have an account? Register free</a></p>
