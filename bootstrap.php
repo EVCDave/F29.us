@@ -39,7 +39,22 @@ ini_set('error_log',      STORAGE_PATH . '/logs/error.log');
 require APP_PATH . '/Database.php';
 require APP_PATH . '/Router.php';
 require APP_PATH . '/View.php';
+require APP_PATH . '/Services/AuthService.php';
 
 // Establish database connection
 $dbConfig = require CONFIG_PATH . '/database.php';
 Database::connect($dbConfig);
+
+// Start session for web requests (not CLI)
+if (PHP_SAPI !== 'cli') {
+    AuthService::start();
+}
+
+/**
+ * Send a redirect response and halt execution.
+ */
+function redirect(string $url): never
+{
+    header('Location: ' . $url, true, 302);
+    exit;
+}

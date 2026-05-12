@@ -155,14 +155,29 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 
 ---
 
+## Testing Auth Locally
+
+After setup, you can verify the auth layer works:
+
+1. Visit `http://localhost:8000/register` — create an account
+2. You will be logged in and redirected to `/dashboard`
+3. Visit `http://localhost:8000/logout` in the nav — you will be sent to `/login`
+4. Visit `http://localhost:8000/dashboard` while logged out — redirects to `/login`
+5. Log back in with your credentials
+
+To test suspended accounts, run in MySQL:
+```sql
+UPDATE users SET status = 'suspended' WHERE email = 'you@example.com';
+```
+Then attempt to log in — you should see the suspension message.
+
+---
+
 ## What Is NOT Implemented Yet
 
-This is the **scaffold phase only**. The following are intentionally absent:
+The following are intentionally absent:
 
-- Login / logout / session management
-- Registration with password hashing
-- CSRF protection
-- Authentication middleware and access control
+- CSRF protection on forms (deferred)
 - Entitlement checks (plan limits)
 - QR code generation
 - Short link redirect logic

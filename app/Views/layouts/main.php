@@ -1,3 +1,4 @@
+<?php $navUser = AuthService::currentUser(); ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,19 +12,33 @@
         a:hover { text-decoration: none; }
         .container { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
 
+        /* Nav */
         .nav { background: #1a1a2e; padding: 0.8rem 0; }
-        .nav .container { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
-        .nav-brand { font-weight: 700; font-size: 1.05rem; color: #fff; text-decoration: none; margin-right: 0.5rem; }
+        .nav .container { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+        .nav-brand { font-weight: 700; font-size: 1.05rem; color: #fff; text-decoration: none; margin-right: 0.25rem; }
         .nav-link { color: #bbb; text-decoration: none; font-size: 0.9rem; }
         .nav-link:hover { color: #fff; }
         .nav-spacer { flex: 1; }
+        .nav-user { color: #9ca3af; font-size: 0.82rem; }
+        .nav-logout-form { display: inline; }
+        .nav-logout-btn {
+            background: none;
+            border: 1px solid #555;
+            color: #bbb;
+            padding: 0.2rem 0.6rem;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 0.82rem;
+        }
+        .nav-logout-btn:hover { border-color: #999; color: #fff; }
 
+        /* Main content */
         main { padding: 2.5rem 0; }
-
         h1 { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.6rem; }
         h2 { font-size: 1.35rem; font-weight: 600; margin-bottom: 0.4rem; }
         p  { margin-bottom: 0.9rem; color: #444; }
 
+        /* Notices and alerts */
         .notice {
             display: inline-block;
             background: #fff8e1;
@@ -34,7 +49,19 @@
             font-size: 0.82rem;
             margin-bottom: 1.4rem;
         }
+        .errors {
+            background: #fef2f2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.25rem;
+            list-style: none;
+        }
+        .errors li + li { margin-top: 0.3rem; }
 
+        /* Forms */
+        .form-group { margin-bottom: 1rem; }
         label { display: block; margin-bottom: 0.3rem; font-size: 0.9rem; font-weight: 500; color: #333; }
         input[type="email"],
         input[type="password"],
@@ -46,9 +73,9 @@
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 0.95rem;
-            margin-top: 0.2rem;
         }
-        button[type="submit"] {
+        input:focus { outline: 2px solid #0066cc; border-color: #0066cc; }
+        .btn {
             display: inline-block;
             padding: 0.5rem 1.4rem;
             background: #1a1a2e;
@@ -57,9 +84,11 @@
             border-radius: 4px;
             font-size: 0.95rem;
             cursor: pointer;
+            text-decoration: none;
         }
-        button[type="submit"]:hover { background: #2e2e50; }
+        .btn:hover { background: #2e2e50; color: #fff; }
 
+        /* Footer */
         footer { border-top: 1px solid #ddd; padding: 1rem 0; margin-top: 2.5rem; }
         footer p { color: #999; font-size: 0.8rem; margin: 0; }
     </style>
@@ -69,11 +98,20 @@
 <nav class="nav">
     <div class="container">
         <a href="/" class="nav-brand">f29.us Dynamic QR</a>
-        <a href="/dashboard" class="nav-link">Dashboard</a>
-        <a href="/qr" class="nav-link">My QR Codes</a>
-        <div class="nav-spacer"></div>
-        <a href="/login" class="nav-link">Login</a>
-        <a href="/register" class="nav-link">Register</a>
+
+        <?php if ($navUser): ?>
+            <a href="/dashboard" class="nav-link">Dashboard</a>
+            <a href="/qr" class="nav-link">My QR Codes</a>
+            <div class="nav-spacer"></div>
+            <span class="nav-user"><?= View::e($navUser['email']) ?></span>
+            <form method="post" action="/logout" class="nav-logout-form">
+                <button type="submit" class="nav-logout-btn">Logout</button>
+            </form>
+        <?php else: ?>
+            <div class="nav-spacer"></div>
+            <a href="/login" class="nav-link">Login</a>
+            <a href="/register" class="nav-link">Register</a>
+        <?php endif; ?>
     </div>
 </nav>
 
