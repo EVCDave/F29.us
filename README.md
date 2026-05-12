@@ -173,13 +173,34 @@ Then attempt to log in — you should see the suspension message.
 
 ---
 
+## Services
+
+### EntitlementService
+Resolves a user's effective plan features with per-user override support. Resolution order: active non-expired `user_feature_overrides` → active subscription `plan_features` → caller fallback → null. Values are typed (int / bool / string).
+
+```php
+EntitlementService::isEnabled($userId, 'can_export_svg');          // bool
+EntitlementService::getValue($userId, 'max_qr_codes', 0);          // int
+EntitlementService::getAllForUser($userId);                          // full map
+```
+
+### SlugService
+Validates and generates short-link slugs. Enforces the reserved-slug list, pattern `^[a-z0-9]+(?:-[a-z0-9]+)*$`, plan-specific min/max length, and uniqueness against `short_links`.
+
+```php
+SlugService::validateCustomSlugForUser($userId, 'my-link');        // ['valid', 'slug', 'errors']
+SlugService::generateUniqueSlug();                                  // e.g. "k4x9mz"
+SlugService::validateFormat('hello', minLength: 4, maxLength: 32); // ['valid', 'errors']
+```
+
+---
+
 ## What Is NOT Implemented Yet
 
 The following are intentionally absent:
 
 - CSRF protection on forms (deferred)
-- Entitlement checks (plan limits)
-- QR code generation
+- QR code creation UI and POST flow
 - Short link redirect logic
 - Analytics data collection and display
 - Custom slug generation and validation

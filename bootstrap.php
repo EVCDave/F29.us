@@ -40,6 +40,8 @@ require APP_PATH . '/Database.php';
 require APP_PATH . '/Router.php';
 require APP_PATH . '/View.php';
 require APP_PATH . '/Services/AuthService.php';
+require APP_PATH . '/Services/EntitlementService.php';
+require APP_PATH . '/Services/SlugService.php';
 
 // Establish database connection
 $dbConfig = require CONFIG_PATH . '/database.php';
