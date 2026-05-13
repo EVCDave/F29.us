@@ -73,6 +73,7 @@ require APP_PATH . '/Services/RedirectService.php';
 require APP_PATH . '/Services/AnalyticsService.php';
 require APP_PATH . '/Services/CsrfService.php';
 require APP_PATH . '/Services/LoginThrottleService.php';
+require APP_PATH . '/Services/DestinationHistoryService.php';
 
 // Establish database connection
 $dbConfig = require CONFIG_PATH . '/database.php';

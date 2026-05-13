@@ -134,3 +134,72 @@
 <p style="font-size:0.8rem;color:#888;margin-top:0.5rem">
     QR code encodes: <code><?= View::e($shortUrl) ?></code>
 </p>
+
+<!-- ── Destination history ─────────────────────────────────────────────────── -->
+<h2 style="margin-top:2rem;margin-bottom:0.75rem">Destination History</h2>
+<?php
+$canRestore = !in_array($qr['status'], ['archived', 'disabled'], true);
+$sourceLabels = [
+    'system'    => 'Initial destination',
+    'user_edit' => 'Edit',
+    'restore'   => 'Restore',
+];
+?>
+<?php if (empty($destinationHistory)): ?>
+<p style="color:#888;font-size:0.9rem">No destination history recorded yet.</p>
+<?php else: ?>
+<table style="font-size:0.85rem">
+    <thead>
+        <tr>
+            <th style="width:140px">When</th>
+            <th style="width:90px">Source</th>
+            <th style="width:160px">Changed by</th>
+            <th>Previous destination</th>
+            <th>New destination</th>
+            <?php if ($canRestore): ?><th style="width:80px"></th><?php endif; ?>
+        </tr>
+    </thead>
+    <tbody>
+    <?php foreach ($destinationHistory as $h): ?>
+        <tr>
+            <td style="white-space:nowrap;color:#6b7280"><?= View::e($h['created_at']) ?></td>
+            <td><?= View::e($sourceLabels[$h['change_source']] ?? $h['change_source']) ?></td>
+            <td style="color:#6b7280">
+                <?= $h['changed_by_email'] !== null
+                    ? View::e($h['changed_by_email'])
+                    : '<span style="color:#9ca3af">system</span>' ?>
+            </td>
+            <td style="word-break:break-all;color:#9ca3af">
+                <?= $h['old_target_url'] !== null
+                    ? '<a href="' . View::e($h['old_target_url']) . '" target="_blank" style="color:#9ca3af">' . View::e($h['old_target_url']) . '</a>'
+                    : '—' ?>
+            </td>
+            <td style="word-break:break-all">
+                <a href="<?= View::e($h['new_target_url']) ?>" target="_blank">
+                    <?= View::e($h['new_target_url']) ?>
+                </a>
+            </td>
+            <?php if ($canRestore): ?>
+            <td>
+                <?php if ($h['new_target_url'] !== $qr['current_target_url']): ?>
+                <form method="post"
+                      action="/qr/<?= (int) $qr['id'] ?>/destination-history/<?= (int) $h['id'] ?>/restore"
+                      style="display:inline">
+                    <?= CsrfService::field() ?>
+                    <button type="submit"
+                            class="btn btn-secondary"
+                            style="font-size:0.78rem;padding:0.2rem 0.6rem"
+                            onclick="return confirm('Restore this destination? The current one will be replaced.')">
+                        Restore
+                    </button>
+                </form>
+                <?php else: ?>
+                <span style="font-size:0.78rem;color:#9ca3af">Current</span>
+                <?php endif; ?>
+            </td>
+            <?php endif; ?>
+        </tr>
+    <?php endforeach; ?>
+    </tbody>
+</table>
+<?php endif; ?>
