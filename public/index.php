@@ -49,6 +49,7 @@ require APP_PATH . '/Controllers/DashboardController.php';
 require APP_PATH . '/Controllers/AuthController.php';
 require APP_PATH . '/Controllers/QrController.php';
 require APP_PATH . '/Controllers/RedirectController.php';
+require APP_PATH . '/Controllers/AdminController.php';
 
 $router = new Router();
 
@@ -80,6 +81,16 @@ $router->get('/qr/{id}/analytics',      [QrController::class, 'analytics']);
 
 // ── Logout ───────────────────────────────────────────────────────────────────
 $router->post('/logout', [AuthController::class, 'logout']);
+
+// ── Admin (auth + admin role enforced inside controller) ──────────────────────
+// Exact routes registered before pattern routes to prevent /admin/users
+// from being swallowed by /admin/users/{id}.
+$router->get('/admin',              [AdminController::class, 'index']);
+$router->get('/admin/users',        [AdminController::class, 'users']);
+$router->get('/admin/users/{id}',   [AdminController::class, 'userDetail']);
+$router->post('/admin/users/{id}/subscription',                  [AdminController::class, 'updateSubscription']);
+$router->post('/admin/users/{id}/overrides',                     [AdminController::class, 'addOverride']);
+$router->post('/admin/users/{id}/overrides/{overrideId}/delete', [AdminController::class, 'deleteOverride']);
 
 // ── Public slug catch-all (must be last) ─────────────────────────────────────
 // All named routes above take precedence via exact-match and ordered pattern

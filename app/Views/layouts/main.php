@@ -137,6 +137,9 @@
         <?php if ($navUser): ?>
             <a href="/dashboard" class="nav-link">Dashboard</a>
             <a href="/qr" class="nav-link">My QR Codes</a>
+            <?php if ($navUser['role'] === 'admin'): ?>
+            <a href="/admin" class="nav-link" style="color:#f9a825">Admin</a>
+            <?php endif; ?>
             <div class="nav-spacer"></div>
             <span class="nav-user"><?= View::e($navUser['email']) ?></span>
             <form method="post" action="/logout" class="nav-logout-form">
