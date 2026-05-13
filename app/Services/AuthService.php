@@ -40,7 +40,7 @@ class AuthService
     }
 
     /**
-     * Returns a minimal user row (id, email, status) or null.
+     * Returns a minimal user row (id, email, role, status) or null.
      * Result is cached for the lifetime of the request.
      */
     public static function currentUser(): ?array
@@ -54,12 +54,18 @@ class AuthService
         }
 
         $stmt = Database::get()->prepare(
-            "SELECT id, email, status FROM users WHERE id = ? LIMIT 1"
+            "SELECT id, email, role, status FROM users WHERE id = ? LIMIT 1"
         );
         $stmt->execute([self::userId()]);
         self::$cachedUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
 
         return self::$cachedUser;
+    }
+
+    public static function isAdmin(): bool
+    {
+        $user = self::currentUser();
+        return $user !== null && ($user['role'] ?? '') === 'admin';
     }
 
     /**

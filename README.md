@@ -513,6 +513,41 @@ chmod 755 storage/logs
 
 ---
 
+## Admin
+
+### Role column
+
+Migration `012_add_role_to_users` adds a `role ENUM('user','admin') NOT NULL DEFAULT 'user'` column to the `users` table. All existing users default to `'user'`.
+
+### Promoting the first admin
+
+There is no UI for role management. Promote a user directly in the database:
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
+```
+
+### Admin tooling
+
+Admins have access to an internal-only area at `/admin` (yellow **Admin** link in the nav). This area provides:
+
+| Page | Path | Description |
+|---|---|---|
+| Admin home | `/admin` | Overview stats (user count, QR count) |
+| User list | `/admin/users` | Searchable list of all users (capped at 100), with role, status, and active plan |
+| User detail | `/admin/users/{id}` | Full user info, subscription history, effective entitlements with source (plan vs override), and active overrides |
+| Change subscription | `POST /admin/users/{id}/subscription` | Manually assign a plan, billing cycle, and optional grandfathered flag. Cancels the current active subscription and creates a new one. |
+| Add / update override | `POST /admin/users/{id}/overrides` | Set a per-user feature override (int, bool, or string) with optional expiry and note. Upserts on `(user_id, feature_key)`. |
+| Delete override | `POST /admin/users/{id}/overrides/{id}/delete` | Remove a specific override for a user. |
+
+All admin POST endpoints are CSRF-protected and require the admin role. Non-admins receive a 403. All subscription changes and override operations are written to `audit_logs`.
+
+### Billing / public subscriptions
+
+Billing, public checkout, and payment processor integration are **not implemented**. Plan assignment is manual via the admin area only.
+
+---
+
 ## What Is Implemented
 
 | Feature | Status |
@@ -544,6 +579,12 @@ chmod 755 storage/logs
 | **Startup config validation (required env vars checked on boot)** | ✓ |
 | **Global exception handler (500 page in production, stack trace in debug)** | ✓ |
 | **CLI guard on migrate.php, seed.php, cleanup.php** | ✓ |
+| **Admin role column + `AuthService::isAdmin()`** | ✓ |
+| **Admin user list with email search** | ✓ |
+| **Admin user detail (info, subscription history, entitlements, overrides)** | ✓ |
+| **Admin: manual plan assignment (cancel old, create new)** | ✓ |
+| **Admin: per-user feature override add / update / delete** | ✓ |
+| **Audit logging for admin subscription and override changes** | ✓ |
 
 ## What Is NOT Implemented Yet
 
@@ -553,6 +594,6 @@ The following are intentionally absent:
 - Analytics retention data purge (retention is a query filter only)
 - Geolocation in scan events (country/region/city stored as NULL)
 - Billing / payment integration
+- Public subscription checkout
 - Team features
-- Admin panel
 - API endpoints
