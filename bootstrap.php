@@ -7,6 +7,11 @@ define('CONFIG_PATH', ROOT_PATH . '/config');
 define('STORAGE_PATH',ROOT_PATH . '/storage');
 define('DB_PATH',     ROOT_PATH . '/database');
 
+// Composer vendor autoloader (required for endroid/qr-code and any future packages)
+if (file_exists(ROOT_PATH . '/vendor/autoload.php')) {
+    require ROOT_PATH . '/vendor/autoload.php';
+}
+
 // Load .env if present
 $envFile = ROOT_PATH . '/.env';
 if (file_exists($envFile)) {
@@ -42,6 +47,8 @@ require APP_PATH . '/View.php';
 require APP_PATH . '/Services/AuthService.php';
 require APP_PATH . '/Services/EntitlementService.php';
 require APP_PATH . '/Services/SlugService.php';
+require APP_PATH . '/Services/AuditLogService.php';
+require APP_PATH . '/Services/QrCodeService.php';
 
 // Establish database connection
 $dbConfig = require CONFIG_PATH . '/database.php';

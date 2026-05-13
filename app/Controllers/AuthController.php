@@ -5,9 +5,8 @@ class AuthController
 {
     // ── Login ─────────────────────────────────────────────────────────────────
 
-    public function loginPage(): void
+    public function loginPage(array $params = []): void
     {
-        // Already logged in — send to dashboard
         if (AuthService::isLoggedIn()) {
             redirect('/dashboard');
         }
@@ -19,7 +18,7 @@ class AuthController
         ]);
     }
 
-    public function loginSubmit(): void
+    public function loginSubmit(array $params = []): void
     {
         $email    = $_POST['email']    ?? '';
         $password = $_POST['password'] ?? '';
@@ -40,7 +39,7 @@ class AuthController
 
     // ── Registration ──────────────────────────────────────────────────────────
 
-    public function registerPage(): void
+    public function registerPage(array $params = []): void
     {
         if (AuthService::isLoggedIn()) {
             redirect('/dashboard');
@@ -53,7 +52,7 @@ class AuthController
         ]);
     }
 
-    public function registerSubmit(): void
+    public function registerSubmit(array $params = []): void
     {
         $email    = $_POST['email']    ?? '';
         $password = $_POST['password'] ?? '';
@@ -75,7 +74,7 @@ class AuthController
 
     // ── Logout ────────────────────────────────────────────────────────────────
 
-    public function logout(): void
+    public function logout(array $params = []): void
     {
         AuthService::logout();
         redirect('/login');

@@ -1,0 +1,12 @@
+{
+    "name": "evcdave/f29-us",
+    "description": "f29.us Dynamic QR — server-rendered PHP QR code management",
+    "require": {
+        "php": ">=8.2",
+        "endroid/qr-code": "^5.0"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    }
+}

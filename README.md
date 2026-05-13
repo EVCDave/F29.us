@@ -14,6 +14,22 @@ Dynamic QR codes that you can redirect to any URL at any time — no reprinting 
 
 ---
 
+## Dependencies
+
+| Package | Purpose |
+|---|---|
+| `endroid/qr-code ^5.0` | Server-side QR image generation (PNG + SVG) |
+
+PNG generation requires the **PHP GD extension** (`php-gd`). SVG generation is pure PHP — no extra extension needed.
+
+Install dependencies:
+
+```bash
+composer install
+```
+
+---
+
 ## Local Setup
 
 ### 1. Copy and configure `.env`
@@ -195,12 +211,29 @@ SlugService::validateFormat('hello', minLength: 4, maxLength: 32); // ['valid', 
 
 ---
 
+## What Is Implemented
+
+| Feature | Status |
+|---|---|
+| Register / Login / Logout | ✓ |
+| Default Free plan assignment | ✓ |
+| Entitlement resolution (plan features + per-user overrides) | ✓ |
+| Slug validation and auto-generation | ✓ |
+| QR code creation (name, destination, optional custom slug) | ✓ |
+| QR code list page | ✓ |
+| QR code detail page | ✓ |
+| Edit destination URL | ✓ |
+| Pause / Resume short link | ✓ |
+| Download PNG (requires GD extension) | ✓ |
+| Download SVG | ✓ |
+| Audit logging (create, edit, pause, resume) | ✓ |
+
 ## What Is NOT Implemented Yet
 
 The following are intentionally absent:
 
 - CSRF protection on forms (deferred)
-- QR code creation UI and POST flow
+- Public redirect by slug (`/{slug}` → destination)
 - Short link redirect logic
 - Analytics data collection and display
 - Custom slug generation and validation

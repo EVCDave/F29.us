@@ -18,13 +18,26 @@ $router->post('/login',    [AuthController::class, 'loginSubmit']);
 $router->get('/register',  [AuthController::class, 'registerPage']);
 $router->post('/register', [AuthController::class, 'registerSubmit']);
 
-// ── Authenticated routes ─────────────────────────────────────────────────────
+// ── Authenticated: dashboard ─────────────────────────────────────────────────
 $router->get('/dashboard', [DashboardController::class, 'index']);
-$router->get('/qr',        [QrController::class,        'index']);
-$router->get('/qr/create', [QrController::class,        'create']);
 
-// ── Logout (POST only) ───────────────────────────────────────────────────────
-$router->post('/logout',   [AuthController::class, 'logout']);
+// ── Authenticated: QR management ─────────────────────────────────────────────
+// Exact routes must be registered before pattern routes so /qr/create
+// is never accidentally captured by /qr/{id}.
+$router->get('/qr',              [QrController::class, 'index']);
+$router->get('/qr/create',       [QrController::class, 'createPage']);
+$router->post('/qr',             [QrController::class, 'createSubmit']);
+
+$router->get('/qr/{id}',                [QrController::class, 'detail']);
+$router->get('/qr/{id}/edit',           [QrController::class, 'editPage']);
+$router->post('/qr/{id}/update',        [QrController::class, 'updateDestination']);
+$router->post('/qr/{id}/pause',         [QrController::class, 'pause']);
+$router->post('/qr/{id}/resume',        [QrController::class, 'resume']);
+$router->get('/qr/{id}/download/png',   [QrController::class, 'downloadPng']);
+$router->get('/qr/{id}/download/svg',   [QrController::class, 'downloadSvg']);
+
+// ── Logout ───────────────────────────────────────────────────────────────────
+$router->post('/logout', [AuthController::class, 'logout']);
 
 $router->dispatch(
     $_SERVER['REQUEST_METHOD'],
