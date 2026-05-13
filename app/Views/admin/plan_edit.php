@@ -3,6 +3,14 @@
     <a href="/admin/plans/<?= (int) $plan['id'] ?>" style="color:#666;font-size:0.9rem">&larr; Plan Detail</a>
 </div>
 
+<?php if ($subActive > 0): ?>
+<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;padding:0.75rem 1rem;margin-bottom:1.25rem;max-width:580px">
+    <strong><?= $subActive ?> active subscription<?= $subActive !== 1 ? 's' : '' ?> use this plan.</strong>
+    Saving these changes affects all of them immediately.
+    To adjust the offer for future users only, <a href="/admin/plans/<?= (int) $plan['id'] ?>/clone">clone this plan</a> into a new version instead.
+</div>
+<?php endif; ?>
+
 <?php if (!empty($errors)): ?>
 <ul class="errors" style="max-width:520px">
     <?php foreach ($errors as $e): ?><li><?= View::e($e) ?></li><?php endforeach; ?>
@@ -10,7 +18,6 @@
 <?php endif; ?>
 
 <?php
-// For repopulation: prefer submitted $old values, fall back to $plan values
 $v = static function (string $key) use ($old, $plan): string {
     return View::e((string) (array_key_exists($key, $old) ? ($old[$key] ?? '') : ($plan[$key] ?? '')));
 };

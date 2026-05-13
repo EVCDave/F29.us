@@ -110,10 +110,13 @@ class PlanController
         $this->requireAdmin();
         $planId = (int) ($params['id'] ?? 0);
         $plan   = $this->loadPlan($planId);
+        [$subTotal, $subActive] = $this->loadSubCounts($planId);
 
         View::render('admin/plan_edit', [
             'pageTitle' => 'Admin: Edit Plan — f29.us Dynamic QR',
             'plan'      => $plan,
+            'subTotal'  => $subTotal,
+            'subActive' => $subActive,
             'errors'    => [],
             'old'       => [],
         ]);
@@ -132,9 +135,12 @@ class PlanController
         $errors = $this->validatePlanInput($input, $planId);
 
         if (!empty($errors)) {
+            [$subTotal, $subActive] = $this->loadSubCounts($planId);
             View::render('admin/plan_edit', [
                 'pageTitle' => 'Admin: Edit Plan — f29.us Dynamic QR',
                 'plan'      => $plan,
+                'subTotal'  => $subTotal,
+                'subActive' => $subActive,
                 'errors'    => $errors,
                 'old'       => $_POST,
             ]);
@@ -188,6 +194,163 @@ class PlanController
         redirect('/admin/plans/' . $planId);
     }
 
+    // ── Clone plan ────────────────────────────────────────────────────────────
+
+    public function clonePlanPage(array $params = []): void
+    {
+        $this->requireAdmin();
+        $planId = (int) ($params['id'] ?? 0);
+        $plan   = $this->loadPlan($planId);
+
+        View::render('admin/plan_clone', [
+            'pageTitle' => 'Admin: Clone Plan — f29.us Dynamic QR',
+            'plan'      => $plan,
+            'errors'    => [],
+            'old'       => [
+                'internal_name' => $this->suggestCloneName($plan['internal_name']),
+                'display_name'  => $plan['display_name'],
+                'is_public'     => 0,
+                'is_active'     => 1,
+                'is_legacy'     => 0,
+            ],
+        ]);
+    }
+
+    public function clonePlanSubmit(array $params = []): void
+    {
+        CsrfService::requireValid();
+        $this->requireAdmin();
+
+        $sourcePlanId = (int) ($params['id'] ?? 0);
+        $sourcePlan   = $this->loadPlan($sourcePlanId);
+        $adminUserId  = (int) AuthService::userId();
+
+        $newInternalName = trim($_POST['internal_name'] ?? '');
+        $newDisplayName  = trim($_POST['display_name']  ?? '');
+        $isPublic        = !empty($_POST['is_public'])  ? 1 : 0;
+        $isActive        = !empty($_POST['is_active'])  ? 1 : 0;
+        $isLegacy        = !empty($_POST['is_legacy'])  ? 1 : 0;
+
+        $errors = [];
+
+        if ($newInternalName === '') {
+            $errors[] = 'Internal name is required.';
+        } elseif (!preg_match('/^[a-z][a-z0-9_]*$/', $newInternalName)) {
+            $errors[] = 'Internal name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.';
+        } elseif ($newInternalName === $sourcePlan['internal_name']) {
+            $errors[] = 'Internal name must be different from the source plan.';
+        } else {
+            $stmt = Database::get()->prepare("SELECT id FROM plans WHERE internal_name = ? LIMIT 1");
+            $stmt->execute([$newInternalName]);
+            if ($stmt->fetchColumn() !== false) {
+                $errors[] = 'A plan with that internal name already exists.';
+            }
+        }
+
+        if ($newDisplayName === '') {
+            $errors[] = 'Display name is required.';
+        }
+
+        if (!empty($errors)) {
+            View::render('admin/plan_clone', [
+                'pageTitle' => 'Admin: Clone Plan — f29.us Dynamic QR',
+                'plan'      => $sourcePlan,
+                'errors'    => $errors,
+                'old'       => $_POST,
+            ]);
+            return;
+        }
+
+        $pdo = Database::get();
+        $now = gmdate('Y-m-d H:i:s');
+
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare("
+                INSERT INTO plans
+                    (internal_name, display_name, description,
+                     monthly_price_cents, yearly_price_cents, currency_code,
+                     is_public, is_active, is_legacy, sort_order,
+                     created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ")->execute([
+                $newInternalName,
+                $newDisplayName,
+                $sourcePlan['description'],
+                $sourcePlan['monthly_price_cents'],
+                $sourcePlan['yearly_price_cents'],
+                $sourcePlan['currency_code'],
+                $isPublic,
+                $isActive,
+                $isLegacy,
+                $sourcePlan['sort_order'],
+                $now, $now,
+            ]);
+
+            $newPlanId = (int) $pdo->lastInsertId();
+
+            $stmt = $pdo->prepare(
+                "SELECT feature_key, feature_value, value_type FROM plan_features WHERE plan_id = ?"
+            );
+            $stmt->execute([$sourcePlanId]);
+            $features = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $featureStmt = $pdo->prepare("
+                INSERT INTO plan_features
+                    (plan_id, feature_key, feature_value, value_type, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ");
+            foreach ($features as $f) {
+                $featureStmt->execute([
+                    $newPlanId, $f['feature_key'], $f['feature_value'], $f['value_type'], $now, $now,
+                ]);
+            }
+
+            AuditLogService::log($adminUserId, 'plan', $newPlanId, 'plan_cloned', [
+                'source_plan_id'       => $sourcePlanId,
+                'source_internal_name' => $sourcePlan['internal_name'],
+                'new_internal_name'    => $newInternalName,
+                'features_copied'      => count($features),
+            ]);
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        redirect('/admin/plans/' . $newPlanId);
+    }
+
+    // ── Retire plan ───────────────────────────────────────────────────────────
+
+    public function retirePlan(array $params = []): void
+    {
+        CsrfService::requireValid();
+        $this->requireAdmin();
+
+        $planId      = (int) ($params['id'] ?? 0);
+        $plan        = $this->loadPlan($planId);
+        $adminUserId = (int) AuthService::userId();
+
+        $now = gmdate('Y-m-d H:i:s');
+        Database::get()->prepare("
+            UPDATE plans SET is_public = 0, is_legacy = 1, is_active = 1, updated_at = ?
+            WHERE  id = ?
+        ")->execute([$now, $planId]);
+
+        AuditLogService::log($adminUserId, 'plan', $planId, 'plan_retired', [
+            'internal_name' => $plan['internal_name'],
+            'was_public'    => (int) $plan['is_public'],
+            'was_legacy'    => (int) $plan['is_legacy'],
+            'was_active'    => (int) $plan['is_active'],
+        ]);
+
+        redirect('/admin/plans/' . $planId);
+    }
+
     // ── Add plan feature ──────────────────────────────────────────────────────
 
     public function addFeature(array $params = []): void
@@ -215,6 +378,11 @@ class PlanController
 
         if (!in_array($valueType, $validTypes, true)) {
             $errors[] = 'Value type must be int, bool, or string.';
+        } elseif ($featureKey !== '') {
+            $typeError = FeatureKeys::validateType($featureKey, $valueType);
+            if ($typeError !== null) {
+                $errors[] = $typeError;
+            }
         }
 
         if ($featureValue === '') {
@@ -274,6 +442,11 @@ class PlanController
 
         if (!in_array($valueType, $validTypes, true)) {
             $errors[] = 'Value type must be int, bool, or string.';
+        } else {
+            $typeError = FeatureKeys::validateType($feature['feature_key'], $valueType);
+            if ($typeError !== null) {
+                $errors[] = $typeError;
+            }
         }
 
         if ($featureValue === '') {
@@ -384,6 +557,20 @@ class PlanController
         return $feature;
     }
 
+    private function loadSubCounts(int $planId): array
+    {
+        $stmt = Database::get()->prepare("
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_count
+            FROM user_subscriptions
+            WHERE plan_id = ?
+        ");
+        $stmt->execute([$planId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return [(int) ($row['total'] ?? 0), (int) ($row['active_count'] ?? 0)];
+    }
+
     private function parsePlanInput(array $post): array
     {
         $monthlyRaw = trim($post['monthly_price_cents'] ?? '');
@@ -412,7 +599,6 @@ class PlanController
         } elseif (!preg_match('/^[a-z][a-z0-9_]*$/', $input['internal_name'])) {
             $errors[] = 'Internal name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.';
         } else {
-            // Uniqueness check (skip for updates — internal_name is immutable)
             if ($currentPlanId === null) {
                 $stmt = Database::get()->prepare(
                     "SELECT id FROM plans WHERE internal_name = ? LIMIT 1"
@@ -449,6 +635,14 @@ class PlanController
         return $errors;
     }
 
+    private function suggestCloneName(string $internalName): string
+    {
+        if (preg_match('/^(.+)_v(\d+)$/', $internalName, $m)) {
+            return $m[1] . '_v' . ((int) $m[2] + 1);
+        }
+        return $internalName . '_v2';
+    }
+
     private function renderPlanDetail(
         int    $planId,
         array  $addErrors,
@@ -465,22 +659,14 @@ class PlanController
         $stmt->execute([$planId]);
         $features = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $stmt = $pdo->prepare("
-            SELECT
-                COUNT(*) AS total,
-                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_count
-            FROM user_subscriptions
-            WHERE plan_id = ?
-        ");
-        $stmt->execute([$planId]);
-        $subCounts = $stmt->fetch(PDO::FETCH_ASSOC);
+        [$subTotal, $subActive] = $this->loadSubCounts($planId);
 
         View::render('admin/plan_detail', [
             'pageTitle'       => 'Admin: Plan — ' . $plan['display_name'] . ' — f29.us Dynamic QR',
             'plan'            => $plan,
             'features'        => $features,
-            'subTotal'        => (int) ($subCounts['total']        ?? 0),
-            'subActive'       => (int) ($subCounts['active_count'] ?? 0),
+            'subTotal'        => $subTotal,
+            'subActive'       => $subActive,
             'addErrors'       => $addErrors,
             'updateErrors'    => $updateErrors,
             'updateFeatureId' => $updateFeatureId,

@@ -552,9 +552,11 @@ Admins have access to an internal-only area at `/admin` (yellow **Admin** link i
 | Plan detail | `/admin/plans/{id}` | Full plan info, subscription counts, feature list with inline edit, and add-feature form. |
 | Create plan | `/admin/plans/create` | Create a new plan with metadata and flags. |
 | Edit plan | `/admin/plans/{id}/edit` | Update display name, description, prices, currency, flags, and sort order. `internal_name` is read-only after creation. |
-| Add feature | `POST /admin/plans/{id}/features` | Add a new feature key/value to a plan. Feature key is fixed after creation. |
-| Update feature | `POST /admin/plans/{id}/features/{featureId}/update` | Change a feature's value and/or value type. |
+| Add feature | `POST /admin/plans/{id}/features` | Add a new feature key/value to a plan. Feature key is fixed after creation. Built-in keys enforce their value type. |
+| Update feature | `POST /admin/plans/{id}/features/{featureId}/update` | Change a feature's value and/or value type. Built-in keys enforce their value type. |
 | Delete feature | `POST /admin/plans/{id}/features/{featureId}/delete` | Remove a feature from a plan. |
+| Clone plan | `/admin/plans/{id}/clone` | Clone a plan and all its features into a new plan with a new unique internal name. Source plan is not modified. |
+| Retire plan | `POST /admin/plans/{id}/retire` | Set `is_public=0`, `is_legacy=1`, `is_active=1`. Removes the plan from sale while preserving existing subscribers. |
 
 All admin POST endpoints are CSRF-protected and require the admin role. Non-admins receive a 403. All subscription changes, override operations, and plan catalog changes are written to `audit_logs`.
 
@@ -566,6 +568,18 @@ All admin POST endpoints are CSRF-protected and require the admin role. Non-admi
 - **`is_active`** controls whether the plan can be assigned to users. Inactive plans are excluded from the subscription change dropdown.
 - **`is_legacy`** marks grandfathered plans. Legacy plans remain fully functional for current subscribers; they are simply hidden from public-facing catalog pages (once those exist) and flagged in the admin list.
 - **`is_public`** controls visibility in a future public plan catalog. It has no current effect on access or entitlements.
+- **Built-in feature keys** (`max_qr_codes`, `can_export_png`, etc.) have a required value type enforced server-side. Submitting the wrong type is rejected.
+
+### Plan versioning and grandfathering workflow
+
+The recommended workflow for evolving a plan without disrupting existing subscribers:
+
+1. **Clone** the current plan into a new version (e.g., `starter_v1` → `starter_v2`) via the Clone button on the plan detail page.
+2. **Adjust** the new plan's features and metadata as needed.
+3. **Retire** the old plan (sets `is_public=0`, `is_legacy=1`, `is_active=1`) so it is no longer offered to new users but continues to work for current subscribers.
+4. **Assign** users to the new plan manually when intended — existing subscribers on the retired plan are not moved automatically.
+
+The plan detail and edit pages show a warning banner when the plan has active subscribers, and include guidance on when to edit vs. clone.
 
 ### Billing / public subscriptions
 
@@ -615,6 +629,11 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Admin: edit plan metadata, flags (public/active/legacy), sort order** | ✓ |
 | **Admin: add / update / delete plan features (inline edit, no JS required)** | ✓ |
 | **Audit logging for plan and feature changes (created, updated diff, added, updated, deleted)** | ✓ |
+| **Admin: plan clone / versioning helper (transactional, copies all features)** | ✓ |
+| **Admin: plan retire helper (is_public=0, is_legacy=1, is_active=1)** | ✓ |
+| **Admin: active-subscriber warning on plan detail and edit pages** | ✓ |
+| **Admin: built-in feature key registry with server-side value-type enforcement** | ✓ |
+| **Admin: built-in key badges in plan feature table** | ✓ |
 
 ## What Is NOT Implemented Yet
 
