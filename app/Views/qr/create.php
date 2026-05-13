@@ -17,6 +17,7 @@
 <?php endif; ?>
 
 <form method="post" action="/qr">
+    <?= CsrfService::field() ?>
 
     <div class="form-group">
         <label for="name">QR Code Name</label>
@@ -26,6 +27,7 @@
             name="name"
             value="<?= View::e($oldValues['name'] ?? '') ?>"
             placeholder="e.g. Office door, Product label"
+            maxlength="200"
             required
         >
         <small style="color:#666">Used only for your reference — not shown publicly.</small>
@@ -39,6 +41,7 @@
             name="destination_url"
             value="<?= View::e($oldValues['destUrl'] ?? '') ?>"
             placeholder="https://example.com/your-page"
+            maxlength="2048"
             style="max-width:520px"
             required
         >

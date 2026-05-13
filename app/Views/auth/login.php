@@ -9,6 +9,7 @@
 <?php endif; ?>
 
 <form method="post" action="/login">
+    <?= CsrfService::field() ?>
     <div class="form-group">
         <label for="email">Email</label>
         <input

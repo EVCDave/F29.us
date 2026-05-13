@@ -13,6 +13,7 @@
 <?php endif; ?>
 
 <form method="post" action="/qr/<?= (int) $qr['id'] ?>/update">
+    <?= CsrfService::field() ?>
 
     <div class="form-group">
         <label for="destination_url">New Destination URL</label>
@@ -21,6 +22,7 @@
             id="destination_url"
             name="destination_url"
             value="<?= View::e($oldUrl) ?>"
+            maxlength="2048"
             style="max-width:520px"
             required
         >

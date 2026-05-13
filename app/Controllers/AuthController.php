@@ -7,7 +7,9 @@ class AuthController
 
     public function loginPage(array $params = []): void
     {
-        if (AuthService::isLoggedIn()) {
+        // Use currentUser() so a stale/suspended session is not treated as
+        // authenticated and does not silently redirect the user away.
+        if (AuthService::currentUser() !== null) {
             redirect('/dashboard');
         }
 
@@ -20,20 +22,33 @@ class AuthController
 
     public function loginSubmit(array $params = []): void
     {
-        $email    = $_POST['email']    ?? '';
+        CsrfService::requireValid();
+
+        $email    = strtolower(trim($_POST['email']    ?? ''));
         $password = $_POST['password'] ?? '';
+        $ipHash   = LoginThrottleService::hashIp($_SERVER['REMOTE_ADDR'] ?? null);
 
-        $result = AuthService::login($email, $password);
-
-        if (!$result['ok']) {
-            View::render('auth/login', [
-                'pageTitle' => 'Login — f29.us Dynamic QR',
-                'errors'    => [$result['error']],
-                'oldEmail'  => strtolower(trim($email)),
-            ]);
+        // DB-backed throttle: checked before touching credentials
+        if (LoginThrottleService::isLockedOut($email, $ipHash)) {
+            $this->renderLogin(
+                ['Too many failed login attempts. Please try again later.'],
+                $email
+            );
             return;
         }
 
+        $result = AuthService::login($email, $password);
+
+        // Record attempt regardless of outcome
+        LoginThrottleService::record($email, $ipHash, $result['ok']);
+
+        if (!$result['ok']) {
+            $this->renderLogin([$result['error']], $email);
+            return;
+        }
+
+        // Rotate CSRF token after the session state change
+        CsrfService::refresh();
         redirect('/dashboard');
     }
 
@@ -41,7 +56,7 @@ class AuthController
 
     public function registerPage(array $params = []): void
     {
-        if (AuthService::isLoggedIn()) {
+        if (AuthService::currentUser() !== null) {
             redirect('/dashboard');
         }
 
@@ -54,6 +69,8 @@ class AuthController
 
     public function registerSubmit(array $params = []): void
     {
+        CsrfService::requireValid();
+
         $email    = $_POST['email']    ?? '';
         $password = $_POST['password'] ?? '';
         $confirm  = $_POST['confirm']  ?? '';
@@ -69,6 +86,8 @@ class AuthController
             return;
         }
 
+        // Rotate CSRF token after the session state change
+        CsrfService::refresh();
         redirect('/dashboard');
     }
 
@@ -76,7 +95,19 @@ class AuthController
 
     public function logout(array $params = []): void
     {
-        AuthService::logout();
+        CsrfService::requireValid();
+        AuthService::logout(); // clears $_SESSION (including CSRF token) and destroys session
         redirect('/login');
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private function renderLogin(array $errors, string $oldEmail): void
+    {
+        View::render('auth/login', [
+            'pageTitle' => 'Login — f29.us Dynamic QR',
+            'errors'    => $errors,
+            'oldEmail'  => $oldEmail,
+        ]);
     }
 }

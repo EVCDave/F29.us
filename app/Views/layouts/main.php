@@ -140,6 +140,7 @@
             <div class="nav-spacer"></div>
             <span class="nav-user"><?= View::e($navUser['email']) ?></span>
             <form method="post" action="/logout" class="nav-logout-form">
+                <?= CsrfService::field() ?>
                 <button type="submit" class="nav-logout-btn">Logout</button>
             </form>
         <?php else: ?>

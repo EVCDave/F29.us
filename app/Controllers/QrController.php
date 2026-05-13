@@ -61,6 +61,7 @@ class QrController
 
     public function createSubmit(array $params = []): void
     {
+        CsrfService::requireValid();
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
 
@@ -83,10 +84,14 @@ class QrController
 
         if ($name === '') {
             $errors[] = 'Name is required.';
+        } elseif (mb_strlen($name) > 200) {
+            $errors[] = 'Name must be 200 characters or fewer.';
         }
 
         if ($destUrl === '') {
             $errors[] = 'Destination URL is required.';
+        } elseif (strlen($destUrl) > 2048) {
+            $errors[] = 'Destination URL must be 2048 characters or fewer.';
         } elseif (!$this->isValidUrl($destUrl)) {
             $errors[] = 'Destination URL must be a valid http or https URL.';
         }
@@ -219,6 +224,7 @@ class QrController
 
     public function updateDestination(array $params = []): void
     {
+        CsrfService::requireValid();
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
         $qrId   = (int) ($params['id'] ?? 0);
@@ -234,6 +240,8 @@ class QrController
 
         if ($newUrl === '') {
             $errors[] = 'Destination URL is required.';
+        } elseif (strlen($newUrl) > 2048) {
+            $errors[] = 'Destination URL must be 2048 characters or fewer.';
         } elseif (!$this->isValidUrl($newUrl)) {
             $errors[] = 'Destination URL must be a valid http or https URL.';
         }
@@ -280,6 +288,7 @@ class QrController
 
     public function pause(array $params = []): void
     {
+        CsrfService::requireValid();
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
         $qrId   = (int) ($params['id'] ?? 0);
@@ -323,6 +332,7 @@ class QrController
 
     public function resume(array $params = []): void
     {
+        CsrfService::requireValid();
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
         $qrId   = (int) ($params['id'] ?? 0);
@@ -376,7 +386,13 @@ class QrController
             $this->forbidden('PNG export is not available on your plan.');
         }
 
-        $data     = QrCodeService::generatePng($this->qrBaseUrl() . '/' . $qr['slug']);
+        try {
+            $data = QrCodeService::generatePng($this->qrBaseUrl() . '/' . $qr['slug']);
+        } catch (Throwable $e) {
+            error_log('QR PNG generation failed: ' . $e->getMessage());
+            $this->forbidden('PNG download is temporarily unavailable. Please try again later.');
+        }
+
         $filename = $this->safeFilename($qr['name'], $qr['slug']) . '.png';
 
         header('Content-Type: image/png');
@@ -398,7 +414,13 @@ class QrController
             $this->forbidden('SVG export is not available on your plan.');
         }
 
-        $data     = QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug']);
+        try {
+            $data = QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug']);
+        } catch (Throwable $e) {
+            error_log('QR SVG generation failed: ' . $e->getMessage());
+            $this->forbidden('SVG download is temporarily unavailable. Please try again later.');
+        }
+
         $filename = $this->safeFilename($qr['name'], $qr['slug']) . '.svg';
 
         header('Content-Type: image/svg+xml');
@@ -406,6 +428,31 @@ class QrController
         header('Content-Length: ' . strlen($data));
         echo $data;
         exit;
+    }
+
+    // ── Analytics ─────────────────────────────────────────────────────────────
+
+    public function analytics(array $params = []): void
+    {
+        AuthService::requireAuth();
+        $userId = (int) AuthService::userId();
+        $qrId   = (int) ($params['id'] ?? 0);
+
+        $qr            = $this->loadOwnedQrCode($qrId, $userId);
+        $shortLinkId   = (int) $qr['short_link_id'];
+        $retentionDays = (int) EntitlementService::getValue($userId, 'analytics_retention_days', 30);
+
+        View::render('qr/analytics', [
+            'pageTitle'       => $qr['name'] . ' — Analytics — f29.us Dynamic QR',
+            'qr'              => $qr,
+            'shortUrl'        => $this->qrBaseUrl() . '/' . $qr['slug'],
+            'retentionDays'   => $retentionDays,
+            'totalScans'      => AnalyticsService::getTotalScans($shortLinkId, $retentionDays),
+            'botCount'        => AnalyticsService::getBotCount($shortLinkId, $retentionDays),
+            'dailyCounts'     => AnalyticsService::getDailyCounts($shortLinkId, $retentionDays),
+            'deviceBreakdown' => AnalyticsService::getDeviceBreakdown($shortLinkId, $retentionDays),
+            'topReferers'     => AnalyticsService::getTopReferers($shortLinkId, $retentionDays),
+        ]);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -457,6 +504,10 @@ class QrController
 
     private function isValidUrl(string $url): bool
     {
+        // Reject control characters that could enable header injection
+        if (preg_match('/[\r\n\t\0]/', $url)) {
+            return false;
+        }
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
             return false;
         }
