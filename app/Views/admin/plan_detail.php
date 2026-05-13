@@ -3,6 +3,14 @@
     <a href="/admin/plans" style="color:#666;font-size:0.9rem">&larr; Plans</a>
 </div>
 
+<?php if ($subActive > 0): ?>
+<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;padding:0.75rem 1rem;margin-bottom:1.25rem;max-width:640px">
+    <strong><?= $subActive ?> active subscription<?= $subActive !== 1 ? 's' : '' ?> currently use this plan.</strong>
+    Editing features here affects all of them immediately.
+    To change the offer for future users only, <a href="/admin/plans/<?= (int) $plan['id'] ?>/clone">clone this plan</a> into a new version first.
+</div>
+<?php endif; ?>
+
 <!-- ── Plan info ──────────────────────────────────────────────────────────── -->
 <table style="max-width:560px;margin-bottom:0.75rem">
     <tr>
@@ -51,7 +59,11 @@
     </tr>
     <tr>
         <th>Subscriptions</th>
-        <td><?= (int) $subActive ?> active / <?= (int) $subTotal ?> total</td>
+        <td>
+            <strong><?= $subActive ?></strong> active
+            <span style="color:#9ca3af">/</span>
+            <?= $subTotal ?> total
+        </td>
     </tr>
     <tr>
         <th>Created</th>
@@ -59,9 +71,27 @@
     </tr>
 </table>
 
-<div class="actions-group" style="margin-bottom:2.5rem">
+<!-- ── Actions ────────────────────────────────────────────────────────────── -->
+<div class="actions-group" style="margin-bottom:0.5rem">
     <a href="/admin/plans/<?= (int) $plan['id'] ?>/edit" class="btn btn-secondary">Edit Metadata</a>
+    <a href="/admin/plans/<?= (int) $plan['id'] ?>/clone" class="btn btn-secondary">Clone / New Version</a>
+
+    <?php if (!$plan['is_legacy']): ?>
+    <form method="post" action="/admin/plans/<?= (int) $plan['id'] ?>/retire" style="display:inline"
+          onsubmit="return confirm('Retire this plan? This sets it to non-public and legacy. Active subscribers are not affected.')">
+        <?= CsrfService::field() ?>
+        <button type="submit" class="btn btn-secondary">Retire Plan</button>
+    </form>
+    <?php else: ?>
+    <span class="btn-disabled" title="Already retired (is_legacy = 1)">Retire Plan</span>
+    <?php endif; ?>
 </div>
+
+<p style="font-size:0.82rem;color:#6b7280;margin-bottom:2.5rem">
+    <strong>Edit</strong> this plan to push changes to all current subscribers immediately. &nbsp;
+    <strong>Clone</strong> to create a new version for future users without touching this one. &nbsp;
+    <strong>Retire</strong> to remove it from public availability while keeping existing subscribers on it.
+</p>
 
 <!-- ── Plan features ──────────────────────────────────────────────────────── -->
 <h2 style="margin-bottom:0.75rem">Features</h2>
@@ -74,20 +104,28 @@
 
 <?php if (!empty($features)): ?>
 <div style="overflow-x:auto;margin-bottom:1.5rem">
-<table style="min-width:680px">
+<table style="min-width:700px">
     <thead>
         <tr>
             <th>Feature Key</th>
             <th style="width:80px">Type</th>
-            <th style="width:120px">Value</th>
-            <th style="width:200px"></th>
+            <th style="width:130px">Value</th>
+            <th style="width:220px"></th>
         </tr>
     </thead>
     <tbody>
     <?php foreach ($features as $f): ?>
-        <?php $isEditing = ($updateFeatureId === (int) $f['id']); ?>
+        <?php
+        $isEditing = ($updateFeatureId === (int) $f['id']);
+        $isBuiltin = FeatureKeys::isBuiltin($f['feature_key']);
+        ?>
         <tr>
-            <td><code><?= View::e($f['feature_key']) ?></code></td>
+            <td>
+                <code><?= View::e($f['feature_key']) ?></code>
+                <?php if ($isBuiltin): ?>
+                <span style="font-size:0.7rem;color:#6b7280;border:1px solid #d1d5db;padding:0 0.3rem;border-radius:3px;vertical-align:middle;margin-left:0.3rem">built-in</span>
+                <?php endif; ?>
+            </td>
             <?php if ($isEditing): ?>
             <td colspan="2" style="padding:0.4rem 0.75rem">
                 <?php if (!empty($updateErrors)): ?>
@@ -100,9 +138,15 @@
                       style="display:flex;gap:0.5rem;align-items:flex-start;flex-wrap:wrap">
                     <?= CsrfService::field() ?>
                     <select name="value_type"
-                            style="padding:0.3rem 0.5rem;border:1px solid #ccc;border-radius:4px;font-size:0.88rem;background:#fff">
+                            style="padding:0.3rem 0.5rem;border:1px solid #ccc;border-radius:4px;font-size:0.88rem;background:#fff"
+                            <?= $isBuiltin ? 'title="Built-in key — value type is fixed"' : '' ?>>
                         <?php foreach (['int', 'bool', 'string'] as $vt): ?>
-                        <option value="<?= $vt ?>" <?= $vt === $f['value_type'] ? 'selected' : '' ?>><?= $vt ?></option>
+                        <?php $expectedType = FeatureKeys::expectedType($f['feature_key']); ?>
+                        <option value="<?= $vt ?>"
+                                <?= $vt === $f['value_type'] ? 'selected' : '' ?>
+                                <?= ($isBuiltin && $expectedType !== null && $vt !== $expectedType) ? 'style="color:#9ca3af"' : '' ?>>
+                            <?= $vt ?><?= ($isBuiltin && $expectedType === $vt) ? ' (required)' : '' ?>
+                        </option>
                         <?php endforeach; ?>
                     </select>
                     <input type="text" name="feature_value"
@@ -162,6 +206,7 @@
                placeholder="e.g. max_qr_codes" style="max-width:280px" autocomplete="off">
         <small style="display:block;color:#888;margin-top:0.2rem">
             Lowercase letters, digits, underscores; must start with a letter. Fixed after creation.
+            Built-in keys enforce their value type.
         </small>
     </div>
 

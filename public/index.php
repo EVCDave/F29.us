@@ -103,6 +103,9 @@ $router->post('/admin/plans/{id}/update',   [PlanController::class, 'updatePlan'
 $router->post('/admin/plans/{id}/features',                              [PlanController::class, 'addFeature']);
 $router->post('/admin/plans/{id}/features/{featureId}/update',           [PlanController::class, 'updateFeature']);
 $router->post('/admin/plans/{id}/features/{featureId}/delete',           [PlanController::class, 'deleteFeature']);
+$router->get('/admin/plans/{id}/clone',   [PlanController::class, 'clonePlanPage']);
+$router->post('/admin/plans/{id}/clone',  [PlanController::class, 'clonePlanSubmit']);
+$router->post('/admin/plans/{id}/retire', [PlanController::class, 'retirePlan']);
 
 // ── Public slug catch-all (must be last) ─────────────────────────────────────
 // All named routes above take precedence via exact-match and ordered pattern

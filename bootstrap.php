@@ -58,6 +58,8 @@ ini_set('error_log',      STORAGE_PATH . '/logs/error.log');
 require APP_PATH . '/Config/Validator.php';
 ConfigValidator::validate();
 
+require APP_PATH . '/Config/FeatureKeys.php';
+
 // Core application classes
 require APP_PATH . '/Database.php';
 require APP_PATH . '/Router.php';
