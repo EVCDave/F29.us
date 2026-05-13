@@ -48,11 +48,17 @@
             <td>
                 <a href="/admin/users/<?= (int) $r['user_id'] ?>"><?= View::e($r['user_email']) ?></a>
             </td>
-            <td><?= $r['current_plan_name'] !== null
-                    ? View::e($r['current_plan_name'])
-                    : '<span style="color:#9ca3af">—</span>' ?></td>
             <td>
-                <?= View::e($r['requested_plan_name']) ?>
+                <?php if ($r['current_plan_name'] !== null && $r['current_plan_id']): ?>
+                    <a href="/admin/plans/<?= (int) $r['current_plan_id'] ?>"><?= View::e($r['current_plan_name']) ?></a>
+                <?php elseif ($r['current_plan_name'] !== null): ?>
+                    <?= View::e($r['current_plan_name']) ?>
+                <?php else: ?>
+                    <span style="color:#9ca3af">—</span>
+                <?php endif; ?>
+            </td>
+            <td>
+                <a href="/admin/plans/<?= (int) $r['requested_plan_id'] ?>"><?= View::e($r['requested_plan_name']) ?></a>
                 <span style="color:#9ca3af;font-size:0.8rem">(<?= View::e($r['requested_plan_internal']) ?>)</span>
             </td>
             <td><?php

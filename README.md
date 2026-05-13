@@ -546,7 +546,7 @@ Admins have access to an internal-only area at `/admin` (yellow **Admin** link i
 
 | Page | Path | Description |
 |---|---|---|
-| Admin home | `/admin` | Overview stats (user count, QR count, plan count, pending requests) |
+| Admin home | `/admin` | Overview stats: users, QR codes, plans, active subscriptions, pending requests, 24 h audit events, 24 h failed logins |
 | User list | `/admin/users` | Searchable list of all users (capped at 100), with role, status, and active plan |
 | User detail | `/admin/users/{id}` | Full user info, subscription history, effective entitlements with source (plan vs override), and active overrides |
 | Change subscription | `POST /admin/users/{id}/subscription` | Manually assign a plan, billing cycle, and optional grandfathered flag. Cancels the current active subscription and creates a new one. |
@@ -566,6 +566,10 @@ Admins have access to an internal-only area at `/admin` (yellow **Admin** link i
 | Approve request | `POST /admin/subscription-requests/{id}/approve` | Transactionally closes current subscription and creates new active subscription for the requested plan. Marks request approved. |
 | Deny request | `POST /admin/subscription-requests/{id}/deny` | Marks request denied with optional note. User's subscription is unchanged. |
 | Cancel request (admin) | `POST /admin/subscription-requests/{id}/cancel` | Marks stale or erroneous pending request as canceled. User's subscription is unchanged. |
+| Subscription history | `/admin/subscriptions` | All user subscriptions with filters: user email, plan, status, billing cycle, date range. Capped at 100. Links to user and plan detail. |
+| Audit log list | `/admin/audit-logs` | Browse all audit log entries. Filterable by action, entity type, user email, and date range. Capped at 100. |
+| Audit log detail | `/admin/audit-logs/{id}` | Full audit entry: acting user, entity, action, pretty-printed metadata JSON. Related links to user, plan, or subscription request where applicable. |
+| Operations | `/admin/ops` | System health snapshot: environment, PHP version, extensions (GD, mbstring), filesystem checks, migration count, database counters, login activity (24 h). |
 
 All admin POST endpoints are CSRF-protected and require the admin role. Non-admins receive a 403. All subscription changes, override operations, and plan catalog changes are written to `audit_logs`.
 
@@ -653,6 +657,9 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Cancel a pending change request (user-side)** | ✓ |
 | **Audit logging for self-service plan changes and requests** | ✓ |
 | **Admin subscription request review (list, detail, approve, deny, cancel)** | ✓ |
+| **Admin audit log browser (list with filters, detail with metadata + related links)** | ✓ |
+| **Admin subscription history (cross-user view with filters)** | ✓ |
+| **Admin operations page (system health, DB counters, login activity)** | ✓ |
 
 ## Subscription Groundwork
 

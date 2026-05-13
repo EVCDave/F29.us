@@ -54,6 +54,9 @@ require APP_PATH . '/Controllers/PlanController.php';
 require APP_PATH . '/Controllers/PricingController.php';
 require APP_PATH . '/Controllers/AccountController.php';
 require APP_PATH . '/Controllers/SubscriptionRequestController.php';
+require APP_PATH . '/Controllers/AuditLogController.php';
+require APP_PATH . '/Controllers/SubscriptionHistoryController.php';
+require APP_PATH . '/Controllers/OpsController.php';
 
 $router = new Router();
 
@@ -122,6 +125,17 @@ $router->get('/admin/subscription-requests/{id}',         [SubscriptionRequestCo
 $router->post('/admin/subscription-requests/{id}/approve',[SubscriptionRequestController::class, 'approve']);
 $router->post('/admin/subscription-requests/{id}/deny',   [SubscriptionRequestController::class, 'deny']);
 $router->post('/admin/subscription-requests/{id}/cancel', [SubscriptionRequestController::class, 'adminCancel']);
+
+// ── Admin: audit logs ─────────────────────────────────────────────────────────
+// Exact route registered before pattern route.
+$router->get('/admin/audit-logs',        [AuditLogController::class, 'index']);
+$router->get('/admin/audit-logs/{id}',   [AuditLogController::class, 'detail']);
+
+// ── Admin: subscription history ───────────────────────────────────────────────
+$router->get('/admin/subscriptions', [SubscriptionHistoryController::class, 'index']);
+
+// ── Admin: operations ─────────────────────────────────────────────────────────
+$router->get('/admin/ops', [OpsController::class, 'index']);
 
 // ── Public slug catch-all (must be last) ─────────────────────────────────────
 // All named routes above take precedence via exact-match and ordered pattern

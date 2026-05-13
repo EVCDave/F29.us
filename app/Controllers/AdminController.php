@@ -16,13 +16,31 @@ class AdminController
         $pendingRequests = (int) $pdo->query(
             "SELECT COUNT(*) FROM subscription_change_requests WHERE status = 'pending'"
         )->fetchColumn();
+        $activeSubs      = (int) $pdo->query(
+            "SELECT COUNT(*) FROM user_subscriptions WHERE status = 'active'"
+        )->fetchColumn();
+
+        $cutoff24h = gmdate('Y-m-d H:i:s', strtotime('-24 hours'));
+
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM audit_logs WHERE created_at >= ?");
+        $stmt->execute([$cutoff24h]);
+        $recentAuditCount = (int) $stmt->fetchColumn();
+
+        $stmt = $pdo->prepare(
+            "SELECT COUNT(*) FROM login_attempts WHERE attempted_at >= ? AND success_flag = 0"
+        );
+        $stmt->execute([$cutoff24h]);
+        $failedLogins24h = (int) $stmt->fetchColumn();
 
         View::render('admin/index', [
-            'pageTitle'       => 'Admin — f29.us Dynamic QR',
-            'totalUsers'      => $totalUsers,
-            'totalQr'         => $totalQr,
-            'totalPlans'      => $totalPlans,
-            'pendingRequests' => $pendingRequests,
+            'pageTitle'        => 'Admin — f29.us Dynamic QR',
+            'totalUsers'       => $totalUsers,
+            'totalQr'          => $totalQr,
+            'totalPlans'       => $totalPlans,
+            'pendingRequests'  => $pendingRequests,
+            'activeSubs'       => $activeSubs,
+            'recentAuditCount' => $recentAuditCount,
+            'failedLogins24h'  => $failedLogins24h,
         ]);
     }
 
