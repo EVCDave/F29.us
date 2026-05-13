@@ -315,6 +315,15 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | GET | `/qr/{id}/download/svg` | Download QR as SVG |
 | GET | `/qr/{id}/analytics` | QR analytics page |
 | GET | `/{slug}` | **Public redirect** (catch-all, last priority) |
+| GET | `/admin/plans` | Plan catalog list |
+| GET | `/admin/plans/create` | Create plan form |
+| POST | `/admin/plans` | Create plan submit |
+| GET | `/admin/plans/{id}` | Plan detail (features, subscription counts) |
+| GET | `/admin/plans/{id}/edit` | Edit plan metadata |
+| POST | `/admin/plans/{id}/update` | Save plan metadata |
+| POST | `/admin/plans/{id}/features` | Add feature |
+| POST | `/admin/plans/{id}/features/{featureId}/update` | Update feature value |
+| POST | `/admin/plans/{id}/features/{featureId}/delete` | Delete feature |
 
 ---
 
@@ -533,14 +542,30 @@ Admins have access to an internal-only area at `/admin` (yellow **Admin** link i
 
 | Page | Path | Description |
 |---|---|---|
-| Admin home | `/admin` | Overview stats (user count, QR count) |
+| Admin home | `/admin` | Overview stats (user count, QR count, plan count) |
 | User list | `/admin/users` | Searchable list of all users (capped at 100), with role, status, and active plan |
 | User detail | `/admin/users/{id}` | Full user info, subscription history, effective entitlements with source (plan vs override), and active overrides |
 | Change subscription | `POST /admin/users/{id}/subscription` | Manually assign a plan, billing cycle, and optional grandfathered flag. Cancels the current active subscription and creates a new one. |
 | Add / update override | `POST /admin/users/{id}/overrides` | Set a per-user feature override (int, bool, or string) with optional expiry and note. Upserts on `(user_id, feature_key)`. |
 | Delete override | `POST /admin/users/{id}/overrides/{id}/delete` | Remove a specific override for a user. |
+| Plan list | `/admin/plans` | All plans with flags (public, active, legacy), sort order, and feature count. |
+| Plan detail | `/admin/plans/{id}` | Full plan info, subscription counts, feature list with inline edit, and add-feature form. |
+| Create plan | `/admin/plans/create` | Create a new plan with metadata and flags. |
+| Edit plan | `/admin/plans/{id}/edit` | Update display name, description, prices, currency, flags, and sort order. `internal_name` is read-only after creation. |
+| Add feature | `POST /admin/plans/{id}/features` | Add a new feature key/value to a plan. Feature key is fixed after creation. |
+| Update feature | `POST /admin/plans/{id}/features/{featureId}/update` | Change a feature's value and/or value type. |
+| Delete feature | `POST /admin/plans/{id}/features/{featureId}/delete` | Remove a feature from a plan. |
 
-All admin POST endpoints are CSRF-protected and require the admin role. Non-admins receive a 403. All subscription changes and override operations are written to `audit_logs`.
+All admin POST endpoints are CSRF-protected and require the admin role. Non-admins receive a 403. All subscription changes, override operations, and plan catalog changes are written to `audit_logs`.
+
+### Plan catalog: key rules
+
+- **`internal_name` is immutable.** Set it carefully on creation — it is the stable identifier used in code and audit logs. The edit page shows it read-only. There is no rename endpoint.
+- **Feature keys are fixed after creation.** Only value and value type can be updated.
+- **Bool feature values** must be the literal string `"true"` or `"false"` — this matches the `EntitlementService::castValue()` contract.
+- **`is_active`** controls whether the plan can be assigned to users. Inactive plans are excluded from the subscription change dropdown.
+- **`is_legacy`** marks grandfathered plans. Legacy plans remain fully functional for current subscribers; they are simply hidden from public-facing catalog pages (once those exist) and flagged in the admin list.
+- **`is_public`** controls visibility in a future public plan catalog. It has no current effect on access or entitlements.
 
 ### Billing / public subscriptions
 
@@ -585,6 +610,11 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Admin: manual plan assignment (cancel old, create new)** | ✓ |
 | **Admin: per-user feature override add / update / delete** | ✓ |
 | **Audit logging for admin subscription and override changes** | ✓ |
+| **Admin: plan catalog list with flags and feature counts** | ✓ |
+| **Admin: create plan (internal_name immutable after creation)** | ✓ |
+| **Admin: edit plan metadata, flags (public/active/legacy), sort order** | ✓ |
+| **Admin: add / update / delete plan features (inline edit, no JS required)** | ✓ |
+| **Audit logging for plan and feature changes (created, updated diff, added, updated, deleted)** | ✓ |
 
 ## What Is NOT Implemented Yet
 
