@@ -51,11 +51,14 @@ require APP_PATH . '/Controllers/QrController.php';
 require APP_PATH . '/Controllers/RedirectController.php';
 require APP_PATH . '/Controllers/AdminController.php';
 require APP_PATH . '/Controllers/PlanController.php';
+require APP_PATH . '/Controllers/PricingController.php';
+require APP_PATH . '/Controllers/AccountController.php';
 
 $router = new Router();
 
 // ── Public routes ────────────────────────────────────────────────────────────
-$router->get('/',          [HomeController::class, 'index']);
+$router->get('/',        [HomeController::class,   'index']);
+$router->get('/pricing', [PricingController::class, 'index']);
 $router->get('/login',     [AuthController::class, 'loginPage']);
 $router->post('/login',    [AuthController::class, 'loginSubmit']);
 $router->get('/register',  [AuthController::class, 'registerPage']);
@@ -79,6 +82,11 @@ $router->post('/qr/{id}/resume',        [QrController::class, 'resume']);
 $router->get('/qr/{id}/download/png',   [QrController::class, 'downloadPng']);
 $router->get('/qr/{id}/download/svg',   [QrController::class, 'downloadSvg']);
 $router->get('/qr/{id}/analytics',      [QrController::class, 'analytics']);
+
+// ── Account (authenticated) ───────────────────────────────────────────────────
+$router->get('/account/subscription',                [AccountController::class, 'subscriptionPage']);
+$router->post('/account/subscription/change',        [AccountController::class, 'changeSubscription']);
+$router->post('/account/subscription/request-cancel',[AccountController::class, 'cancelRequest']);
 
 // ── Logout ───────────────────────────────────────────────────────────────────
 $router->post('/logout', [AuthController::class, 'logout']);

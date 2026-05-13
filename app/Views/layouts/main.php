@@ -133,10 +133,12 @@
 <nav class="nav">
     <div class="container">
         <a href="/" class="nav-brand">f29.us Dynamic QR</a>
+        <a href="/pricing" class="nav-link">Pricing</a>
 
         <?php if ($navUser): ?>
             <a href="/dashboard" class="nav-link">Dashboard</a>
             <a href="/qr" class="nav-link">My QR Codes</a>
+            <a href="/account/subscription" class="nav-link">Subscription</a>
             <?php if ($navUser['role'] === 'admin'): ?>
             <a href="/admin" class="nav-link" style="color:#f9a825">Admin</a>
             <?php endif; ?>
