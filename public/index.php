@@ -53,6 +53,7 @@ require APP_PATH . '/Controllers/AdminController.php';
 require APP_PATH . '/Controllers/PlanController.php';
 require APP_PATH . '/Controllers/PricingController.php';
 require APP_PATH . '/Controllers/AccountController.php';
+require APP_PATH . '/Controllers/SubscriptionRequestController.php';
 
 $router = new Router();
 
@@ -114,6 +115,13 @@ $router->post('/admin/plans/{id}/features/{featureId}/delete',           [PlanCo
 $router->get('/admin/plans/{id}/clone',   [PlanController::class, 'clonePlanPage']);
 $router->post('/admin/plans/{id}/clone',  [PlanController::class, 'clonePlanSubmit']);
 $router->post('/admin/plans/{id}/retire', [PlanController::class, 'retirePlan']);
+
+// Exact route registered before pattern route.
+$router->get('/admin/subscription-requests',              [SubscriptionRequestController::class, 'index']);
+$router->get('/admin/subscription-requests/{id}',         [SubscriptionRequestController::class, 'detail']);
+$router->post('/admin/subscription-requests/{id}/approve',[SubscriptionRequestController::class, 'approve']);
+$router->post('/admin/subscription-requests/{id}/deny',   [SubscriptionRequestController::class, 'deny']);
+$router->post('/admin/subscription-requests/{id}/cancel', [SubscriptionRequestController::class, 'adminCancel']);
 
 // ── Public slug catch-all (must be last) ─────────────────────────────────────
 // All named routes above take precedence via exact-match and ordered pattern

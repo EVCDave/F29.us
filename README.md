@@ -546,7 +546,7 @@ Admins have access to an internal-only area at `/admin` (yellow **Admin** link i
 
 | Page | Path | Description |
 |---|---|---|
-| Admin home | `/admin` | Overview stats (user count, QR count, plan count) |
+| Admin home | `/admin` | Overview stats (user count, QR count, plan count, pending requests) |
 | User list | `/admin/users` | Searchable list of all users (capped at 100), with role, status, and active plan |
 | User detail | `/admin/users/{id}` | Full user info, subscription history, effective entitlements with source (plan vs override), and active overrides |
 | Change subscription | `POST /admin/users/{id}/subscription` | Manually assign a plan, billing cycle, and optional grandfathered flag. Cancels the current active subscription and creates a new one. |
@@ -561,6 +561,11 @@ Admins have access to an internal-only area at `/admin` (yellow **Admin** link i
 | Delete feature | `POST /admin/plans/{id}/features/{featureId}/delete` | Remove a feature from a plan. |
 | Clone plan | `/admin/plans/{id}/clone` | Clone a plan and all its features into a new plan with a new unique internal name. Source plan is not modified. |
 | Retire plan | `POST /admin/plans/{id}/retire` | Set `is_public=0`, `is_legacy=1`, `is_active=1`. Removes the plan from sale while preserving existing subscribers. |
+| Subscription request list | `/admin/subscription-requests` | All subscription change requests with status filter (pending / approved / denied / canceled / all). |
+| Subscription request detail | `/admin/subscription-requests/{id}` | Full request context: user, current plan, requested plan flags, action buttons. |
+| Approve request | `POST /admin/subscription-requests/{id}/approve` | Transactionally closes current subscription and creates new active subscription for the requested plan. Marks request approved. |
+| Deny request | `POST /admin/subscription-requests/{id}/deny` | Marks request denied with optional note. User's subscription is unchanged. |
+| Cancel request (admin) | `POST /admin/subscription-requests/{id}/cancel` | Marks stale or erroneous pending request as canceled. User's subscription is unchanged. |
 
 All admin POST endpoints are CSRF-protected and require the admin role. Non-admins receive a 403. All subscription changes, override operations, and plan catalog changes are written to `audit_logs`.
 
