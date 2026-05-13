@@ -85,6 +85,7 @@ $router->post('/qr/{id}/pause',         [QrController::class, 'pause']);
 $router->post('/qr/{id}/resume',        [QrController::class, 'resume']);
 $router->post('/qr/{id}/archive',       [QrController::class, 'archive']);
 $router->post('/qr/{id}/restore',       [QrController::class, 'restore']);
+$router->post('/qr/{id}/destination-history/{historyId}/restore', [QrController::class, 'restoreDestination']);
 $router->get('/qr/{id}/download/png',   [QrController::class, 'downloadPng']);
 $router->get('/qr/{id}/download/svg',   [QrController::class, 'downloadSvg']);
 $router->get('/qr/{id}/analytics',      [QrController::class, 'analytics']);

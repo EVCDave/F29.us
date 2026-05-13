@@ -317,6 +317,7 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | POST | `/qr/{id}/resume` | Resume short link |
 | POST | `/qr/{id}/archive` | Archive short link (stops redirecting) |
 | POST | `/qr/{id}/restore` | Restore an archived link to active |
+| POST | `/qr/{id}/destination-history/{historyId}/restore` | Restore a previous destination URL from history |
 | GET | `/qr/{id}/download/png` | Download QR as PNG |
 | GET | `/qr/{id}/download/svg` | Download QR as SVG |
 | GET | `/qr/{id}/analytics` | QR analytics page |
@@ -617,6 +618,8 @@ Billing, public checkout, and payment processor integration are **not implemente
 | Edit destination URL (plan-gated) | ✓ |
 | Pause / Resume short link | ✓ |
 | Archive / Restore short link | ✓ |
+| **Destination history** — every destination change recorded | ✓ |
+| **Destination restore** — revert to any previous URL from history | ✓ |
 | QR search and status filter on list page | ✓ |
 | QR preview (SVG, in-app display) | ✓ |
 | Copy short URL button (one-click, no library) | ✓ |

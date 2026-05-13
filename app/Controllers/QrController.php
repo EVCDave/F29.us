@@ -176,6 +176,8 @@ class QrController
                 'slug' => $resolvedSlug,
             ]);
 
+            DestinationHistoryService::recordInitial($pdo, $shortLinkId, $destUrl, $userId);
+
             $pdo->commit();
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
@@ -222,6 +224,9 @@ class QrController
             // Preview is best-effort; missing preview does not fail the page
         }
 
+        $pdo = Database::get();
+        $destinationHistory = DestinationHistoryService::fetchForShortLink($pdo, (int) $qr['short_link_id']);
+
         View::render('qr/detail', [
             'pageTitle'          => View::e($qr['name']) . ' — f29.us Dynamic QR',
             'qr'                 => $qr,
@@ -232,6 +237,7 @@ class QrController
             'canExportSvg'       => EntitlementService::isEnabled($userId, 'can_export_svg'),
             'qrPreviewSvg'       => $qrPreviewSvg,
             'flash'              => $flash,
+            'destinationHistory' => $destinationHistory,
         ]);
     }
 
@@ -322,6 +328,11 @@ class QrController
                 $pdo->prepare(
                     "UPDATE short_links SET current_target_url = ?, updated_at = ? WHERE id = ?"
                 )->execute([$newUrl, $now, $qr['short_link_id']]);
+
+                DestinationHistoryService::record(
+                    $pdo, (int) $qr['short_link_id'], $userId,
+                    $qr['current_target_url'], $newUrl, 'user_edit'
+                );
             }
 
             $meta = [];
@@ -520,6 +531,76 @@ class QrController
 
         $_SESSION['flash'] = ['type' => 'success',
             'text' => 'This QR code has been restored and is active again.'];
+        redirect('/qr/' . $qrId);
+    }
+
+    // ── Restore previous destination ─────────────────────────────────────────
+
+    public function restoreDestination(array $params = []): void
+    {
+        CsrfService::requireValid();
+        AuthService::requireAuth();
+        $userId    = (int) AuthService::userId();
+        $qrId      = (int) ($params['id']        ?? 0);
+        $historyId = (int) ($params['historyId'] ?? 0);
+
+        $qr = $this->loadOwnedQrCode($qrId, $userId);
+
+        // Archived and disabled links cannot have their destination changed
+        if (in_array($qr['status'], ['archived', 'disabled'], true)) {
+            redirect('/qr/' . $qrId);
+        }
+
+        $pdo     = Database::get();
+        $history = DestinationHistoryService::fetchRow($pdo, $historyId, (int) $qr['short_link_id']);
+
+        if ($history === null) {
+            $this->notFound();
+        }
+
+        $restoreUrl = $history['new_target_url'];
+
+        if (!$this->isValidUrl($restoreUrl)) {
+            $_SESSION['flash'] = ['type' => 'error',
+                'text' => 'That historical URL is no longer valid and cannot be restored.'];
+            redirect('/qr/' . $qrId);
+        }
+
+        $oldUrl = $qr['current_target_url'];
+
+        if ($restoreUrl === $oldUrl) {
+            $_SESSION['flash'] = ['type' => 'info',
+                'text' => 'That destination is already current — no change made.'];
+            redirect('/qr/' . $qrId);
+        }
+
+        $now = gmdate('Y-m-d H:i:s');
+
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare(
+                "UPDATE short_links SET current_target_url = ?, updated_at = ? WHERE id = ?"
+            )->execute([$restoreUrl, $now, $qr['short_link_id']]);
+
+            DestinationHistoryService::record(
+                $pdo, (int) $qr['short_link_id'], $userId, $oldUrl, $restoreUrl, 'restore'
+            );
+
+            AuditLogService::log($userId, 'qr_code', $qrId, 'destination_restored', [
+                'old_url'           => $oldUrl,
+                'restored_url'      => $restoreUrl,
+                'source_history_id' => $historyId,
+            ]);
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        $_SESSION['flash'] = ['type' => 'success', 'text' => 'Destination restored successfully.'];
         redirect('/qr/' . $qrId);
     }
 
