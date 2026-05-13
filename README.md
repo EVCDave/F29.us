@@ -310,11 +310,13 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | GET | `/qr` | QR code list |
 | GET | `/qr/create` | Create QR form |
 | POST | `/qr` | Create QR submit |
-| GET | `/qr/{id}` | QR detail |
-| GET | `/qr/{id}/edit` | Edit destination form |
-| POST | `/qr/{id}/update` | Save destination |
+| GET | `/qr/{id}` | QR detail — info table, preview, copy URL, action buttons |
+| GET | `/qr/{id}/edit` | Edit QR code (name always; destination if plan allows) |
+| POST | `/qr/{id}/update` | Save name and/or destination |
 | POST | `/qr/{id}/pause` | Pause short link |
 | POST | `/qr/{id}/resume` | Resume short link |
+| POST | `/qr/{id}/archive` | Archive short link (stops redirecting) |
+| POST | `/qr/{id}/restore` | Restore an archived link to active |
 | GET | `/qr/{id}/download/png` | Download QR as PNG |
 | GET | `/qr/{id}/download/svg` | Download QR as SVG |
 | GET | `/qr/{id}/analytics` | QR analytics page |
@@ -611,13 +613,18 @@ Billing, public checkout, and payment processor integration are **not implemente
 | QR code creation (name, destination, optional custom slug) | ✓ |
 | QR code list page | ✓ |
 | QR code detail page | ✓ |
-| Edit destination URL | ✓ |
+| Edit QR code name (always available) | ✓ |
+| Edit destination URL (plan-gated) | ✓ |
 | Pause / Resume short link | ✓ |
-| Download PNG (requires GD extension) | ✓ |
-| Download SVG | ✓ |
-| Audit logging (create, edit, pause, resume) | ✓ |
+| Archive / Restore short link | ✓ |
+| QR search and status filter on list page | ✓ |
+| QR preview (SVG, in-app display) | ✓ |
+| Copy short URL button (one-click, no library) | ✓ |
+| Download PNG with prefixed filename (`f29-qr-{name}-{slug}.png`) | ✓ |
+| Download SVG with prefixed filename (`f29-qr-{name}-{slug}.svg`) | ✓ |
+| Audit logging (create, edit, pause, resume, archive, restore) | ✓ |
 | **Public slug redirect (`/{slug}` → destination, HTTP 302)** | ✓ |
-| **Unavailable page for paused/disabled links** | ✓ |
+| **Unavailable page for paused/disabled/archived links** | ✓ |
 | **Scan event logging on redirect** | ✓ |
 | **Analytics page (`/qr/{id}/analytics`)** | ✓ |
 | **Plan-based analytics retention (visibility rule)** | ✓ |

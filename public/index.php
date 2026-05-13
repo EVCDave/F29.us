@@ -80,9 +80,11 @@ $router->post('/qr',             [QrController::class, 'createSubmit']);
 
 $router->get('/qr/{id}',                [QrController::class, 'detail']);
 $router->get('/qr/{id}/edit',           [QrController::class, 'editPage']);
-$router->post('/qr/{id}/update',        [QrController::class, 'updateDestination']);
+$router->post('/qr/{id}/update',        [QrController::class, 'update']);
 $router->post('/qr/{id}/pause',         [QrController::class, 'pause']);
 $router->post('/qr/{id}/resume',        [QrController::class, 'resume']);
+$router->post('/qr/{id}/archive',       [QrController::class, 'archive']);
+$router->post('/qr/{id}/restore',       [QrController::class, 'restore']);
 $router->get('/qr/{id}/download/png',   [QrController::class, 'downloadPng']);
 $router->get('/qr/{id}/download/svg',   [QrController::class, 'downloadSvg']);
 $router->get('/qr/{id}/analytics',      [QrController::class, 'analytics']);
