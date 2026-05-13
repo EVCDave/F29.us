@@ -75,18 +75,53 @@
             font-size: 0.95rem;
         }
         input:focus { outline: 2px solid #0066cc; border-color: #0066cc; }
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #e5e7eb; }
+        th { font-weight: 600; background: #f9fafb; color: #374151; }
+        tr:hover td { background: #fafafa; }
+        td a { color: #0066cc; }
+
+        /* Status badges */
+        .status-active   { color: #166534; font-weight: 500; }
+        .status-paused   { color: #92400e; font-weight: 500; }
+        .status-disabled { color: #991b1b; font-weight: 500; }
+
+        /* Buttons */
         .btn {
             display: inline-block;
-            padding: 0.5rem 1.4rem;
+            padding: 0.45rem 1.2rem;
             background: #1a1a2e;
             color: #fff;
             border: none;
             border-radius: 4px;
-            font-size: 0.95rem;
+            font-size: 0.88rem;
             cursor: pointer;
             text-decoration: none;
+            line-height: 1.5;
         }
         .btn:hover { background: #2e2e50; color: #fff; }
+        .btn-secondary {
+            background: #fff;
+            color: #1a1a2e;
+            border: 1px solid #c0c0cc;
+        }
+        .btn-secondary:hover { background: #f0f0f5; color: #1a1a2e; }
+        .btn-danger {
+            background: #dc2626;
+        }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-disabled {
+            display: inline-block;
+            padding: 0.45rem 1.2rem;
+            background: #f3f4f6;
+            color: #9ca3af;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            font-size: 0.88rem;
+            cursor: not-allowed;
+        }
+        .actions-group { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
 
         /* Footer */
         footer { border-top: 1px solid #ddd; padding: 1rem 0; margin-top: 2.5rem; }
