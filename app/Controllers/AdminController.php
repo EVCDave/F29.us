@@ -12,11 +12,13 @@ class AdminController
         $pdo        = Database::get();
         $totalUsers = (int) $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
         $totalQr    = (int) $pdo->query("SELECT COUNT(*) FROM qr_codes")->fetchColumn();
+        $totalPlans = (int) $pdo->query("SELECT COUNT(*) FROM plans")->fetchColumn();
 
         View::render('admin/index', [
             'pageTitle'  => 'Admin — f29.us Dynamic QR',
             'totalUsers' => $totalUsers,
             'totalQr'    => $totalQr,
+            'totalPlans' => $totalPlans,
         ]);
     }
 

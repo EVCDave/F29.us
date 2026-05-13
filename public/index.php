@@ -50,6 +50,7 @@ require APP_PATH . '/Controllers/AuthController.php';
 require APP_PATH . '/Controllers/QrController.php';
 require APP_PATH . '/Controllers/RedirectController.php';
 require APP_PATH . '/Controllers/AdminController.php';
+require APP_PATH . '/Controllers/PlanController.php';
 
 $router = new Router();
 
@@ -91,6 +92,17 @@ $router->get('/admin/users/{id}',   [AdminController::class, 'userDetail']);
 $router->post('/admin/users/{id}/subscription',                  [AdminController::class, 'updateSubscription']);
 $router->post('/admin/users/{id}/overrides',                     [AdminController::class, 'addOverride']);
 $router->post('/admin/users/{id}/overrides/{overrideId}/delete', [AdminController::class, 'deleteOverride']);
+
+// Exact plan routes registered before /admin/plans/{id} to avoid pattern capture.
+$router->get('/admin/plans',                [PlanController::class, 'plans']);
+$router->get('/admin/plans/create',         [PlanController::class, 'createPlanPage']);
+$router->post('/admin/plans',               [PlanController::class, 'createPlanSubmit']);
+$router->get('/admin/plans/{id}',           [PlanController::class, 'planDetail']);
+$router->get('/admin/plans/{id}/edit',      [PlanController::class, 'editPlanPage']);
+$router->post('/admin/plans/{id}/update',   [PlanController::class, 'updatePlan']);
+$router->post('/admin/plans/{id}/features',                              [PlanController::class, 'addFeature']);
+$router->post('/admin/plans/{id}/features/{featureId}/update',           [PlanController::class, 'updateFeature']);
+$router->post('/admin/plans/{id}/features/{featureId}/delete',           [PlanController::class, 'deleteFeature']);
 
 // ── Public slug catch-all (must be last) ─────────────────────────────────────
 // All named routes above take precedence via exact-match and ordered pattern

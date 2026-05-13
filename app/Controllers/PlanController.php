@@ -1,0 +1,507 @@
+<?php
+declare(strict_types=1);
+
+class PlanController
+{
+    // ── Plan list ─────────────────────────────────────────────────────────────
+
+    public function plans(array $params = []): void
+    {
+        $this->requireAdmin();
+
+        $stmt = Database::get()->query("
+            SELECT
+                p.id, p.internal_name, p.display_name, p.is_public, p.is_active, p.is_legacy,
+                p.sort_order, p.created_at,
+                COUNT(pf.id) AS feature_count
+            FROM  plans p
+            LEFT  JOIN plan_features pf ON pf.plan_id = p.id
+            GROUP BY p.id
+            ORDER BY p.sort_order ASC, p.id ASC
+        ");
+        $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        View::render('admin/plans', [
+            'pageTitle' => 'Admin: Plans — f29.us Dynamic QR',
+            'plans'     => $plans,
+        ]);
+    }
+
+    // ── Create plan ───────────────────────────────────────────────────────────
+
+    public function createPlanPage(array $params = []): void
+    {
+        $this->requireAdmin();
+
+        View::render('admin/plan_create', [
+            'pageTitle' => 'Admin: Create Plan — f29.us Dynamic QR',
+            'errors'    => [],
+            'old'       => [],
+        ]);
+    }
+
+    public function createPlanSubmit(array $params = []): void
+    {
+        CsrfService::requireValid();
+        $this->requireAdmin();
+
+        $adminUserId = (int) AuthService::userId();
+        $input       = $this->parsePlanInput($_POST);
+        $errors      = $this->validatePlanInput($input, null);
+
+        if (!empty($errors)) {
+            View::render('admin/plan_create', [
+                'pageTitle' => 'Admin: Create Plan — f29.us Dynamic QR',
+                'errors'    => $errors,
+                'old'       => $_POST,
+            ]);
+            return;
+        }
+
+        $pdo = Database::get();
+        $now = gmdate('Y-m-d H:i:s');
+
+        $pdo->prepare("
+            INSERT INTO plans
+                (internal_name, display_name, description,
+                 monthly_price_cents, yearly_price_cents, currency_code,
+                 is_public, is_active, is_legacy, sort_order,
+                 created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ")->execute([
+            $input['internal_name'],
+            $input['display_name'],
+            $input['description'],
+            $input['monthly_price_cents'],
+            $input['yearly_price_cents'],
+            $input['currency_code'],
+            $input['is_public'],
+            $input['is_active'],
+            $input['is_legacy'],
+            $input['sort_order'],
+            $now, $now,
+        ]);
+
+        $planId = (int) $pdo->lastInsertId();
+
+        AuditLogService::log($adminUserId, 'plan', $planId, 'plan_created', [
+            'internal_name' => $input['internal_name'],
+            'display_name'  => $input['display_name'],
+        ]);
+
+        redirect('/admin/plans/' . $planId);
+    }
+
+    // ── Plan detail ───────────────────────────────────────────────────────────
+
+    public function planDetail(array $params = []): void
+    {
+        $this->requireAdmin();
+        $planId        = (int) ($params['id'] ?? 0);
+        $editFeatureId = isset($_GET['edit_feature']) ? (int) $_GET['edit_feature'] : null;
+
+        $this->renderPlanDetail($planId, [], [], $editFeatureId, []);
+    }
+
+    // ── Edit plan metadata ────────────────────────────────────────────────────
+
+    public function editPlanPage(array $params = []): void
+    {
+        $this->requireAdmin();
+        $planId = (int) ($params['id'] ?? 0);
+        $plan   = $this->loadPlan($planId);
+
+        View::render('admin/plan_edit', [
+            'pageTitle' => 'Admin: Edit Plan — f29.us Dynamic QR',
+            'plan'      => $plan,
+            'errors'    => [],
+            'old'       => [],
+        ]);
+    }
+
+    public function updatePlan(array $params = []): void
+    {
+        CsrfService::requireValid();
+        $this->requireAdmin();
+
+        $planId      = (int) ($params['id'] ?? 0);
+        $plan        = $this->loadPlan($planId);
+        $adminUserId = (int) AuthService::userId();
+
+        $input  = $this->parsePlanInput($_POST);
+        $errors = $this->validatePlanInput($input, $planId);
+
+        if (!empty($errors)) {
+            View::render('admin/plan_edit', [
+                'pageTitle' => 'Admin: Edit Plan — f29.us Dynamic QR',
+                'plan'      => $plan,
+                'errors'    => $errors,
+                'old'       => $_POST,
+            ]);
+            return;
+        }
+
+        $now = gmdate('Y-m-d H:i:s');
+        Database::get()->prepare("
+            UPDATE plans
+            SET    display_name         = ?,
+                   description          = ?,
+                   monthly_price_cents  = ?,
+                   yearly_price_cents   = ?,
+                   currency_code        = ?,
+                   is_public            = ?,
+                   is_active            = ?,
+                   is_legacy            = ?,
+                   sort_order           = ?,
+                   updated_at           = ?
+            WHERE  id = ?
+        ")->execute([
+            $input['display_name'],
+            $input['description'],
+            $input['monthly_price_cents'],
+            $input['yearly_price_cents'],
+            $input['currency_code'],
+            $input['is_public'],
+            $input['is_active'],
+            $input['is_legacy'],
+            $input['sort_order'],
+            $now,
+            $planId,
+        ]);
+
+        $diff = [];
+        $trackFields = ['display_name', 'description', 'monthly_price_cents', 'yearly_price_cents',
+                        'currency_code', 'is_public', 'is_active', 'is_legacy', 'sort_order'];
+        foreach ($trackFields as $field) {
+            $old = $plan[$field];
+            $new = $input[$field];
+            if ((string) $old !== (string) $new) {
+                $diff[$field] = ['old' => $old, 'new' => $new];
+            }
+        }
+
+        AuditLogService::log($adminUserId, 'plan', $planId, 'plan_updated', [
+            'internal_name' => $plan['internal_name'],
+            'diff'          => $diff,
+        ]);
+
+        redirect('/admin/plans/' . $planId);
+    }
+
+    // ── Add plan feature ──────────────────────────────────────────────────────
+
+    public function addFeature(array $params = []): void
+    {
+        CsrfService::requireValid();
+        $this->requireAdmin();
+
+        $planId      = (int) ($params['id'] ?? 0);
+        $adminUserId = (int) AuthService::userId();
+
+        $this->loadPlan($planId); // 404 if not found
+
+        $featureKey   = trim($_POST['feature_key']   ?? '');
+        $valueType    = trim($_POST['value_type']     ?? '');
+        $featureValue = trim($_POST['feature_value']  ?? '');
+
+        $validTypes = ['int', 'bool', 'string'];
+        $errors     = [];
+
+        if ($featureKey === '') {
+            $errors[] = 'Feature key is required.';
+        } elseif (!preg_match('/^[a-z][a-z0-9_]*$/', $featureKey)) {
+            $errors[] = 'Feature key must start with a lowercase letter and contain only lowercase letters, digits, and underscores.';
+        }
+
+        if (!in_array($valueType, $validTypes, true)) {
+            $errors[] = 'Value type must be int, bool, or string.';
+        }
+
+        if ($featureValue === '') {
+            $errors[] = 'Feature value is required.';
+        } elseif ($valueType === 'int' && !preg_match('/^-?\d+$/', $featureValue)) {
+            $errors[] = 'Feature value must be an integer for type "int".';
+        } elseif ($valueType === 'bool' && !in_array($featureValue, ['true', 'false'], true)) {
+            $errors[] = 'Feature value must be "true" or "false" for type "bool".';
+        }
+
+        if (!empty($errors)) {
+            $this->renderPlanDetail($planId, $errors, [], null, $_POST);
+            return;
+        }
+
+        $pdo = Database::get();
+        $now = gmdate('Y-m-d H:i:s');
+
+        $pdo->prepare("
+            INSERT INTO plan_features
+                (plan_id, feature_key, feature_value, value_type, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ")->execute([$planId, $featureKey, $featureValue, $valueType, $now, $now]);
+
+        $featureId = (int) $pdo->lastInsertId();
+
+        AuditLogService::log($adminUserId, 'plan_feature', $featureId, 'feature_added', [
+            'plan_id'       => $planId,
+            'feature_key'   => $featureKey,
+            'value_type'    => $valueType,
+            'feature_value' => $featureValue,
+        ]);
+
+        redirect('/admin/plans/' . $planId);
+    }
+
+    // ── Update plan feature ───────────────────────────────────────────────────
+
+    public function updateFeature(array $params = []): void
+    {
+        CsrfService::requireValid();
+        $this->requireAdmin();
+
+        $planId      = (int) ($params['id']        ?? 0);
+        $featureId   = (int) ($params['featureId'] ?? 0);
+        $adminUserId = (int) AuthService::userId();
+
+        $this->loadPlan($planId); // 404 if plan not found
+
+        $feature = $this->loadFeature($featureId, $planId);
+
+        $valueType    = trim($_POST['value_type']    ?? '');
+        $featureValue = trim($_POST['feature_value'] ?? '');
+
+        $validTypes = ['int', 'bool', 'string'];
+        $errors     = [];
+
+        if (!in_array($valueType, $validTypes, true)) {
+            $errors[] = 'Value type must be int, bool, or string.';
+        }
+
+        if ($featureValue === '') {
+            $errors[] = 'Feature value is required.';
+        } elseif ($valueType === 'int' && !preg_match('/^-?\d+$/', $featureValue)) {
+            $errors[] = 'Feature value must be an integer for type "int".';
+        } elseif ($valueType === 'bool' && !in_array($featureValue, ['true', 'false'], true)) {
+            $errors[] = 'Feature value must be "true" or "false" for type "bool".';
+        }
+
+        if (!empty($errors)) {
+            $this->renderPlanDetail($planId, [], $errors, $featureId, []);
+            return;
+        }
+
+        $now = gmdate('Y-m-d H:i:s');
+        Database::get()->prepare("
+            UPDATE plan_features
+            SET    feature_value = ?, value_type = ?, updated_at = ?
+            WHERE  id = ?
+        ")->execute([$featureValue, $valueType, $now, $featureId]);
+
+        AuditLogService::log($adminUserId, 'plan_feature', $featureId, 'feature_updated', [
+            'plan_id'           => $planId,
+            'feature_key'       => $feature['feature_key'],
+            'old_value_type'    => $feature['value_type'],
+            'old_feature_value' => $feature['feature_value'],
+            'new_value_type'    => $valueType,
+            'new_feature_value' => $featureValue,
+        ]);
+
+        redirect('/admin/plans/' . $planId);
+    }
+
+    // ── Delete plan feature ───────────────────────────────────────────────────
+
+    public function deleteFeature(array $params = []): void
+    {
+        CsrfService::requireValid();
+        $this->requireAdmin();
+
+        $planId      = (int) ($params['id']        ?? 0);
+        $featureId   = (int) ($params['featureId'] ?? 0);
+        $adminUserId = (int) AuthService::userId();
+
+        $this->loadPlan($planId);
+        $feature = $this->loadFeature($featureId, $planId);
+
+        Database::get()->prepare(
+            "DELETE FROM plan_features WHERE id = ?"
+        )->execute([$featureId]);
+
+        AuditLogService::log($adminUserId, 'plan_feature', $featureId, 'feature_deleted', [
+            'plan_id'       => $planId,
+            'feature_key'   => $feature['feature_key'],
+            'value_type'    => $feature['value_type'],
+            'feature_value' => $feature['feature_value'],
+        ]);
+
+        redirect('/admin/plans/' . $planId);
+    }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private function requireAdmin(): void
+    {
+        AuthService::requireAuth();
+        if (!AuthService::isAdmin()) {
+            $this->forbidden('Admin access required.');
+        }
+    }
+
+    private function loadPlan(int $planId): array
+    {
+        if ($planId <= 0) {
+            $this->notFound();
+        }
+
+        $stmt = Database::get()->prepare(
+            "SELECT * FROM plans WHERE id = ? LIMIT 1"
+        );
+        $stmt->execute([$planId]);
+        $plan = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$plan) {
+            $this->notFound();
+        }
+
+        return $plan;
+    }
+
+    private function loadFeature(int $featureId, int $planId): array
+    {
+        if ($featureId <= 0) {
+            $this->notFound();
+        }
+
+        $stmt = Database::get()->prepare(
+            "SELECT * FROM plan_features WHERE id = ? AND plan_id = ? LIMIT 1"
+        );
+        $stmt->execute([$featureId, $planId]);
+        $feature = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$feature) {
+            $this->notFound();
+        }
+
+        return $feature;
+    }
+
+    private function parsePlanInput(array $post): array
+    {
+        $monthlyRaw = trim($post['monthly_price_cents'] ?? '');
+        $yearlyRaw  = trim($post['yearly_price_cents']  ?? '');
+
+        return [
+            'internal_name'       => trim($post['internal_name']   ?? ''),
+            'display_name'        => trim($post['display_name']     ?? ''),
+            'description'         => trim($post['description']      ?? ''),
+            'monthly_price_cents' => $monthlyRaw !== '' ? $monthlyRaw : null,
+            'yearly_price_cents'  => $yearlyRaw  !== '' ? $yearlyRaw  : null,
+            'currency_code'       => strtoupper(trim($post['currency_code'] ?? 'USD')),
+            'is_public'           => !empty($post['is_public'])  ? 1 : 0,
+            'is_active'           => !empty($post['is_active'])  ? 1 : 0,
+            'is_legacy'           => !empty($post['is_legacy'])  ? 1 : 0,
+            'sort_order'          => trim($post['sort_order'] ?? '0'),
+        ];
+    }
+
+    private function validatePlanInput(array $input, ?int $currentPlanId): array
+    {
+        $errors = [];
+
+        if ($input['internal_name'] === '') {
+            $errors[] = 'Internal name is required.';
+        } elseif (!preg_match('/^[a-z][a-z0-9_]*$/', $input['internal_name'])) {
+            $errors[] = 'Internal name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.';
+        } else {
+            // Uniqueness check (skip for updates — internal_name is immutable)
+            if ($currentPlanId === null) {
+                $stmt = Database::get()->prepare(
+                    "SELECT id FROM plans WHERE internal_name = ? LIMIT 1"
+                );
+                $stmt->execute([$input['internal_name']]);
+                if ($stmt->fetchColumn() !== false) {
+                    $errors[] = 'A plan with that internal name already exists.';
+                }
+            }
+        }
+
+        if ($input['display_name'] === '') {
+            $errors[] = 'Display name is required.';
+        }
+
+        $monthly = $input['monthly_price_cents'];
+        if ($monthly !== null && !preg_match('/^\d+$/', (string) $monthly)) {
+            $errors[] = 'Monthly price must be a non-negative integer (cents).';
+        }
+
+        $yearly = $input['yearly_price_cents'];
+        if ($yearly !== null && !preg_match('/^\d+$/', (string) $yearly)) {
+            $errors[] = 'Yearly price must be a non-negative integer (cents).';
+        }
+
+        if (!preg_match('/^[A-Z]{3}$/', $input['currency_code'])) {
+            $errors[] = 'Currency code must be exactly 3 uppercase letters (e.g. USD).';
+        }
+
+        if (!preg_match('/^-?\d+$/', (string) $input['sort_order'])) {
+            $errors[] = 'Sort order must be an integer.';
+        }
+
+        return $errors;
+    }
+
+    private function renderPlanDetail(
+        int    $planId,
+        array  $addErrors,
+        array  $updateErrors,
+        ?int   $updateFeatureId,
+        array  $oldAdd
+    ): void {
+        $plan = $this->loadPlan($planId);
+        $pdo  = Database::get();
+
+        $stmt = $pdo->prepare(
+            "SELECT * FROM plan_features WHERE plan_id = ? ORDER BY feature_key ASC"
+        );
+        $stmt->execute([$planId]);
+        $features = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $stmt = $pdo->prepare("
+            SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_count
+            FROM user_subscriptions
+            WHERE plan_id = ?
+        ");
+        $stmt->execute([$planId]);
+        $subCounts = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        View::render('admin/plan_detail', [
+            'pageTitle'       => 'Admin: Plan — ' . $plan['display_name'] . ' — f29.us Dynamic QR',
+            'plan'            => $plan,
+            'features'        => $features,
+            'subTotal'        => (int) ($subCounts['total']        ?? 0),
+            'subActive'       => (int) ($subCounts['active_count'] ?? 0),
+            'addErrors'       => $addErrors,
+            'updateErrors'    => $updateErrors,
+            'updateFeatureId' => $updateFeatureId,
+            'oldAdd'          => $oldAdd,
+        ]);
+    }
+
+    private function forbidden(string $message = 'Access denied.'): never
+    {
+        http_response_code(403);
+        View::render('errors/forbidden', [
+            'pageTitle' => '403 — Access Denied',
+            'message'   => $message,
+        ]);
+        exit;
+    }
+
+    private function notFound(): never
+    {
+        http_response_code(404);
+        View::render('errors/404', ['pageTitle' => '404 — Not Found']);
+        exit;
+    }
+}
