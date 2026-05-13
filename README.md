@@ -304,7 +304,7 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | POST | `/register` | Register submit |
 | POST | `/logout` | Logout |
 | GET | `/dashboard` | User dashboard |
-| GET | `/account/subscription` | Current plan, pending requests, plan comparison and self-service selection |
+| GET | `/account/subscription` | Current plan, lifecycle status, usage summary, pending/resolved request history, plan comparison |
 | POST | `/account/subscription/change` | Self-service plan change (free = immediate; paid = creates request) |
 | POST | `/account/subscription/request-cancel` | Cancel a pending subscription change request |
 | GET | `/qr` | QR code list |
@@ -644,12 +644,15 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Admin: built-in feature key registry with server-side value-type enforcement** | ✓ |
 | **Admin: built-in key badges in plan feature table** | ✓ |
 | **Public pricing page (`/pricing`) with plan comparison** | ✓ |
-| **Account subscription page (`/account/subscription`)** | ✓ |
-| **Self-service switch to free plan (immediate, with history)** | ✓ |
+| **Account subscription page — lifecycle status, usage summary, plan comparison** | ✓ |
+| **Account subscription page — pending requests section with cancel** | ✓ |
+| **Account subscription page — resolved request history (last 10)** | ✓ |
+| **Self-service switch to free plan (immediate, transactional)** | ✓ |
 | **Self-service request for paid plan (creates pending request, no charge)** | ✓ |
 | **`subscription_change_requests` table for admin review** | ✓ |
-| **Cancel a pending change request** | ✓ |
+| **Cancel a pending change request (user-side)** | ✓ |
 | **Audit logging for self-service plan changes and requests** | ✓ |
+| **Admin subscription request review (list, detail, approve, deny, cancel)** | ✓ |
 
 ## Subscription Groundwork
 
@@ -659,22 +662,26 @@ Billing, public checkout, and payment processor integration are **not implemente
 
 ### Account subscription page
 
-`/account/subscription` is accessible to authenticated users. It shows the current active subscription, a curated entitlement summary, any pending change requests (with cancel option), and a comparison table of available plans.
+`/account/subscription` is accessible to authenticated users. It shows:
+
+- **Current plan** — plan name, billing cycle, started date, grandfathered date if set, legacy badge if applicable, and a contextual status message
+- **Usage summary** — QR code count vs. limit, analytics retention days, custom slug and SVG export availability (drawn from live entitlements)
+- **Pending plan-change requests** — any waiting requests with cancel option; shows "none" state when empty
+- **Recent request history** — last 10 resolved (approved/denied/canceled) requests with outcome messaging
+- **Available plans** — feature comparison table with clear action labels: `Current Plan`, `Switch to Free`, `Request Review`, `Request Pending`
 
 ### Plan selection behavior
 
 Switching to a plan is handled server-side:
 
-- **Free plan** (both `monthly_price_cents` and `yearly_price_cents` are null or zero): the switch is immediate. The current subscription is closed and a new active free subscription is created.
-- **Paid plan** (any price set): a `subscription_change_requests` row is created with `status = 'pending'` for admin review. No subscription change occurs until an admin approves it.
+- **Free plan** (`internal_name = 'free_v1'`): the switch is immediate. The current subscription is closed and a new active free subscription is created.
+- **All other public plans**: a `subscription_change_requests` row is created with `status = 'pending'` for admin review. No subscription change occurs until an admin approves it.
 
-> **Note:** All seeded plans currently have `NULL` prices, so all plans route through the "immediate switch" path until real prices are configured. Once monthly or yearly prices are set on paid plans, this will automatically differentiate.
-
-All plan eligibility is validated server-side (public, active, not legacy). The form `plan_id` value is never trusted without a database lookup.
+All plan eligibility is validated server-side (public, active, not legacy). The form `plan_id` value is never trusted without a database lookup. Billing is not yet automated — no charges apply.
 
 ### Admin review of change requests
 
-The `subscription_change_requests` table stores all pending requests with `current_plan_id`, `requested_plan_id`, `status`, and `requested_at`. Admin UI for reviewing and approving these requests is not yet built. Admins can currently approve requests manually via the Change Subscription form on the user detail page.
+The `subscription_change_requests` table stores all requests with `current_plan_id`, `requested_plan_id`, `status`, `requested_at`, `reviewed_at`, and `note`. Admins can list, inspect, approve, deny, or cancel requests at `/admin/subscription-requests`. Approval is transactional: it cancels the current active subscription and creates a new one for the requested plan.
 
 ## What Is NOT Implemented Yet
 
@@ -685,6 +692,6 @@ The following are intentionally absent:
 - Geolocation in scan events (country/region/city stored as NULL)
 - Billing / payment integration
 - Payment processing, Stripe, or checkout
-- Admin UI for reviewing/approving subscription change requests
+- Automated billing / payment processing / Stripe / checkout
 - Team features
 - API endpoints

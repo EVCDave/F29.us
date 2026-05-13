@@ -12,7 +12,8 @@ class AccountController
         $pdo    = Database::get();
 
         $stmt = $pdo->prepare("
-            SELECT us.*, p.display_name AS plan_display_name, p.internal_name AS plan_internal_name
+            SELECT us.*, p.display_name AS plan_display_name, p.internal_name AS plan_internal_name,
+                   p.is_legacy AS plan_is_legacy
             FROM   user_subscriptions us
             JOIN   plans p ON p.id = us.plan_id
             WHERE  us.user_id = ? AND us.status = 'active'
@@ -33,15 +34,35 @@ class AccountController
         $features = $this->loadFeaturesByPlan(array_column($plans, 'id'), $pdo);
 
         $stmt = $pdo->prepare("
-            SELECT scr.*, p.display_name AS requested_plan_name, p.internal_name AS requested_plan_internal
+            SELECT scr.id, scr.status, scr.requested_at, scr.current_plan_id, scr.requested_plan_id,
+                   p.display_name AS requested_plan_name, p.internal_name AS requested_plan_internal,
+                   cp.display_name AS current_plan_name
             FROM   subscription_change_requests scr
-            JOIN   plans p ON p.id = scr.requested_plan_id
+            JOIN   plans p  ON p.id  = scr.requested_plan_id
+            LEFT JOIN plans cp ON cp.id = scr.current_plan_id
             WHERE  scr.user_id = ? AND scr.status = 'pending'
             ORDER  BY scr.requested_at DESC
         ");
         $stmt->execute([$userId]);
         $pendingRequests = $stmt->fetchAll(PDO::FETCH_ASSOC);
         $pendingPlanIds  = array_map('intval', array_column($pendingRequests, 'requested_plan_id'));
+
+        // Recent resolved requests (non-pending) for history section, newest first
+        $stmt = $pdo->prepare("
+            SELECT scr.id, scr.status, scr.requested_at, scr.reviewed_at, scr.note,
+                   rp.display_name AS requested_plan_name, rp.internal_name AS requested_plan_internal
+            FROM   subscription_change_requests scr
+            JOIN   plans rp ON rp.id = scr.requested_plan_id
+            WHERE  scr.user_id = ? AND scr.status != 'pending'
+            ORDER  BY scr.id DESC
+            LIMIT  10
+        ");
+        $stmt->execute([$userId]);
+        $requestHistory = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM qr_codes WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        $currentQrCount = (int) $stmt->fetchColumn();
 
         EntitlementService::clearCache($userId);
         $entitlements = EntitlementService::getAllForUser($userId);
@@ -57,6 +78,8 @@ class AccountController
             'features'        => $features,
             'pendingRequests' => $pendingRequests,
             'pendingPlanIds'  => $pendingPlanIds,
+            'requestHistory'  => $requestHistory,
+            'currentQrCount'  => $currentQrCount,
             'entitlements'    => $entitlements,
             'flash'           => $flash,
         ]);
@@ -83,7 +106,7 @@ class AccountController
         $plan = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$plan || !$plan['is_public'] || !$plan['is_active'] || $plan['is_legacy']) {
-            $_SESSION['flash'] = ['type' => 'error', 'text' => 'That plan is not available for selection.'];
+            $_SESSION['flash'] = ['type' => 'error', 'text' => 'That plan is not currently available.'];
             redirect('/account/subscription');
         }
 
@@ -155,7 +178,8 @@ class AccountController
             'requested_plan_id' => (int) $request['requested_plan_id'],
         ]);
 
-        $_SESSION['flash'] = ['type' => 'info', 'text' => 'Plan change request canceled.'];
+        $_SESSION['flash'] = ['type' => 'info',
+            'text' => 'Your plan-change request was canceled. Your current subscription was not changed.'];
         redirect('/account/subscription');
     }
 
@@ -203,8 +227,7 @@ class AccountController
         }
 
         EntitlementService::clearCache($userId);
-        $_SESSION['flash'] = ['type' => 'success',
-            'text' => 'You have been switched to the ' . $plan['display_name'] . ' plan.'];
+        $_SESSION['flash'] = ['type' => 'success', 'text' => 'You have been switched to the Free plan.'];
         redirect('/account/subscription');
     }
 
@@ -243,7 +266,7 @@ class AccountController
         ]);
 
         $_SESSION['flash'] = ['type' => 'success',
-            'text' => 'Your request to switch to ' . $plan['display_name'] . ' has been submitted. We will be in touch.'];
+            'text' => 'Your request for the ' . $plan['display_name'] . ' plan has been submitted for review.'];
         redirect('/account/subscription');
     }
 

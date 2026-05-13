@@ -24,7 +24,10 @@ $fv = static function (array $planFeatures, string $key): string {
 };
 ?>
 <h1 style="margin-bottom:0.4rem">Pricing</h1>
-<p style="margin-bottom:2rem">Simple, transparent plans for every use case.</p>
+<p style="margin-bottom:0.5rem">Simple, transparent plans for every use case.</p>
+<p style="font-size:0.85rem;color:#6b7280;margin-bottom:2rem">
+    Paid plan requests are reviewed manually. Online billing is not yet enabled.
+</p>
 
 <?php if (empty($plans)): ?>
 <p style="color:#888">No plans are currently available. Check back soon.</p>
@@ -86,7 +89,7 @@ $fv = static function (array $planFeatures, string $key): string {
             $isFree    = $p['internal_name'] === 'free_v1';
             ?>
             <?php if (!$currentUser): ?>
-                <a href="/register" class="btn" style="font-size:0.82rem;padding:0.35rem 1rem">Get started</a>
+                <a href="/register" class="btn" style="font-size:0.82rem;padding:0.35rem 1rem">Create Account</a>
             <?php elseif ($isCurrent): ?>
                 <span class="btn-disabled" style="font-size:0.82rem;padding:0.35rem 1rem">Current Plan</span>
             <?php elseif ($isPending): ?>
@@ -96,7 +99,7 @@ $fv = static function (array $planFeatures, string $key): string {
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
                     <button type="submit" class="btn" style="font-size:0.82rem;padding:0.35rem 1rem">
-                        <?= $isFree ? 'Switch to ' . View::e($p['display_name']) : 'Request ' . View::e($p['display_name']) ?>
+                        <?= $isFree ? 'Switch to Free' : 'Request Review' ?>
                     </button>
                 </form>
             <?php endif; ?>
@@ -108,9 +111,8 @@ $fv = static function (array $planFeatures, string $key): string {
 </div>
 
 <p style="font-size:0.82rem;color:#6b7280;margin-top:0.5rem">
-    Switching to the Free plan takes effect immediately.
-    All other plans require review — submit a request and we will be in touch.
-    Billing is not yet active; no charges apply until explicitly confirmed.
+    Switching to Free takes effect immediately. All other plan requests are reviewed manually.
+    No charges apply — billing is not yet automated.
 </p>
 
 <?php endif; ?>
