@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit("This script must be run from the command line.\n");
+}
+
 require __DIR__ . '/bootstrap.php';
 
 // Seeders run in order; each must complete before the next starts

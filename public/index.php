@@ -1,6 +1,46 @@
 <?php
 declare(strict_types=1);
 
+// Set before bootstrap so errors during startup are also caught.
+$debug = false;
+set_exception_handler(static function (Throwable $e) use (&$debug): void {
+    error_log(
+        'Uncaught: ' . $e->getMessage()
+        . ' in ' . $e->getFile() . ':' . $e->getLine()
+        . PHP_EOL . $e->getTraceAsString()
+    );
+
+    if (headers_sent()) {
+        if ($debug) {
+            echo "\n<!-- " . htmlspecialchars((string) $e, ENT_QUOTES, 'UTF-8') . ' -->';
+        }
+        return;
+    }
+
+    http_response_code(500);
+
+    if ($debug) {
+        header('Content-Type: text/plain; charset=utf-8');
+        echo (string) $e;
+        return;
+    }
+
+    if (class_exists('View') && defined('APP_PATH')) {
+        try {
+            View::render('errors/server_error', [], 'main');
+            return;
+        } catch (Throwable) {
+            // fall through to raw HTML fallback
+        }
+    }
+
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Server Error</title></head>'
+       . '<body style="font-family:sans-serif;text-align:center;padding:4rem 1rem">'
+       . '<h1>Server Error</h1><p>Something went wrong. Please try again later.</p>'
+       . '</body></html>';
+});
+
 require __DIR__ . '/../bootstrap.php';
 
 // Controllers
