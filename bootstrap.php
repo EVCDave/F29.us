@@ -32,11 +32,21 @@ if (file_exists($envFile)) {
     }
 }
 
+$_ENV['APP_ENV'] ??= 'production';
+
 date_default_timezone_set('UTC');
 
 // Ensure the log directory exists before PHP tries to write to it
 if (!is_dir(STORAGE_PATH . '/logs')) {
-    mkdir(STORAGE_PATH . '/logs', 0755, true);
+    if (!mkdir(STORAGE_PATH . '/logs', 0755, true) && !is_dir(STORAGE_PATH . '/logs')) {
+        $logDirError = 'Startup error: cannot create storage/logs — check parent directory permissions.';
+        if (PHP_SAPI === 'cli') {
+            fwrite(STDERR, $logDirError . "\n");
+            exit(1);
+        }
+        http_response_code(500);
+        exit($logDirError);
+    }
 }
 
 $debug = filter_var($_ENV['APP_DEBUG'] ?? 'false', FILTER_VALIDATE_BOOLEAN);
@@ -44,6 +54,9 @@ error_reporting(E_ALL);
 ini_set('display_errors', $debug ? '1' : '0');
 ini_set('log_errors',     '1');
 ini_set('error_log',      STORAGE_PATH . '/logs/error.log');
+
+require APP_PATH . '/Config/Validator.php';
+ConfigValidator::validate();
 
 // Core application classes
 require APP_PATH . '/Database.php';

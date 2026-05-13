@@ -11,6 +11,18 @@ Dynamic QR codes that you can redirect to any URL at any time — no reprinting 
 | PHP | 8.2+ |
 | MariaDB or MySQL | MariaDB 10.6+ / MySQL 8.0+ |
 | Web server | Apache with `mod_rewrite`, or PHP built-in server for local dev |
+| Composer | 2.x |
+
+### PHP Extensions
+
+| Extension | Purpose | Required |
+|---|---|---|
+| `pdo` | PDO base interface | Yes |
+| `pdo_mysql` | MariaDB/MySQL driver | Yes |
+| `gd` | PNG QR code generation | PNG downloads only |
+| `mbstring` | Multibyte string validation | Yes |
+
+Check which extensions are loaded: `php -m`
 
 ---
 
@@ -42,12 +54,17 @@ Edit `.env` with your values:
 
 ```
 APP_NAME="f29.us Dynamic QR"
+APP_ENV=local
 APP_URL=http://localhost:8000
 APP_DEBUG=true
 
 # Required: HMAC secret for IP hashing in login throttle
 # Generate: php -r "echo bin2hex(random_bytes(32));"
 APP_KEY=your_generated_key_here
+
+# Domain encoded into QR images — use the production URL even locally
+# so downloaded QR codes point to the right place after deployment.
+QR_BASE_URL=https://f29.us
 
 DB_HOST=127.0.0.1
 DB_PORT=3306
@@ -78,9 +95,8 @@ Expected output:
   RUN     001_create_users_table ... done
   RUN     002_create_plans_table ... done
   ...
-  RUN     009_create_audit_logs_table ... done
 
-Migrations: 9 run, 0 skipped.
+Migrations: N run, 0 skipped.
 ```
 
 Migrations are idempotent — re-running skips already-applied files.
@@ -112,19 +128,132 @@ Open `http://localhost:8000` in your browser.
 
 ---
 
+## Production Deployment
+
+These steps cover a typical shared-hosting environment (cPanel). Adjust paths for your host.
+
+### 1. Set the document root to `/public`
+
+In cPanel → **Domains** (or **Addon Domains**), set the document root to the `public/` subdirectory of your project:
+
+```
+/home/youruser/f29us/public
+```
+
+Keep the project root one level above the web-accessible directory so `bootstrap.php`, `.env`, and `database/` are never served directly.
+
+### 2. Upload files
+
+Upload the project directory to `/home/youruser/f29us/` (or your preferred path). Exclude:
+
+- `.env` — create this on the server (see step 3)
+- `vendor/` — either install on the server or upload from local (see step 4)
+
+### 3. Configure `.env`
+
+On the server, copy `.env.example` to `.env` and set production values:
+
+```
+APP_ENV=production
+APP_URL=https://f29.us
+APP_DEBUG=false
+APP_KEY=<generate below>
+QR_BASE_URL=https://f29.us
+
+DB_HOST=127.0.0.1
+DB_DATABASE=cpanelusername_dbname
+DB_USERNAME=cpanelusername_dbuser
+DB_PASSWORD=your_strong_password
+```
+
+Generate `APP_KEY` on the server (or locally):
+
+```bash
+php -r "echo bin2hex(random_bytes(32));"
+```
+
+### 4. Install Composer dependencies
+
+Via SSH or cPanel Terminal:
+
+```bash
+composer install --no-dev --optimize-autoloader
+```
+
+If your host has no SSH, run `composer install --no-dev` locally and upload the resulting `vendor/` directory.
+
+### 5. Create the database
+
+In cPanel → **MySQL Databases**:
+
+1. Create a new database
+2. Create a new database user with a strong password
+3. Add the user to the database with **All Privileges**
+
+Update `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` in `.env`.
+
+### 6. Run migrations and seeders
+
+Via SSH or cPanel Terminal:
+
+```bash
+php migrate.php
+php seed.php
+```
+
+If your host does not provide terminal access, look for a **Terminal** tool in cPanel under Advanced, or ask your host how to run PHP CLI scripts.
+
+### 7. Verify file permissions
+
+`bootstrap.php` creates `storage/logs/` automatically on first request. If the directory already exists but is not writable by the web server:
+
+```bash
+chmod 755 storage/logs
+```
+
+### 8. Configure the cleanup cron
+
+In cPanel → **Cron Jobs**, add a daily job to prune old login attempt rows:
+
+```
+0 3 * * * php /home/youruser/f29us/cleanup.php >> /home/youruser/f29us/storage/logs/cleanup.log 2>&1
+```
+
+---
+
+## Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `APP_NAME` | No | `f29.us Dynamic QR` | Application name displayed in page titles |
+| `APP_ENV` | No | `production` | Environment: `local`, `staging`, or `production` |
+| `APP_URL` | **Yes** | — | Full base URL of your deployment (e.g. `https://f29.us`) |
+| `APP_DEBUG` | No | `false` | Show PHP errors in browser. Set `true` for local dev only. |
+| `APP_KEY` | **Yes** | — | HMAC secret for login throttle IP hashing. Minimum 32 characters. Generate: `php -r "echo bin2hex(random_bytes(32));"` |
+| `QR_BASE_URL` | **Yes** | — | Domain encoded into QR images. Use the production URL always so downloaded QR codes work after deployment. |
+| `DB_HOST` | **Yes** | — | Database host (usually `127.0.0.1` or `localhost`) |
+| `DB_PORT` | No | `3306` | Database port |
+| `DB_DATABASE` | **Yes** | — | Database name |
+| `DB_USERNAME` | **Yes** | — | Database username |
+| `DB_PASSWORD` | No | *(empty)* | Database password |
+
+The application validates all required variables on startup. A missing or invalid variable causes an immediate 500 response (web) or an error message to STDERR with exit code 1 (CLI).
+
+---
+
 ## Directory Structure
 
 ```
 /app
+  /Config             Application startup validators
   /Controllers        Route handlers (one class per controller)
-  /Models             Data models  [placeholder — not yet built]
-  /Services           Business logic  [placeholder — not yet built]
+  /Services           Business logic (auth, QR, slugs, analytics, CSRF, throttle, redirects)
   /Views              PHP view templates
     /auth             Login and register pages
-    /errors           Error pages (404, etc.)
+    /errors           Error pages (404, 403, 500)
     /layouts          Shared layout wrappers
     /qr               QR code pages
-  /Middleware         Request middleware  [placeholder — not yet built]
+    /redirect         Public redirect pages
 
 /config
   app.php             Application configuration
@@ -140,11 +269,12 @@ Open `http://localhost:8000` in your browser.
   .htaccess           Apache rewrite rules
 
 /storage
-  /logs               PHP error log (git-ignored)
+  /logs               PHP error log and cleanup log (git-ignored)
 
 bootstrap.php         Loads .env, config, DB connection, core classes
 migrate.php           CLI: run pending migrations
 seed.php              CLI: run seeders
+cleanup.php           CLI: prune old login_attempts rows (run via cron)
 ```
 
 ---
@@ -271,7 +401,7 @@ Both checks applied; either triggers a 15-minute block.
 ```php
 LoginThrottleService::isLockedOut($email, $ipHash); // bool
 LoginThrottleService::record($email, $ipHash, $success); // persists one row
-LoginThrottleService::hashIp($remoteAddr);           // ?string SHA-256 or null
+LoginThrottleService::hashIp($remoteAddr);           // ?string HMAC-SHA256 or null
 ```
 
 ---
@@ -329,6 +459,60 @@ QR library failures (e.g. `composer install` not yet run) are caught, logged ser
 
 ---
 
+## Troubleshooting
+
+### "Configuration error: APP_KEY is required"
+
+The application validates required environment variables on startup. Generate `APP_KEY`:
+
+```bash
+php -r "echo bin2hex(random_bytes(32));"
+```
+
+Add the output as `APP_KEY` in `.env`. The same command works for any required variable — check the startup error message for which one is missing.
+
+### Site shows a blank page or 500 error
+
+1. Temporarily set `APP_DEBUG=true` in `.env` to display the error in the browser (local dev only — never leave this on in production).
+2. Check `storage/logs/error.log` for PHP error messages.
+3. Verify all required environment variables are set (see [Environment Variables](#environment-variables) above).
+
+### PNG downloads fail or show an error
+
+The PHP GD extension is required for PNG QR generation. Check:
+
+```bash
+php -m | grep -i gd
+```
+
+On cPanel, enable GD via **MultiPHP INI Editor** → select your PHP version → enable `extension=gd`. On a VPS: `apt install php8.2-gd` (adjust version), then restart the web server.
+
+### "Class not found" or autoload errors
+
+Composer dependencies are not installed. Run:
+
+```bash
+composer install --no-dev
+```
+
+If Composer is not available on the server, run `composer install --no-dev` locally and upload the `vendor/` directory.
+
+### Sessions not persisting / always redirected to login
+
+1. Confirm `session.save_path` is writable by the web server process.
+2. Verify your browser is not blocking cookies. The session cookie is named `f29_sess`.
+3. On some shared hosts, the default session directory fills up — configure a custom `session.save_path` in `php.ini`.
+
+### `storage/logs/` not writable
+
+`bootstrap.php` creates `storage/logs/` automatically on first request. If the directory exists but errors are not being logged:
+
+```bash
+chmod 755 storage/logs
+```
+
+---
+
 ## What Is Implemented
 
 | Feature | Status |
@@ -352,11 +536,14 @@ QR library failures (e.g. `composer install` not yet run) are caught, logged ser
 | **Plan-based analytics retention (visibility rule)** | ✓ |
 | **CSRF protection on all POST endpoints** | ✓ |
 | **Session hardening (stale user ejection)** | ✓ |
-| **Login throttle (5 attempts → 15 min lockout, session-based)** | ✓ |
+| **Login throttle (5 attempts → 15 min lockout, database-backed)** | ✓ |
 | **Input length limits (name 200, URL 2048)** | ✓ |
 | **URL header-injection defense** | ✓ |
 | **Security response headers (X-Frame-Options, nosniff, Referrer-Policy)** | ✓ |
 | **Download failure safe error page** | ✓ |
+| **Startup config validation (required env vars checked on boot)** | ✓ |
+| **Global exception handler (500 page in production, stack trace in debug)** | ✓ |
+| **CLI guard on migrate.php, seed.php, cleanup.php** | ✓ |
 
 ## What Is NOT Implemented Yet
 

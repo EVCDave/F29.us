@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit("This script must be run from the command line.\n");
+}
+
 require __DIR__ . '/bootstrap.php';
 
 $pdo = Database::get();
@@ -35,7 +40,7 @@ foreach ($files as $file) {
 
     if (!isset($migration['name'], $migration['up']) || !is_callable($migration['up'])) {
         echo "  ERROR   Invalid migration file: " . basename($file) . "\n";
-        continue;
+        exit(1);
     }
 
     $name = $migration['name'];

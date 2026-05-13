@@ -1,0 +1,3 @@
+<h1>Server Error</h1>
+<p>Something went wrong on our end. Please try again later.</p>
+<p><a href="/">&larr; Go to home</a></p>
