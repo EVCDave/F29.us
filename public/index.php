@@ -85,7 +85,8 @@ $router->post('/qr/{id}/restore',       [QrController::class, 'restore']);
 $router->post('/qr/{id}/destination-history/{historyId}/restore', [QrController::class, 'restoreDestination']);
 $router->get('/qr/{id}/download/png',   [QrController::class, 'downloadPng']);
 $router->get('/qr/{id}/download/svg',   [QrController::class, 'downloadSvg']);
-$router->get('/qr/{id}/analytics',      [QrController::class, 'analytics']);
+$router->get('/qr/{id}/analytics/export', [QrController::class, 'exportAnalytics']);
+$router->get('/qr/{id}/analytics',        [QrController::class, 'analytics']);
 
 // ── Account (authenticated) ───────────────────────────────────────────────────
 $router->get('/account/subscription',                [AccountController::class, 'subscriptionPage']);

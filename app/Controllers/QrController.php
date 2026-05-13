@@ -670,21 +670,99 @@ class QrController
         $userId = (int) AuthService::userId();
         $qrId   = (int) ($params['id'] ?? 0);
 
-        $qr            = $this->loadOwnedQrCode($qrId, $userId);
-        $shortLinkId   = (int) $qr['short_link_id'];
+        $qr          = $this->loadOwnedQrCode($qrId, $userId);
+        $shortLinkId = (int) $qr['short_link_id'];
+
         $retentionDays = (int) EntitlementService::getValue($userId, 'analytics_retention_days', 30);
+        $f             = $this->resolveAnalyticsFilters($retentionDays);
+
+        $humanScans = AnalyticsService::getTotalScans($shortLinkId, $f['fromDate'], $f['toDate'], false);
+        $botScans   = AnalyticsService::getBotCount($shortLinkId, $f['fromDate'], $f['toDate']);
+        $totalScans = $f['includeBots'] ? $humanScans + $botScans : $humanScans;
+
+        $dailyCounts     = AnalyticsService::getDailyCounts($shortLinkId, $f['fromDate'], $f['toDate'], $f['includeBots']);
+        $deviceBreakdown = AnalyticsService::getDeviceBreakdown($shortLinkId, $f['fromDate'], $f['toDate'], $f['includeBots']);
+        $topReferers     = AnalyticsService::getTopReferers($shortLinkId, $f['fromDate'], $f['toDate'], $f['includeBots']);
+
+        $daysInRange = (int) round((strtotime($f['toDate']) - strtotime($f['fromDate'])) / 86400) + 1;
+        $avgPerDay   = $daysInRange > 0 ? round($totalScans / $daysInRange, 1) : 0;
+
+        $peakDay = null;
+        if (!empty($dailyCounts)) {
+            $peak = array_reduce($dailyCounts, static function (?array $carry, array $row): array {
+                return ($carry === null || (int) $row['total'] > (int) $carry['total']) ? $row : $carry;
+            });
+            if ($peak !== null && (int) $peak['total'] > 0) {
+                $peakDay = $peak;
+            }
+        }
 
         View::render('qr/analytics', [
-            'pageTitle'       => $qr['name'] . ' — Analytics — f29.us Dynamic QR',
-            'qr'              => $qr,
-            'shortUrl'        => $this->qrBaseUrl() . '/' . $qr['slug'],
-            'retentionDays'   => $retentionDays,
-            'totalScans'      => AnalyticsService::getTotalScans($shortLinkId, $retentionDays),
-            'botCount'        => AnalyticsService::getBotCount($shortLinkId, $retentionDays),
-            'dailyCounts'     => AnalyticsService::getDailyCounts($shortLinkId, $retentionDays),
-            'deviceBreakdown' => AnalyticsService::getDeviceBreakdown($shortLinkId, $retentionDays),
-            'topReferers'     => AnalyticsService::getTopReferers($shortLinkId, $retentionDays),
+            'pageTitle'          => $qr['name'] . ' — Analytics — f29.us Dynamic QR',
+            'qr'                 => $qr,
+            'shortUrl'           => $this->qrBaseUrl() . '/' . $qr['slug'],
+            'retentionDays'      => $retentionDays,
+            'allowedFrom'        => $f['allowedFrom'],
+            'fromDate'           => $f['fromDate'],
+            'toDate'             => $f['toDate'],
+            'clamped'            => $f['clamped'],
+            'includeBots'        => $f['includeBots'],
+            'humanScans'         => $humanScans,
+            'botScans'           => $botScans,
+            'totalScans'         => $totalScans,
+            'avgPerDay'          => $avgPerDay,
+            'peakDay'            => $peakDay,
+            'dailyCounts'        => $dailyCounts,
+            'deviceBreakdown'    => $deviceBreakdown,
+            'topReferers'        => $topReferers,
+            'canExportAnalytics' => EntitlementService::isEnabled($userId, 'can_export_analytics'),
         ]);
+    }
+
+    // ── Analytics CSV export ──────────────────────────────────────────────────
+
+    public function exportAnalytics(array $params = []): void
+    {
+        AuthService::requireAuth();
+        $userId = (int) AuthService::userId();
+        $qrId   = (int) ($params['id'] ?? 0);
+
+        $qr = $this->loadOwnedQrCode($qrId, $userId);
+
+        if (!EntitlementService::isEnabled($userId, 'can_export_analytics')) {
+            $this->forbidden('Analytics export is not available on your plan.');
+        }
+
+        $shortLinkId   = (int) $qr['short_link_id'];
+        $retentionDays = (int) EntitlementService::getValue($userId, 'analytics_retention_days', 30);
+        $f             = $this->resolveAnalyticsFilters($retentionDays);
+
+        $rows     = AnalyticsService::getExportRows($shortLinkId, $f['fromDate'], $f['toDate'], $f['includeBots']);
+        $slug     = preg_replace('/[^a-z0-9-]/', '', strtolower($qr['slug']));
+        $filename = 'f29-analytics-' . $slug . '-' . $f['fromDate'] . '-to-' . $f['toDate'] . '.csv';
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+
+        $out = fopen('php://output', 'w');
+        fputcsv($out, ['scanned_at', 'device_type', 'bot_flag', 'referer',
+                       'user_agent', 'country_code', 'region', 'city']);
+
+        foreach ($rows as $row) {
+            fputcsv($out, [
+                $row['scanned_at'],
+                $row['device_type']  ?? '',
+                (int) $row['bot_flag'],
+                $this->csvSafe($row['referer']   ?? ''),
+                $this->csvSafe($row['user_agent'] ?? ''),
+                $row['country_code'] ?? '',
+                $row['region']       ?? '',
+                $row['city']         ?? '',
+            ]);
+        }
+
+        fclose($out);
+        exit;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -754,6 +832,63 @@ class QrController
         $safe = trim($safe, '-');
         $safe = mb_substr($safe, 0, 50);
         return 'f29-qr-' . ($safe !== '' ? $safe . '-' : '') . $slug;
+    }
+
+    /**
+     * Resolve analytics date range and bot toggle from GET params.
+     * Used by both analytics() and exportAnalytics() so behavior is identical.
+     * Default from = full retention window start; default to = today.
+     */
+    private function resolveAnalyticsFilters(int $retentionDays): array
+    {
+        $allowedFrom = date('Y-m-d', strtotime("-{$retentionDays} days"));
+        $today       = date('Y-m-d');
+
+        $fromParam   = trim($_GET['from'] ?? '');
+        $toParam     = trim($_GET['to']   ?? '');
+        $includeBots = isset($_GET['include_bots']) && $_GET['include_bots'] === '1';
+
+        $fromDate = ($fromParam !== '' && $this->isValidDate($fromParam))
+            ? $fromParam
+            : $allowedFrom;
+
+        $toDate = ($toParam !== '' && $this->isValidDate($toParam))
+            ? $toParam
+            : $today;
+
+        if ($toDate > $today) {
+            $toDate = $today;
+        }
+
+        $clamped = false;
+        if ($fromDate < $allowedFrom) {
+            $fromDate = $allowedFrom;
+            $clamped  = true;
+        }
+
+        if ($fromDate > $toDate) {
+            $fromDate = $toDate;
+        }
+
+        return compact('fromDate', 'toDate', 'allowedFrom', 'today', 'includeBots', 'clamped');
+    }
+
+    private function isValidDate(string $date): bool
+    {
+        $d = DateTime::createFromFormat('Y-m-d', $date);
+        return $d !== false && $d->format('Y-m-d') === $date;
+    }
+
+    /** Neutralize CSV formula injection for values starting with =, +, -, @. */
+    private function csvSafe(?string $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+        if (in_array($value[0], ['=', '+', '-', '@'], true)) {
+            return "'" . $value;
+        }
+        return $value;
     }
 
     private function forbidden(string $message): never
