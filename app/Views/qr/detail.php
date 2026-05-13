@@ -38,6 +38,8 @@
 <h2 style="margin-bottom:0.75rem">Actions</h2>
 <div class="actions-group">
 
+    <a href="/qr/<?= (int) $qr['id'] ?>/analytics" class="btn btn-secondary">Analytics</a>
+
     <?php if ($canEditDestination): ?>
     <a href="/qr/<?= (int) $qr['id'] ?>/edit" class="btn btn-secondary">Edit Destination</a>
     <?php else: ?>
@@ -46,10 +48,12 @@
 
     <?php if ($canPauseLinks && $qr['status'] === 'active'): ?>
     <form method="post" action="/qr/<?= (int) $qr['id'] ?>/pause" style="display:inline">
+        <?= CsrfService::field() ?>
         <button type="submit" class="btn btn-secondary">Pause</button>
     </form>
     <?php elseif ($canPauseLinks && $qr['status'] === 'paused'): ?>
     <form method="post" action="/qr/<?= (int) $qr['id'] ?>/resume" style="display:inline">
+        <?= CsrfService::field() ?>
         <button type="submit" class="btn">Resume</button>
     </form>
     <?php elseif (!$canPauseLinks): ?>

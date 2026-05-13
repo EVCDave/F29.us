@@ -8,6 +8,7 @@ require APP_PATH . '/Controllers/HomeController.php';
 require APP_PATH . '/Controllers/DashboardController.php';
 require APP_PATH . '/Controllers/AuthController.php';
 require APP_PATH . '/Controllers/QrController.php';
+require APP_PATH . '/Controllers/RedirectController.php';
 
 $router = new Router();
 
@@ -35,9 +36,15 @@ $router->post('/qr/{id}/pause',         [QrController::class, 'pause']);
 $router->post('/qr/{id}/resume',        [QrController::class, 'resume']);
 $router->get('/qr/{id}/download/png',   [QrController::class, 'downloadPng']);
 $router->get('/qr/{id}/download/svg',   [QrController::class, 'downloadSvg']);
+$router->get('/qr/{id}/analytics',      [QrController::class, 'analytics']);
 
 // ── Logout ───────────────────────────────────────────────────────────────────
 $router->post('/logout', [AuthController::class, 'logout']);
+
+// ── Public slug catch-all (must be last) ─────────────────────────────────────
+// All named routes above take precedence via exact-match and ordered pattern
+// matching. This only fires for paths that matched nothing else.
+$router->get('/{slug}', [RedirectController::class, 'handle']);
 
 $router->dispatch(
     $_SERVER['REQUEST_METHOD'],

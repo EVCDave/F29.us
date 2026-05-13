@@ -45,6 +45,10 @@ APP_NAME="f29.us Dynamic QR"
 APP_URL=http://localhost:8000
 APP_DEBUG=true
 
+# Required: HMAC secret for IP hashing in login throttle
+# Generate: php -r "echo bin2hex(random_bytes(32));"
+APP_KEY=your_generated_key_here
+
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=f29us_qr
@@ -158,16 +162,29 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 
 ---
 
-## Routes (Scaffold)
+## Routes
 
-| Method | Path | Status |
-|--------|------|--------|
-| GET | `/` | Placeholder homepage |
-| GET | `/dashboard` | Placeholder dashboard |
-| GET | `/login` | Placeholder login form |
-| GET | `/register` | Placeholder register form |
-| GET | `/qr` | Placeholder QR list |
-| GET | `/qr/create` | Placeholder QR create form |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/` | Homepage |
+| GET | `/login` | Login form |
+| POST | `/login` | Login submit |
+| GET | `/register` | Register form |
+| POST | `/register` | Register submit |
+| POST | `/logout` | Logout |
+| GET | `/dashboard` | User dashboard |
+| GET | `/qr` | QR code list |
+| GET | `/qr/create` | Create QR form |
+| POST | `/qr` | Create QR submit |
+| GET | `/qr/{id}` | QR detail |
+| GET | `/qr/{id}/edit` | Edit destination form |
+| POST | `/qr/{id}/update` | Save destination |
+| POST | `/qr/{id}/pause` | Pause short link |
+| POST | `/qr/{id}/resume` | Resume short link |
+| GET | `/qr/{id}/download/png` | Download QR as PNG |
+| GET | `/qr/{id}/download/svg` | Download QR as SVG |
+| GET | `/qr/{id}/analytics` | QR analytics page |
+| GET | `/{slug}` | **Public redirect** (catch-all, last priority) |
 
 ---
 
@@ -209,6 +226,107 @@ SlugService::generateUniqueSlug();                                  // e.g. "k4x
 SlugService::validateFormat('hello', minLength: 4, maxLength: 32); // ['valid', 'errors']
 ```
 
+### RedirectService
+Resolves public slug requests, logs scan events, and performs 302 redirects. Paused/disabled links show an unavailable page without logging.
+
+```php
+RedirectService::handleSlug('my-slug');  // never returns; redirects or renders
+```
+
+Scan events include: SHA-256 IP hash, user agent (truncated to 1000 chars), referer (truncated to 2000 chars), device type heuristic (mobile/tablet/desktop/unknown), and bot flag heuristic. Geolocation fields (`country_code`, `region`, `city`) are stored as NULL in this version.
+
+### AnalyticsService
+Aggregates scan event data for the analytics page. All queries are scoped to a `short_link_id` and a retention window in days.
+
+```php
+AnalyticsService::getTotalScans($shortLinkId, $retentionDays);     // int (bots excluded)
+AnalyticsService::getBotCount($shortLinkId, $retentionDays);        // int
+AnalyticsService::getDailyCounts($shortLinkId, $retentionDays);     // [['scan_date', 'total'], ...]
+AnalyticsService::getDeviceBreakdown($shortLinkId, $retentionDays); // [['device_type', 'total'], ...]
+AnalyticsService::getTopReferers($shortLinkId, $retentionDays);     // top 10 referers
+```
+
+**Retention note:** `analytics_retention_days` is currently a query visibility rule, not a data purge. Older rows remain in `scan_events`; they simply fall outside the `DATE_SUB(NOW(), INTERVAL ? DAY)` filter.
+
+### CsrfService
+Generates and validates synchronizer tokens for all state-changing forms.
+
+```php
+CsrfService::field();        // renders hidden <input> with the session token
+CsrfService::requireValid(); // halts with 403 if token missing or wrong
+CsrfService::refresh();      // discards current token (call after login/register)
+```
+
+Token is stored as `$_SESSION['csrf_token']` and persists for the session lifetime. `hash_equals` is used on comparison to prevent timing attacks. The token is rotated (refreshed) immediately after a successful login or registration so the pre-auth token cannot be reused.
+
+### LoginThrottleService
+Database-backed login throttling stored in `login_attempts`. Survives cleared cookies and new browser sessions.
+
+```
+Policy: 5 failed attempts per email  within 15 min → lockout
+        20 failed attempts per IP hash within 15 min → lockout
+Both checks applied; either triggers a 15-minute block.
+```
+
+```php
+LoginThrottleService::isLockedOut($email, $ipHash); // bool
+LoginThrottleService::record($email, $ipHash, $success); // persists one row
+LoginThrottleService::hashIp($remoteAddr);           // ?string SHA-256 or null
+```
+
+---
+
+## Security
+
+### CSRF protection
+All POST endpoints (login, register, logout, QR create/update/pause/resume) validate the synchronizer token via `CsrfService::requireValid()`. Missing or mismatched tokens return a 403 page. The token is rotated after every successful login or registration.
+
+### Session hardening
+- `AuthService::requireAuth()` verifies the session user still exists in the database and is not suspended on every protected request. Stale sessions are cleared and redirected to `/login`.
+- Guest pages (`/login`, `/register`) use `currentUser()` rather than raw session presence, so a stale session does not silently redirect a user away from the login page.
+- `AuthService::logout()` uses the array-form `setcookie()` to expire the session cookie with all original security attributes including `SameSite=Lax`.
+- `storage/logs/` is created automatically by `bootstrap.php` if absent, preventing silent log failures on fresh deployments.
+
+### Login throttle
+Database-backed via `login_attempts` table. **5 failed attempts per email within 15 minutes** triggers a lockout; **20 failed attempts per IP** within the same window triggers a lockout. Lockout is checked before credentials are verified and survives cleared cookies or new sessions. No external infrastructure required.
+
+IPs are stored as **HMAC-SHA256** (`hash_hmac('sha256', $ip, APP_KEY)`) — a plain SHA-256 hash is reversible against a known IP space; HMAC with a secret key is not. `APP_KEY` **must** be set in `.env`; the application throws explicitly if it is missing rather than falling back to an insecure hash.
+
+Composite indexes `(email_normalized, success_flag, attempted_at)` and `(ip_hash, success_flag, attempted_at)` cover the throttle queries exactly. A single-column `(attempted_at)` index covers the cleanup query.
+
+#### Cleanup
+
+Old attempt rows accumulate forever without cleanup. Run periodically:
+
+```bash
+php cleanup.php
+```
+
+Deletes rows older than **90 days** from `login_attempts`. Suggested cron (daily at 03:00):
+
+```
+0 3 * * * php /path/to/f29.us/cleanup.php >> /path/to/storage/logs/cleanup.log 2>&1
+```
+
+### Input limits
+- QR name: maximum 200 characters (`mb_strlen`)
+- Destination URL: maximum 2048 characters
+- Both limits enforced server-side and reflected in form `maxlength` attributes
+
+### URL safety
+All destination URLs are validated for `http`/`https` scheme and the absence of control characters (`\r`, `\n`, `\t`, `\0`) before write. The redirect service re-validates scheme on read and strips control characters immediately before setting the `Location` header.
+
+### Response headers (applied to all web responses)
+```
+X-Frame-Options: SAMEORIGIN
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+```
+CSP is not yet applied — the current inline-style-heavy layout requires style refactoring before a useful policy can be written.
+
+### Download error handling
+QR library failures (e.g. `composer install` not yet run) are caught, logged server-side, and return a safe 403 message rather than leaking stack traces.
+
 ---
 
 ## What Is Implemented
@@ -227,16 +345,26 @@ SlugService::validateFormat('hello', minLength: 4, maxLength: 32); // ['valid', 
 | Download PNG (requires GD extension) | ✓ |
 | Download SVG | ✓ |
 | Audit logging (create, edit, pause, resume) | ✓ |
+| **Public slug redirect (`/{slug}` → destination, HTTP 302)** | ✓ |
+| **Unavailable page for paused/disabled links** | ✓ |
+| **Scan event logging on redirect** | ✓ |
+| **Analytics page (`/qr/{id}/analytics`)** | ✓ |
+| **Plan-based analytics retention (visibility rule)** | ✓ |
+| **CSRF protection on all POST endpoints** | ✓ |
+| **Session hardening (stale user ejection)** | ✓ |
+| **Login throttle (5 attempts → 15 min lockout, session-based)** | ✓ |
+| **Input length limits (name 200, URL 2048)** | ✓ |
+| **URL header-injection defense** | ✓ |
+| **Security response headers (X-Frame-Options, nosniff, Referrer-Policy)** | ✓ |
+| **Download failure safe error page** | ✓ |
 
 ## What Is NOT Implemented Yet
 
 The following are intentionally absent:
 
-- CSRF protection on forms (deferred)
-- Public redirect by slug (`/{slug}` → destination)
-- Short link redirect logic
-- Analytics data collection and display
-- Custom slug generation and validation
+- Content-Security-Policy (requires inline style refactoring first)
+- Analytics retention data purge (retention is a query filter only)
+- Geolocation in scan events (country/region/city stored as NULL)
 - Billing / payment integration
 - Team features
 - Admin panel

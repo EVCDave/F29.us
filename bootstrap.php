@@ -34,6 +34,11 @@ if (file_exists($envFile)) {
 
 date_default_timezone_set('UTC');
 
+// Ensure the log directory exists before PHP tries to write to it
+if (!is_dir(STORAGE_PATH . '/logs')) {
+    mkdir(STORAGE_PATH . '/logs', 0755, true);
+}
+
 $debug = filter_var($_ENV['APP_DEBUG'] ?? 'false', FILTER_VALIDATE_BOOLEAN);
 error_reporting(E_ALL);
 ini_set('display_errors', $debug ? '1' : '0');
@@ -49,14 +54,22 @@ require APP_PATH . '/Services/EntitlementService.php';
 require APP_PATH . '/Services/SlugService.php';
 require APP_PATH . '/Services/AuditLogService.php';
 require APP_PATH . '/Services/QrCodeService.php';
+require APP_PATH . '/Services/RedirectService.php';
+require APP_PATH . '/Services/AnalyticsService.php';
+require APP_PATH . '/Services/CsrfService.php';
+require APP_PATH . '/Services/LoginThrottleService.php';
 
 // Establish database connection
 $dbConfig = require CONFIG_PATH . '/database.php';
 Database::connect($dbConfig);
 
-// Start session for web requests (not CLI)
+// Start session and apply security headers for web requests (not CLI)
 if (PHP_SAPI !== 'cli') {
     AuthService::start();
+
+    header('X-Frame-Options: SAMEORIGIN');
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
 }
 
 /**
