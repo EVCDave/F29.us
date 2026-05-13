@@ -10,26 +10,52 @@ class QrController
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
 
-        $stmt = Database::get()->prepare("
-            SELECT
-                qr.id,
-                qr.name,
-                qr.created_at,
-                sl.slug,
-                sl.current_target_url,
-                sl.status
-            FROM qr_codes    AS qr
-            JOIN short_links AS sl ON sl.id = qr.short_link_id
-            WHERE qr.user_id = ?
-            ORDER BY qr.created_at DESC
-        ");
-        $stmt->execute([$userId]);
+        $search = trim($_GET['search'] ?? '');
+        $status = trim($_GET['status'] ?? '');
+
+        $validStatuses = ['active', 'paused', 'disabled', 'archived', ''];
+        if (!in_array($status, $validStatuses, true)) {
+            $status = '';
+        }
+
+        $where = ['qr.user_id = ?'];
+        $args  = [$userId];
+
+        if ($status !== '') {
+            $where[] = 'sl.status = ?';
+            $args[]  = $status;
+        }
+        if ($search !== '') {
+            $where[] = '(qr.name LIKE ? OR sl.slug LIKE ? OR sl.current_target_url LIKE ?)';
+            $args[]  = '%' . $search . '%';
+            $args[]  = '%' . $search . '%';
+            $args[]  = '%' . $search . '%';
+        }
+
+        $sql = "
+            SELECT qr.id, qr.name, qr.created_at,
+                   sl.slug, sl.current_target_url, sl.status
+            FROM   qr_codes    AS qr
+            JOIN   short_links AS sl ON sl.id = qr.short_link_id
+            WHERE  " . implode(' AND ', $where) . "
+            ORDER  BY qr.created_at DESC
+            LIMIT  100
+        ";
+
+        $stmt = Database::get()->prepare($sql);
+        $stmt->execute($args);
         $qrCodes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $flash = $_SESSION['flash'] ?? null;
+        unset($_SESSION['flash']);
 
         View::render('qr/index', [
             'pageTitle' => 'My QR Codes — f29.us Dynamic QR',
             'qrCodes'   => $qrCodes,
             'baseUrl'   => $this->qrBaseUrl(),
+            'search'    => $search,
+            'status'    => $status,
+            'flash'     => $flash,
         ]);
     }
 
@@ -44,7 +70,7 @@ class QrController
             $this->forbidden('Your plan does not allow QR code creation.');
         }
 
-        $maxQr       = (int) EntitlementService::getValue($userId, 'max_qr_codes', 0);
+        $maxQr        = (int) EntitlementService::getValue($userId, 'max_qr_codes', 0);
         $limitReached = $this->countUserQrCodes($userId) >= $maxQr;
 
         View::render('qr/create', [
@@ -65,7 +91,6 @@ class QrController
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
 
-        // Entitlement gates
         if (!EntitlementService::isEnabled($userId, 'can_create_qr')) {
             $this->forbidden('Your plan does not allow QR code creation.');
         }
@@ -75,10 +100,10 @@ class QrController
             $this->forbidden("You have reached the {$maxQr} QR code limit for your plan.");
         }
 
-        $name        = trim($_POST['name']            ?? '');
-        $destUrl     = trim($_POST['destination_url'] ?? '');
-        $customSlug  = trim($_POST['custom_slug']     ?? '');
-        $canCustom   = EntitlementService::isEnabled($userId, 'can_use_custom_slug');
+        $name       = trim($_POST['name']            ?? '');
+        $destUrl    = trim($_POST['destination_url'] ?? '');
+        $customSlug = trim($_POST['custom_slug']     ?? '');
+        $canCustom  = EntitlementService::isEnabled($userId, 'can_use_custom_slug');
 
         $errors = [];
 
@@ -96,7 +121,6 @@ class QrController
             $errors[] = 'Destination URL must be a valid http or https URL.';
         }
 
-        // Slug resolution
         $resolvedSlug = null;
         if ($customSlug !== '') {
             $slugResult = SlugService::validateCustomSlugForUser($userId, $customSlug);
@@ -119,12 +143,10 @@ class QrController
             return;
         }
 
-        // Auto-generate slug when none was provided
         if ($resolvedSlug === null) {
             $resolvedSlug = SlugService::generateUniqueSlug();
         }
 
-        // Transaction: short_link + qr_code + audit_logs
         $pdo = Database::get();
         $pdo->beginTransaction();
         try {
@@ -159,7 +181,6 @@ class QrController
             if ($pdo->inTransaction()) {
                 $pdo->rollBack();
             }
-            // Slug uniqueness race condition
             if ($e instanceof PDOException && $e->getCode() === '23000') {
                 View::render('qr/create', [
                     'pageTitle'     => 'Create QR Code — f29.us Dynamic QR',
@@ -174,6 +195,7 @@ class QrController
             throw $e;
         }
 
+        $_SESSION['flash'] = ['type' => 'success', 'text' => 'QR code created successfully.'];
         redirect('/qr/' . $qrCodeId);
     }
 
@@ -187,6 +209,19 @@ class QrController
 
         $qr = $this->loadOwnedQrCode($qrId, $userId);
 
+        $flash = $_SESSION['flash'] ?? null;
+        unset($_SESSION['flash']);
+
+        // SVG preview is always generated for in-app display (not an export)
+        $qrPreviewSvg = null;
+        try {
+            $qrPreviewSvg = base64_encode(
+                QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'])
+            );
+        } catch (Throwable) {
+            // Preview is best-effort; missing preview does not fail the page
+        }
+
         View::render('qr/detail', [
             'pageTitle'          => View::e($qr['name']) . ' — f29.us Dynamic QR',
             'qr'                 => $qr,
@@ -195,10 +230,12 @@ class QrController
             'canPauseLinks'      => EntitlementService::isEnabled($userId, 'can_pause_links'),
             'canExportPng'       => EntitlementService::isEnabled($userId, 'can_export_png'),
             'canExportSvg'       => EntitlementService::isEnabled($userId, 'can_export_svg'),
+            'qrPreviewSvg'       => $qrPreviewSvg,
+            'flash'              => $flash,
         ]);
     }
 
-    // ── Edit destination form ─────────────────────────────────────────────────
+    // ── Edit form ─────────────────────────────────────────────────────────────
 
     public function editPage(array $params = []): void
     {
@@ -208,70 +245,95 @@ class QrController
 
         $qr = $this->loadOwnedQrCode($qrId, $userId);
 
-        if (!EntitlementService::isEnabled($userId, 'can_edit_destination')) {
-            $this->forbidden('Editing the destination URL is not available on your plan.');
-        }
-
         View::render('qr/edit', [
-            'pageTitle' => 'Edit Destination — f29.us Dynamic QR',
-            'qr'        => $qr,
-            'errors'    => [],
-            'oldUrl'    => $qr['current_target_url'],
+            'pageTitle'          => 'Edit QR Code — f29.us Dynamic QR',
+            'qr'                 => $qr,
+            'errors'             => [],
+            'oldName'            => $qr['name'],
+            'oldUrl'             => $qr['current_target_url'],
+            'canEditDestination' => EntitlementService::isEnabled($userId, 'can_edit_destination'),
         ]);
     }
 
-    // ── Update destination ────────────────────────────────────────────────────
+    // ── Update (name + destination) ───────────────────────────────────────────
 
-    public function updateDestination(array $params = []): void
+    public function update(array $params = []): void
     {
         CsrfService::requireValid();
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
         $qrId   = (int) ($params['id'] ?? 0);
 
-        $qr = $this->loadOwnedQrCode($qrId, $userId);
+        $qr          = $this->loadOwnedQrCode($qrId, $userId);
+        $canEditDest = EntitlementService::isEnabled($userId, 'can_edit_destination');
 
-        if (!EntitlementService::isEnabled($userId, 'can_edit_destination')) {
-            $this->forbidden('Editing the destination URL is not available on your plan.');
+        $newName = trim($_POST['name']            ?? '');
+        $newUrl  = trim($_POST['destination_url'] ?? '');
+        $errors  = [];
+
+        if ($newName === '') {
+            $errors[] = 'Name is required.';
+        } elseif (mb_strlen($newName) > 200) {
+            $errors[] = 'Name must be 200 characters or fewer.';
         }
 
-        $newUrl = trim($_POST['destination_url'] ?? '');
-        $errors = [];
-
-        if ($newUrl === '') {
-            $errors[] = 'Destination URL is required.';
-        } elseif (strlen($newUrl) > 2048) {
-            $errors[] = 'Destination URL must be 2048 characters or fewer.';
-        } elseif (!$this->isValidUrl($newUrl)) {
-            $errors[] = 'Destination URL must be a valid http or https URL.';
+        if ($canEditDest) {
+            if ($newUrl === '') {
+                $errors[] = 'Destination URL is required.';
+            } elseif (strlen($newUrl) > 2048) {
+                $errors[] = 'Destination URL must be 2048 characters or fewer.';
+            } elseif (!$this->isValidUrl($newUrl)) {
+                $errors[] = 'Destination URL must be a valid http or https URL.';
+            }
         }
 
         if (!empty($errors)) {
             View::render('qr/edit', [
-                'pageTitle' => 'Edit Destination — f29.us Dynamic QR',
-                'qr'        => $qr,
-                'errors'    => $errors,
-                'oldUrl'    => $newUrl,
+                'pageTitle'          => 'Edit QR Code — f29.us Dynamic QR',
+                'qr'                 => $qr,
+                'errors'             => $errors,
+                'oldName'            => $newName,
+                'oldUrl'             => $canEditDest ? $newUrl : $qr['current_target_url'],
+                'canEditDestination' => $canEditDest,
             ]);
             return;
         }
 
-        $oldUrl = $qr['current_target_url'];
-        $pdo    = Database::get();
-        $now    = gmdate('Y-m-d H:i:s');
+        $nameChanged = $newName !== $qr['name'];
+        $urlChanged  = $canEditDest && $newUrl !== $qr['current_target_url'];
+
+        if (!$nameChanged && !$urlChanged) {
+            $_SESSION['flash'] = ['type' => 'info', 'text' => 'No changes were made.'];
+            redirect('/qr/' . $qrId);
+        }
+
+        $pdo = Database::get();
+        $now = gmdate('Y-m-d H:i:s');
 
         $pdo->beginTransaction();
         try {
-            $pdo->prepare("
-                UPDATE short_links
-                SET current_target_url = ?, updated_at = ?
-                WHERE id = ?
-            ")->execute([$newUrl, $now, $qr['short_link_id']]);
+            if ($nameChanged) {
+                $pdo->prepare(
+                    "UPDATE qr_codes SET name = ?, updated_at = ? WHERE id = ?"
+                )->execute([$newName, $now, $qrId]);
+            }
 
-            AuditLogService::log($userId, 'short_link', (int) $qr['short_link_id'], 'destination_updated', [
-                'old_url' => $oldUrl,
-                'new_url' => $newUrl,
-            ]);
+            if ($urlChanged) {
+                $pdo->prepare(
+                    "UPDATE short_links SET current_target_url = ?, updated_at = ? WHERE id = ?"
+                )->execute([$newUrl, $now, $qr['short_link_id']]);
+            }
+
+            $meta = [];
+            if ($nameChanged) {
+                $meta['old_name'] = $qr['name'];
+                $meta['new_name'] = $newName;
+            }
+            if ($urlChanged) {
+                $meta['old_url'] = $qr['current_target_url'];
+                $meta['new_url'] = $newUrl;
+            }
+            AuditLogService::log($userId, 'qr_code', $qrId, 'updated', $meta);
 
             $pdo->commit();
         } catch (Throwable $e) {
@@ -281,6 +343,7 @@ class QrController
             throw $e;
         }
 
+        $_SESSION['flash'] = ['type' => 'success', 'text' => 'QR code updated successfully.'];
         redirect('/qr/' . $qrId);
     }
 
@@ -325,6 +388,7 @@ class QrController
             throw $e;
         }
 
+        $_SESSION['flash'] = ['type' => 'info', 'text' => 'This QR code has been paused.'];
         redirect('/qr/' . $qrId);
     }
 
@@ -369,6 +433,93 @@ class QrController
             throw $e;
         }
 
+        $_SESSION['flash'] = ['type' => 'success', 'text' => 'This QR code is active again.'];
+        redirect('/qr/' . $qrId);
+    }
+
+    // ── Archive ───────────────────────────────────────────────────────────────
+
+    public function archive(array $params = []): void
+    {
+        CsrfService::requireValid();
+        AuthService::requireAuth();
+        $userId = (int) AuthService::userId();
+        $qrId   = (int) ($params['id'] ?? 0);
+
+        $qr = $this->loadOwnedQrCode($qrId, $userId);
+
+        // Only allow archiving active or paused links; disabled is admin-managed
+        if (!in_array($qr['status'], ['active', 'paused'], true)) {
+            redirect('/qr/' . $qrId);
+        }
+
+        $pdo       = Database::get();
+        $now       = gmdate('Y-m-d H:i:s');
+        $oldStatus = $qr['status'];
+
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare(
+                "UPDATE short_links SET status = 'archived', updated_at = ? WHERE id = ?"
+            )->execute([$now, $qr['short_link_id']]);
+
+            AuditLogService::log($userId, 'short_link', (int) $qr['short_link_id'], 'archived', [
+                'old_status' => $oldStatus,
+                'new_status' => 'archived',
+            ]);
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        $_SESSION['flash'] = ['type' => 'info',
+            'text' => 'This QR code has been archived and will no longer redirect.'];
+        redirect('/qr/' . $qrId);
+    }
+
+    // ── Restore ───────────────────────────────────────────────────────────────
+
+    public function restore(array $params = []): void
+    {
+        CsrfService::requireValid();
+        AuthService::requireAuth();
+        $userId = (int) AuthService::userId();
+        $qrId   = (int) ($params['id'] ?? 0);
+
+        $qr = $this->loadOwnedQrCode($qrId, $userId);
+
+        if ($qr['status'] !== 'archived') {
+            redirect('/qr/' . $qrId);
+        }
+
+        $pdo = Database::get();
+        $now = gmdate('Y-m-d H:i:s');
+
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare(
+                "UPDATE short_links SET status = 'active', updated_at = ? WHERE id = ?"
+            )->execute([$now, $qr['short_link_id']]);
+
+            AuditLogService::log($userId, 'short_link', (int) $qr['short_link_id'], 'restored', [
+                'old_status' => 'archived',
+                'new_status' => 'active',
+            ]);
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+
+        $_SESSION['flash'] = ['type' => 'success',
+            'text' => 'This QR code has been restored and is active again.'];
         redirect('/qr/' . $qrId);
     }
 
@@ -457,10 +608,6 @@ class QrController
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    /**
-     * Load a QR code (joined with its short link) that belongs to $userId.
-     * Outputs a 404 and exits if the row doesn't exist or isn't owned by this user.
-     */
     private function loadOwnedQrCode(int $qrId, int $userId): array
     {
         if ($qrId <= 0) {
@@ -504,7 +651,6 @@ class QrController
 
     private function isValidUrl(string $url): bool
     {
-        // Reject control characters that could enable header injection
         if (preg_match('/[\r\n\t\0]/', $url)) {
             return false;
         }
@@ -515,22 +661,18 @@ class QrController
         return in_array($scheme, ['http', 'https'], true);
     }
 
-    /**
-     * The base URL that gets encoded into QR images.
-     * Always uses QR_BASE_URL (production domain) so downloaded QR files
-     * point to the live short-link service, not the dev server.
-     */
     private function qrBaseUrl(): string
     {
         return rtrim($_ENV['QR_BASE_URL'] ?? 'https://f29.us', '/');
     }
 
-    /** Produce a safe ASCII filename from the QR name + slug. */
+    /** Produce a safe, prefixed filename: f29-qr-{safe-name}-{slug} */
     private function safeFilename(string $name, string $slug): string
     {
         $safe = preg_replace('/[^a-z0-9]+/', '-', strtolower($name));
         $safe = trim($safe, '-');
-        return ($safe !== '' ? $safe . '-' : '') . $slug;
+        $safe = mb_substr($safe, 0, 50);
+        return 'f29-qr-' . ($safe !== '' ? $safe . '-' : '') . $slug;
     }
 
     private function forbidden(string $message): never

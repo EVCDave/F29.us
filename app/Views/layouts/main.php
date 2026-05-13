@@ -86,6 +86,7 @@
         .status-active   { color: #166534; font-weight: 500; }
         .status-paused   { color: #92400e; font-weight: 500; }
         .status-disabled { color: #991b1b; font-weight: 500; }
+        .status-archived { color: #6b7280; font-weight: 500; }
 
         /* Buttons */
         .btn {
