@@ -49,6 +49,12 @@
     <a href="/admin/plans" class="btn btn-secondary">Plan Catalog</a>
 </div>
 
+<h2 style="margin-bottom:0.75rem">Moderation</h2>
+<div class="actions-group" style="margin-bottom:2rem">
+    <a href="/admin/moderation/links" class="btn btn-secondary">Moderated Links</a>
+    <a href="/admin/moderation/domains" class="btn btn-secondary">Blocked Domains</a>
+</div>
+
 <h2 style="margin-bottom:0.75rem">Visibility &amp; Diagnostics</h2>
 <div class="actions-group">
     <a href="/admin/audit-logs" class="btn btn-secondary">Audit Logs</a>

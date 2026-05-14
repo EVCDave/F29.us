@@ -704,6 +704,59 @@ All plan eligibility is validated server-side (public, active, not legacy). The 
 
 The `subscription_change_requests` table stores all requests with `current_plan_id`, `requested_plan_id`, `status`, `requested_at`, `reviewed_at`, and `note`. Admins can list, inspect, approve, deny, or cancel requests at `/admin/subscription-requests`. Approval is transactional: it cancels the current active subscription and creates a new one for the requested plan.
 
+## Moderation
+
+### Link status distinction
+
+| Status | Set by | Meaning |
+|--------|--------|---------|
+| `active` | User or admin | Link redirects normally |
+| `paused` | User | User has temporarily paused redirects |
+| `archived` | User | User has archived the link; redirects stop |
+| `disabled` | Admin only | Admin/moderation action; redirects stop |
+
+Users can pause, resume, archive, and restore their own links. Users **cannot** resume or restore a `disabled` link. Only admins can disable and restore links via the moderation panel.
+
+### Admin-disabling a link
+
+When an admin disables a short link:
+
+- `status` is set to `'disabled'`
+- `disabled_reason`, `disabled_by_user_id`, and `disabled_at` are recorded
+- An optional internal `moderation_note` is stored (never shown publicly)
+- The audit log records `admin_disabled` with slug, old status, reason, and whether a note was present
+- Public redirects for the slug immediately show the unavailable page (generic message — reason not exposed)
+- The link owner sees "This QR code has been disabled by an administrator" on their detail page
+
+Restoring an admin-disabled link sets `status = 'active'` and logs `admin_restored`. Moderation metadata is preserved for audit context.
+
+### Blocked domain enforcement
+
+The `blocked_domains` table stores domains that users are not permitted to use as QR destinations. Blocking a domain also blocks all its subdomains:
+
+- Blocking `example.com` prevents `https://example.com`, `https://www.example.com`, and `https://sub.example.com/path`
+- Enforcement runs on QR creation, destination edit, and destination-history restore
+- Failed attempts show "This destination domain is not allowed." — no internal reason is exposed
+- Inactive blocked-domain rows do not enforce
+
+External malware scanning (Google Safe Browsing, VirusTotal, etc.) is **not implemented**.
+
+### Moderation admin pages
+
+| Page | Path | Description |
+|------|------|-------------|
+| Moderated links | `/admin/moderation/links` | Filter links by status, owner, slug, or destination. Defaults to disabled links. |
+| Link detail | `/admin/moderation/links/{id}` | Full context: owner, destination, moderation metadata, recent scan count. Disable or restore form. |
+| Disable link | `POST /admin/moderation/links/{id}/disable` | Requires `disabled_reason`. Optional `moderation_note`. |
+| Restore link | `POST /admin/moderation/links/{id}/restore` | Sets status to active. Preserves moderation metadata. |
+| Blocked domains | `/admin/moderation/domains` | List all blocked domains with add form and active/inactive toggle. |
+| Add domain | `POST /admin/moderation/domains` | Normalizes (lowercase, strips www.) before storage. Rejects duplicates. |
+| Toggle domain | `POST /admin/moderation/domains/{id}/toggle` | Flips `is_active`. Inactive entries do not block destinations. |
+
+All moderation POST endpoints are CSRF-protected and require the admin role. All actions are written to `audit_logs`.
+
+---
+
 ## What Is NOT Implemented Yet
 
 The following are intentionally absent:
@@ -716,3 +769,4 @@ The following are intentionally absent:
 - Automated billing / payment processing / Stripe / checkout
 - Team features
 - API endpoints
+- External malware / phishing scanning (Google Safe Browsing, VirusTotal, etc.)

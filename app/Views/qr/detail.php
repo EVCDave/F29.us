@@ -12,6 +12,12 @@
 </div>
 <?php endif; ?>
 
+<?php if ($qr['status'] === 'disabled'): ?>
+<div style="background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;border-radius:4px;padding:0.7rem 1rem;margin-bottom:1.5rem;font-size:0.9rem">
+    This QR code has been disabled by an administrator and will not redirect. Contact support if you believe this is an error.
+</div>
+<?php endif; ?>
+
 <div style="display:flex;gap:2rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:2rem">
 
     <!-- QR preview -->
