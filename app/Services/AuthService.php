@@ -226,6 +226,12 @@ class AuthService
         self::$cachedUser = null;
     }
 
+    /** Clear the per-request user cache so the next call re-fetches from the DB. */
+    public static function clearCache(): void
+    {
+        self::$cachedUser = null;
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private static function setUserId(int $id): void
