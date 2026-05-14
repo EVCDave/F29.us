@@ -92,6 +92,8 @@ class AccountSettingsController
             'new_email' => $newEmail,
         ]);
 
+        NotificationService::accountEmailChanged($userId, $oldEmail, $newEmail);
+
         $_SESSION['flash'] = ['type' => 'success', 'text' => 'Your email address has been updated.'];
         redirect('/account/settings');
     }
@@ -146,6 +148,8 @@ class AccountSettingsController
         AuditLogService::log($userId, 'user', $userId, 'password_changed', [
             'password_changed' => true,
         ]);
+
+        NotificationService::accountPasswordChanged($userId);
 
         $_SESSION['flash'] = ['type' => 'success', 'text' => 'Your password has been updated.'];
         redirect('/account/settings');

@@ -75,6 +75,8 @@ require APP_PATH . '/Services/CsrfService.php';
 require APP_PATH . '/Services/LoginThrottleService.php';
 require APP_PATH . '/Services/DestinationHistoryService.php';
 require APP_PATH . '/Services/DomainBlocklistService.php';
+require APP_PATH . '/Services/MailerService.php';
+require APP_PATH . '/Services/NotificationService.php';
 
 // Establish database connection
 $dbConfig = require CONFIG_PATH . '/database.php';

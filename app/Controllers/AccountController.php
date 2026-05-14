@@ -178,6 +178,8 @@ class AccountController
             'requested_plan_id' => (int) $request['requested_plan_id'],
         ]);
 
+        NotificationService::subscriptionRequestCanceled($requestId, false);
+
         $_SESSION['flash'] = ['type' => 'info',
             'text' => 'Your plan-change request was canceled. Your current subscription was not changed.'];
         redirect('/account/subscription');
@@ -264,6 +266,8 @@ class AccountController
             'requested_plan_id' => $planId,
             'requested_plan'    => $plan['internal_name'],
         ]);
+
+        NotificationService::subscriptionRequestSubmitted($requestId);
 
         $_SESSION['flash'] = ['type' => 'success',
             'text' => 'Your request for the ' . $plan['display_name'] . ' plan has been submitted for review.'];
