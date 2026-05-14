@@ -73,7 +73,15 @@ DB_USERNAME=your_db_user
 DB_PASSWORD=your_db_password
 ```
 
-### 2. Create the database
+### 2. Install Composer dependencies
+
+```bash
+composer install
+```
+
+This installs `endroid/qr-code` and its dependencies into `vendor/`. The application will not boot without this step.
+
+### 3. Create the database
 
 ```sql
 CREATE DATABASE f29us_qr
@@ -81,7 +89,7 @@ CREATE DATABASE f29us_qr
   COLLATE utf8mb4_unicode_ci;
 ```
 
-### 3. Run migrations
+### 4. Run migrations
 
 From the project root:
 
@@ -101,7 +109,7 @@ Migrations: N run, 0 skipped.
 
 Migrations are idempotent — re-running skips already-applied files.
 
-### 4. Run seeders
+### 5. Run seeders
 
 ```bash
 php seed.php
@@ -118,13 +126,23 @@ Seeding complete.
 
 Seeders use `ON DUPLICATE KEY UPDATE` and are safe to re-run.
 
-### 5. Serve locally
+### 6. Serve locally
 
 ```bash
 php -S localhost:8000 -t public
 ```
 
 Open `http://localhost:8000` in your browser.
+
+### 7. Register and promote the first admin
+
+Register a user at `http://localhost:8000/register`, then promote them in the database:
+
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
+```
+
+Visit `http://localhost:8000/admin` — the yellow **Admin** link appears in the nav for admin users.
 
 ---
 
@@ -236,6 +254,9 @@ In cPanel → **Cron Jobs**, add a daily job to prune old login attempt rows:
 | `DB_DATABASE` | **Yes** | — | Database name |
 | `DB_USERNAME` | **Yes** | — | Database username |
 | `DB_PASSWORD` | No | *(empty)* | Database password |
+| `SUPPORT_EMAIL` | No | `support@f29.us` | Contact address shown on the Contact page |
+| `ABUSE_EMAIL` | No | `abuse@f29.us` | Contact address shown on the Abuse and Contact pages |
+| `PRIVACY_EMAIL` | No | `privacy@f29.us` | Contact address shown on the Contact page |
 
 The application validates all required variables on startup. A missing or invalid variable causes an immediate 500 response (web) or an error message to STDERR with exit code 1 (CLI).
 
@@ -475,6 +496,35 @@ CSP is not yet applied — the current inline-style-heavy layout requires style 
 
 ### Download error handling
 QR library failures (e.g. `composer install` not yet run) are caught, logged server-side, and return a safe 403 message rather than leaking stack traces.
+
+---
+
+## Operational Commands
+
+Quick reference for the most common CLI operations.
+
+```bash
+# Install production dependencies
+composer install --no-dev --optimize-autoloader
+
+# Run pending database migrations (idempotent — safe to re-run)
+php migrate.php
+
+# Seed plan catalog (idempotent — uses ON DUPLICATE KEY UPDATE)
+php seed.php
+
+# Prune login_attempts rows older than 90 days
+php cleanup.php
+
+# Start local dev server
+php -S localhost:8000 -t public
+```
+
+**Suggested cron job** — daily cleanup at 03:00 (cPanel Cron Jobs or crontab):
+
+```
+0 3 * * * php /home/youruser/f29us/cleanup.php >> /home/youruser/f29us/storage/logs/cleanup.log 2>&1
+```
 
 ---
 
@@ -891,6 +941,18 @@ This gating logic should be implemented in `EntitlementService` so all access ch
 
 ---
 
+## QA Checklist
+
+A manual regression checklist covering all features is maintained at:
+
+```
+docs/QA_CHECKLIST.md
+```
+
+Run through it before every production deployment.
+
+---
+
 ## What Is NOT Implemented Yet
 
 The following are intentionally absent:
@@ -900,6 +962,12 @@ The following are intentionally absent:
 - Geolocation in scan events (country/region/city stored as NULL)
 - Payment processing and checkout (Stripe integration — schema groundwork is in place; see Billing State Model)
 - Automated billing webhooks and access gating based on billing state
-- Team features
-- API endpoints
+- Password reset by email (no email sending is implemented)
+- Email notifications of any kind
+- Multi-factor authentication (MFA / TOTP)
+- Team / workspace / multi-user account features
+- API endpoints (REST or otherwise)
 - External malware / phishing scanning (Google Safe Browsing, VirusTotal, etc.)
+- Geolocation in scan events (country/region/city stored as NULL)
+- Content-Security-Policy (requires inline style refactoring first)
+- Analytics data purge (retention window is a query filter only — old rows are not deleted)
