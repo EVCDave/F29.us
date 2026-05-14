@@ -22,6 +22,7 @@ return [
     'acceptable-use',
     'abuse',
     'contact',
+    'verify-email',
     'assets',
     'public',
     'static',

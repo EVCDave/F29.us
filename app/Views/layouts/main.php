@@ -159,6 +159,20 @@
     </div>
 </nav>
 
+<?php
+$_unverified = $navUser
+    && $navUser['email_verified_at'] === null
+    && (int) ($navUser['email_verification_required'] ?? 0) === 1;
+?>
+<?php if ($_unverified): ?>
+<div style="background:#fef3c7;border-bottom:1px solid #f59e0b;padding:0.65rem 0">
+    <div class="container" style="font-size:0.88rem;color:#78350f">
+        Please verify your email address to unlock all features.
+        <a href="/account/verify-email" style="color:#92400e;font-weight:600;margin-left:0.5rem">Verify now &rarr;</a>
+    </div>
+</div>
+<?php endif; ?>
+
 <main>
     <div class="container">
         <?= $content ?>

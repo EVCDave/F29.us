@@ -88,6 +88,12 @@ class AuthController
 
         // Rotate CSRF token after the session state change
         CsrfService::refresh();
+
+        $newUserId = AuthService::userId();
+        if ($newUserId) {
+            EmailVerificationService::createRegistrationToken($newUserId, strtolower(trim($email)));
+        }
+
         redirect('/dashboard');
     }
 

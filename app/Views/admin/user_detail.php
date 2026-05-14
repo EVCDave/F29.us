@@ -59,6 +59,19 @@
     </tr>
     <?php endif; ?>
     <tr>
+        <th>Email verified</th>
+        <td>
+            <?php if (!empty($user['email_verified_at'])): ?>
+                <span style="color:#166534">Yes</span>
+                <span style="color:#9ca3af;font-size:0.85rem;margin-left:0.4rem"><?= View::e(substr($user['email_verified_at'], 0, 16)) ?> UTC</span>
+            <?php elseif ((int)($user['email_verification_required'] ?? 0) === 1): ?>
+                <span style="color:#991b1b">No (required)</span>
+            <?php else: ?>
+                <span style="color:#6b7280">No (pre-existing)</span>
+            <?php endif; ?>
+        </td>
+    </tr>
+    <tr>
         <th>Created</th>
         <td><?= View::e($user['created_at']) ?></td>
     </tr>

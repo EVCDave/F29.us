@@ -286,6 +286,120 @@ class NotificationService
         }
     }
 
+    // ── Email verification: registration ─────────────────────────────────────
+
+    public static function registrationVerification(string $email, string $rawToken): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $appUrl  = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
+            $link    = $appUrl . '/verify-email?token=' . urlencode($rawToken);
+            $linkE   = self::e($link);
+            $subject = 'Please verify your email address — f29.us Dynamic QR';
+
+            $bodyHtml = self::wrap(
+                "Thanks for creating an account. Please verify your email address by clicking the link below.<br><br>"
+                . "<a href=\"{$linkE}\" style=\"display:inline-block;padding:0.5rem 1.2rem;background:#1a1a2e;color:#fff;text-decoration:none;border-radius:4px\">Verify Email Address</a><br><br>"
+                . "Or copy and paste this URL into your browser:<br>"
+                . "<a href=\"{$linkE}\">{$linkE}</a><br><br>"
+                . "This link expires in 24 hours. If you did not create an account, you can safely ignore this email."
+            );
+
+            MailerService::send($email, $email, $subject, $bodyHtml);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] registrationVerification to ' . $email . ': ' . $e->getMessage());
+        }
+    }
+
+    // ── Email verification: email change ─────────────────────────────────────
+
+    public static function emailChangeVerification(string $newEmail, string $rawToken): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $appUrl  = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
+            $link    = $appUrl . '/verify-email?token=' . urlencode($rawToken);
+            $linkE   = self::e($link);
+            $subject = 'Confirm your new email address — f29.us Dynamic QR';
+
+            $bodyHtml = self::wrap(
+                "We received a request to change your f29.us Dynamic QR account email address to this address.<br><br>"
+                . "Click the link below to confirm this email address and complete the change:<br><br>"
+                . "<a href=\"{$linkE}\" style=\"display:inline-block;padding:0.5rem 1.2rem;background:#1a1a2e;color:#fff;text-decoration:none;border-radius:4px\">Confirm New Email Address</a><br><br>"
+                . "Or copy and paste this URL into your browser:<br>"
+                . "<a href=\"{$linkE}\">{$linkE}</a><br><br>"
+                . "This link expires in 24 hours. If you did not request this change, you can safely ignore this email."
+            );
+
+            MailerService::send($newEmail, $newEmail, $subject, $bodyHtml);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] emailChangeVerification to ' . $newEmail . ': ' . $e->getMessage());
+        }
+    }
+
+    public static function emailChangeSecurityNotice(string $oldEmail, string $newEmail): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $support  = self::supportEmail();
+            $supportE = self::e($support);
+            $subject  = 'Email change requested on your account — f29.us Dynamic QR';
+
+            $bodyHtml = self::wrap(
+                "A request was made to change the email address on your f29.us Dynamic QR account.<br><br>"
+                . "<strong>Requested new address:</strong> " . self::e($newEmail) . "<br><br>"
+                . "The change will only take effect once confirmed at the new address. Your account continues to use this address until then.<br><br>"
+                . "If you did not request this change, contact us immediately at "
+                . "<a href=\"mailto:{$supportE}\">{$supportE}</a>."
+            );
+
+            MailerService::send($oldEmail, $oldEmail, $subject, $bodyHtml);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] emailChangeSecurityNotice to ' . $oldEmail . ': ' . $e->getMessage());
+        }
+    }
+
+    public static function emailChangeCompleted(string $oldEmail, string $newEmail): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $support  = self::supportEmail();
+            $supportE = self::e($support);
+            $subject  = 'Your email address has been updated — f29.us Dynamic QR';
+
+            $bodyOld = self::wrap(
+                "The email address on your f29.us Dynamic QR account has been changed.<br><br>"
+                . "<strong>Old address:</strong> " . self::e($oldEmail) . "<br>"
+                . "<strong>New address:</strong> " . self::e($newEmail) . "<br><br>"
+                . "If you did not make this change, contact us immediately at "
+                . "<a href=\"mailto:{$supportE}\">{$supportE}</a>."
+            );
+            MailerService::send($oldEmail, $oldEmail, $subject, $bodyOld);
+
+            $bodyNew = self::wrap(
+                "Your f29.us Dynamic QR account email address has been updated to this address.<br><br>"
+                . "Future account notifications will be sent here.<br><br>"
+                . "If you did not make this change, contact us immediately at "
+                . "<a href=\"mailto:{$supportE}\">{$supportE}</a>."
+            );
+            MailerService::send($newEmail, $newEmail, $subject, $bodyNew);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] emailChangeCompleted old=' . $oldEmail . ' new=' . $newEmail . ': ' . $e->getMessage());
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private static function loadSubscriptionRequest(int $requestId): array|false
@@ -321,6 +435,11 @@ class NotificationService
     private static function supportEmail(): string
     {
         return $_ENV['MAIL_SUPPORT_ADDRESS'] ?? $_ENV['SUPPORT_EMAIL'] ?? 'support@f29.us';
+    }
+
+    private static function e(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     }
 
     private static function wrap(string $content): string

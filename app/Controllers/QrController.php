@@ -91,6 +91,8 @@ class QrController
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
 
+        EmailVerificationService::requireVerifiedEmail($userId);
+
         if (!EntitlementService::isEnabled($userId, 'can_create_qr')) {
             $this->forbidden('Your plan does not allow QR code creation.');
         }
@@ -274,6 +276,10 @@ class QrController
 
         $qr          = $this->loadOwnedQrCode($qrId, $userId);
         $canEditDest = EntitlementService::isEnabled($userId, 'can_edit_destination');
+
+        if ($canEditDest) {
+            EmailVerificationService::requireVerifiedEmail($userId);
+        }
 
         $newName = trim($_POST['name']            ?? '');
         $newUrl  = trim($_POST['destination_url'] ?? '');
@@ -547,6 +553,8 @@ class QrController
         $userId    = (int) AuthService::userId();
         $qrId      = (int) ($params['id']        ?? 0);
         $historyId = (int) ($params['historyId'] ?? 0);
+
+        EmailVerificationService::requireVerifiedEmail($userId);
 
         $qr = $this->loadOwnedQrCode($qrId, $userId);
 

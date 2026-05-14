@@ -54,6 +54,18 @@
                 <td style="border:none"><?= View::e(substr($user['last_login_at'], 0, 16)) ?> UTC</td>
             </tr>
             <?php endif; ?>
+            <tr>
+                <td style="color:#6b7280;padding:0.3rem 1rem 0.3rem 0;border:none">Email verified</td>
+                <td style="border:none">
+                    <?php if (!empty($user['email_verified_at'])): ?>
+                        <span style="color:#166534;font-weight:500">Verified</span>
+                    <?php else: ?>
+                        <span style="color:#991b1b">Not verified</span>
+                        &mdash;
+                        <a href="/account/verify-email" style="font-size:0.88rem">Resend verification email</a>
+                    <?php endif; ?>
+                </td>
+            </tr>
         </tbody>
     </table>
 </div>
@@ -125,7 +137,7 @@ $fv = static fn(string $key): string => View::e($pv ? ($pv[$key] ?? '') : ($user
 <!-- ── Update email ───────────────────────────────────────────────────────── -->
 <div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:1.25rem 1.5rem;margin-bottom:2rem;max-width:520px">
     <h2 style="margin-bottom:0.1rem">Update Email Address</h2>
-    <p style="font-size:0.85rem;color:#6b7280;margin-bottom:1rem">Enter your current password to confirm the change.</p>
+    <p style="font-size:0.85rem;color:#6b7280;margin-bottom:1rem">Enter your current password to confirm. A verification link will be sent to the new address — your email will not change until you click it.</p>
 
     <form method="post" action="/account/settings/email">
         <?= CsrfService::field() ?>
