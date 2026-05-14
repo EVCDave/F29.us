@@ -20,7 +20,8 @@ class AccountSettingsController
 
         $stmt = Database::get()->prepare(
             "SELECT id, email, status, role, created_at, last_login_at,
-                    first_name, last_name, display_name, company_name, phone, timezone
+                    first_name, last_name, display_name, company_name, phone, timezone,
+                    email_verified_at, email_verification_required
              FROM users WHERE id = ? LIMIT 1"
         );
         $stmt->execute([$userId]);
@@ -121,6 +122,9 @@ class AccountSettingsController
         AuthService::requireAuth();
 
         $userId   = (int) AuthService::userId();
+
+        EmailVerificationService::requireVerifiedEmail($userId);
+
         $pdo      = Database::get();
         $newEmail = strtolower(trim($_POST['new_email'] ?? ''));
         $password = $_POST['current_password'] ?? '';
@@ -150,30 +154,27 @@ class AccountSettingsController
             redirect('/account/settings');
         }
 
-        $now = gmdate('Y-m-d H:i:s');
-        try {
-            $pdo->prepare(
-                "UPDATE users SET email = ?, updated_at = ? WHERE id = ?"
-            )->execute([$newEmail, $now, $userId]);
-        } catch (PDOException $e) {
-            if ($e->getCode() === '23000') {
-                $_SESSION['flash'] = ['type' => 'error', 'text' => 'That email address is already in use.', 'email' => $newEmail];
-                redirect('/account/settings');
-            }
-            throw $e;
+        // Pre-check uniqueness so the user gets a clear error before a token is sent
+        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1");
+        $stmt->execute([$newEmail, $userId]);
+        if ($stmt->fetch()) {
+            $_SESSION['flash'] = ['type' => 'error', 'text' => 'That email address is already in use.', 'email' => $newEmail];
+            redirect('/account/settings');
         }
 
-        $oldEmail = $user['email'];
-        AuthService::clearCache();
+        $currentEmail = (string) $user['email'];
 
-        AuditLogService::log($userId, 'user', $userId, 'email_changed', [
-            'old_email' => $oldEmail,
+        AuditLogService::log($userId, 'user', $userId, 'email_change_requested', [
+            'old_email' => $currentEmail,
             'new_email' => $newEmail,
         ]);
 
-        NotificationService::accountEmailChanged($userId, $oldEmail, $newEmail);
+        EmailVerificationService::createEmailChangeToken($userId, $currentEmail, $newEmail);
 
-        $_SESSION['flash'] = ['type' => 'success', 'text' => 'Your email address has been updated.'];
+        $_SESSION['flash'] = [
+            'type' => 'success',
+            'text' => 'A confirmation link has been sent to ' . $newEmail . '. Your email address will update once you click the link.',
+        ];
         redirect('/account/settings');
     }
 

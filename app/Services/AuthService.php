@@ -54,7 +54,9 @@ class AuthService
         }
 
         $stmt = Database::get()->prepare(
-            "SELECT id, email, role, status, first_name, last_name, display_name FROM users WHERE id = ? LIMIT 1"
+            "SELECT id, email, role, status, first_name, last_name, display_name,
+                    email_verified_at, email_verification_required
+             FROM users WHERE id = ? LIMIT 1"
         );
         $stmt->execute([self::userId()]);
         self::$cachedUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
@@ -128,8 +130,8 @@ class AuthService
             $hash = password_hash($password, PASSWORD_BCRYPT);
 
             $pdo->prepare("
-                INSERT INTO users (email, password_hash, status, created_at, updated_at)
-                VALUES (?, ?, 'active', ?, ?)
+                INSERT INTO users (email, password_hash, status, email_verification_required, created_at, updated_at)
+                VALUES (?, ?, 'active', 1, ?, ?)
             ")->execute([$email, $hash, $now, $now]);
 
             $userId = (int) $pdo->lastInsertId();

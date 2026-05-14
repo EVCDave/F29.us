@@ -751,6 +751,13 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Account settings profile form — update profile, CSRF-protected, audit-logged** | ✓ |
 | **Display name resolution — display_name → first + last → email (nav, dashboard, settings)** | ✓ |
 | **Admin user detail — profile fields shown read-only** | ✓ |
+| **Email verification — token-based, 24 h expiry, SHA-256 hashed, single-use** | ✓ |
+| **Registration verification — email sent on signup; banner + `/account/verify-email` page** | ✓ |
+| **Resend verification email — 60-second cooldown, audit-logged** | ✓ |
+| **Email change confirmation — deferred flow; new address confirmed before update applies** | ✓ |
+| **Email change security notice — old address notified when change is requested** | ✓ |
+| **Verified email enforcement — QR create, destination edit, destination restore, paid plan request** | ✓ |
+| **Verification status in account settings and admin user detail** | ✓ |
 
 ## Subscription Groundwork
 
@@ -874,12 +881,15 @@ Set `MAIL_ENABLED=true` in `.env` and configure the SMTP variables. When `MAIL_E
 
 | Event | Recipient(s) |
 |---|---|
+| Registration — email verification | New user (verification link, 24 h expiry) |
+| Email change requested — verification | New address (confirm link, 24 h expiry) |
+| Email change requested — security notice | Old address (notification only) |
+| Email change completed | Old address (security alert) + new address (confirmation) |
 | Subscription plan-change request submitted | User (confirmation) + optional admin address (`MAIL_ADMIN_ADDRESS`) |
 | Plan-change request approved | User |
 | Plan-change request denied | User |
 | Plan-change request canceled by user | User |
 | Plan-change request canceled by admin | User |
-| Email address changed | Old address (security alert) + new address (confirmation) |
 | Password changed | Account email (security alert) |
 | Link disabled by admin | Link owner |
 | Link restored by admin | Link owner |
@@ -1016,7 +1026,6 @@ The following are intentionally absent:
 - Payment processing and checkout (Stripe integration — schema groundwork is in place; see Billing State Model)
 - Automated billing webhooks and access gating based on billing state
 - Password reset by email (transactional email is implemented but password reset flow is not)
-- Email verification for profile email address changes
 - Multi-factor authentication (MFA / TOTP)
 - Team / workspace / multi-user account features
 - API endpoints (REST or otherwise)

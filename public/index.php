@@ -60,6 +60,7 @@ require APP_PATH . '/Controllers/SubscriptionHistoryController.php';
 require APP_PATH . '/Controllers/OpsController.php';
 require APP_PATH . '/Controllers/ModerationController.php';
 require APP_PATH . '/Controllers/PolicyController.php';
+require APP_PATH . '/Controllers/EmailVerificationController.php';
 
 $router = new Router();
 
@@ -75,6 +76,7 @@ $router->get('/login',     [AuthController::class, 'loginPage']);
 $router->post('/login',    [AuthController::class, 'loginSubmit']);
 $router->get('/register',  [AuthController::class, 'registerPage']);
 $router->post('/register', [AuthController::class, 'registerSubmit']);
+$router->get('/verify-email', [EmailVerificationController::class, 'verify']);
 
 // ── Authenticated: dashboard ─────────────────────────────────────────────────
 $router->get('/dashboard', [DashboardController::class, 'index']);
@@ -98,6 +100,10 @@ $router->get('/qr/{id}/download/png',   [QrController::class, 'downloadPng']);
 $router->get('/qr/{id}/download/svg',   [QrController::class, 'downloadSvg']);
 $router->get('/qr/{id}/analytics/export', [QrController::class, 'exportAnalytics']);
 $router->get('/qr/{id}/analytics',        [QrController::class, 'analytics']);
+
+// ── Email verification ────────────────────────────────────────────────────────
+$router->get('/account/verify-email',         [EmailVerificationController::class, 'verifyPage']);
+$router->post('/account/verify-email/resend', [EmailVerificationController::class, 'resend']);
 
 // ── Account settings (authenticated) ─────────────────────────────────────────
 $router->get('/account',                    [AccountSettingsController::class, 'redirect']);

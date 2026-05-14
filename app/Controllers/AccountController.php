@@ -135,6 +135,7 @@ class AccountController
         if ($isFree) {
             $this->switchToFree($pdo, $userId, $planId, $plan, $activeSub, $currentPlanId, $now);
         } else {
+            EmailVerificationService::requireVerifiedEmail($userId);
             $this->createChangeRequest($pdo, $userId, $planId, $plan, $currentPlanId, $now);
         }
     }
