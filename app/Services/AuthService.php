@@ -54,7 +54,7 @@ class AuthService
         }
 
         $stmt = Database::get()->prepare(
-            "SELECT id, email, role, status FROM users WHERE id = ? LIMIT 1"
+            "SELECT id, email, role, status, first_name, last_name, display_name FROM users WHERE id = ? LIMIT 1"
         );
         $stmt->execute([self::userId()]);
         self::$cachedUser = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;

@@ -27,6 +27,37 @@
         <th>Status</th>
         <td class="status-<?= View::e($user['status']) ?>"><?= View::e($user['status']) ?></td>
     </tr>
+    <?php $fullName = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')); ?>
+    <?php if ($fullName !== ''): ?>
+    <tr>
+        <th>Name</th>
+        <td><?= View::e($fullName) ?></td>
+    </tr>
+    <?php endif; ?>
+    <?php if (!empty($user['display_name'])): ?>
+    <tr>
+        <th>Display name</th>
+        <td><?= View::e($user['display_name']) ?></td>
+    </tr>
+    <?php endif; ?>
+    <?php if (!empty($user['company_name'])): ?>
+    <tr>
+        <th>Company</th>
+        <td><?= View::e($user['company_name']) ?></td>
+    </tr>
+    <?php endif; ?>
+    <?php if (!empty($user['phone'])): ?>
+    <tr>
+        <th>Phone</th>
+        <td><?= View::e($user['phone']) ?></td>
+    </tr>
+    <?php endif; ?>
+    <?php if (!empty($user['timezone'])): ?>
+    <tr>
+        <th>Timezone</th>
+        <td><?= View::e($user['timezone']) ?></td>
+    </tr>
+    <?php endif; ?>
     <tr>
         <th>Created</th>
         <td><?= View::e($user['created_at']) ?></td>

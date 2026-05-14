@@ -102,6 +102,7 @@ $router->get('/qr/{id}/analytics',        [QrController::class, 'analytics']);
 // ── Account settings (authenticated) ─────────────────────────────────────────
 $router->get('/account',                    [AccountSettingsController::class, 'redirect']);
 $router->get('/account/settings',           [AccountSettingsController::class, 'settingsPage']);
+$router->post('/account/settings/profile',  [AccountSettingsController::class, 'updateProfile']);
 $router->post('/account/settings/email',    [AccountSettingsController::class, 'updateEmail']);
 $router->post('/account/settings/password', [AccountSettingsController::class, 'updatePassword']);
 

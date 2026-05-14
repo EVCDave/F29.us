@@ -747,6 +747,10 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Email notifications: email address changed (old + new), password changed** | ✓ |
 | **Email notifications: link disabled by admin, link restored by admin** | ✓ |
 | **Admin ops page — mail configuration section (enabled status, PHPMailer check, SMTP host)** | ✓ |
+| **User profile fields — first/last name, display name, company, phone, timezone** | ✓ |
+| **Account settings profile form — update profile, CSRF-protected, audit-logged** | ✓ |
+| **Display name resolution — display_name → first + last → email (nav, dashboard, settings)** | ✓ |
+| **Admin user detail — profile fields shown read-only** | ✓ |
 
 ## Subscription Groundwork
 
@@ -1012,6 +1016,7 @@ The following are intentionally absent:
 - Payment processing and checkout (Stripe integration — schema groundwork is in place; see Billing State Model)
 - Automated billing webhooks and access gating based on billing state
 - Password reset by email (transactional email is implemented but password reset flow is not)
+- Email verification for profile email address changes
 - Multi-factor authentication (MFA / TOTP)
 - Team / workspace / multi-user account features
 - API endpoints (REST or otherwise)
