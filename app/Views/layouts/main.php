@@ -133,7 +133,7 @@
 
 <nav class="nav">
     <div class="container">
-        <a href="/" class="nav-brand">f29.us Dynamic QR</a>
+        <a href="/" class="nav-brand">F29 Dynamic QR Code System</a>
         <a href="/pricing" class="nav-link">Pricing</a>
 
         <?php if ($navUser): ?>
