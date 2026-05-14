@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 // Slugs that are reserved for application routes and cannot be used
-// as user-created short-link slugs. Validation logic (not yet built)
-// must check this list before accepting a slug.
+// as user-created short-link slugs. SlugService::isReserved() enforces
+// this list during custom slug validation and auto-generation.
 return [
     'login',
     'logout',
@@ -14,6 +14,7 @@ return [
     'admin',
     'api',
     'qr',
+    'account',
     'analytics',
     'settings',
     'terms',
