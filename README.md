@@ -757,6 +757,34 @@ All moderation POST endpoints are CSRF-protected and require the admin role. All
 
 ---
 
+## Legal and Policy Pages
+
+The following public-facing policy pages are available at launch. All are **draft placeholders** — they have not been reviewed by legal counsel and should be reviewed and updated before wider public launch.
+
+| Page | Path | Contents |
+|------|------|----------|
+| Terms of Service | `/terms` | Account responsibility, QR/link rules, moderation rights, liability limitation, billing note |
+| Privacy Policy | `/privacy` | Data collected, scan analytics, IP hashing, cookies, no data sale, retention |
+| Acceptable Use Policy | `/acceptable-use` | Prohibited uses (phishing, malware, spam, deception, illegal content), enforcement, no automated scanning notice |
+| Report Abuse | `/abuse` | What to report, how to report, what to include, contact email |
+| Contact | `/contact` | Support, abuse, and privacy contact emails; note that ticketing is not implemented |
+
+All five pages are linked in the site footer. No authentication is required. No form processing or database writes occur on any of these pages.
+
+### Policy email configuration
+
+Three optional environment variables control the contact addresses shown on policy pages. If not set, the defaults shown are used.
+
+| Variable | Default | Shown on |
+|---|---|---|
+| `SUPPORT_EMAIL` | `support@f29.us` | Contact page |
+| `ABUSE_EMAIL` | `abuse@f29.us` | Abuse page, Contact page |
+| `PRIVACY_EMAIL` | `privacy@f29.us` | Contact page |
+
+No email sending is implemented. These are display-only values.
+
+---
+
 ## What Is NOT Implemented Yet
 
 The following are intentionally absent:

@@ -166,7 +166,16 @@
 
 <footer>
     <div class="container">
-        <p>&copy; <?= date('Y') ?> f29.us &mdash; Dynamic QR Codes</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem">
+            <p style="margin:0">&copy; <?= date('Y') ?> f29.us &mdash; Dynamic QR Codes</p>
+            <nav style="display:flex;gap:1.25rem;flex-wrap:wrap">
+                <a href="/terms"           style="color:#999;font-size:0.8rem;text-decoration:none">Terms</a>
+                <a href="/privacy"         style="color:#999;font-size:0.8rem;text-decoration:none">Privacy</a>
+                <a href="/acceptable-use"  style="color:#999;font-size:0.8rem;text-decoration:none">Acceptable Use</a>
+                <a href="/abuse"           style="color:#999;font-size:0.8rem;text-decoration:none">Report Abuse</a>
+                <a href="/contact"         style="color:#999;font-size:0.8rem;text-decoration:none">Contact</a>
+            </nav>
+        </div>
     </div>
 </footer>
 

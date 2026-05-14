@@ -59,12 +59,18 @@ require APP_PATH . '/Controllers/AuditLogController.php';
 require APP_PATH . '/Controllers/SubscriptionHistoryController.php';
 require APP_PATH . '/Controllers/OpsController.php';
 require APP_PATH . '/Controllers/ModerationController.php';
+require APP_PATH . '/Controllers/PolicyController.php';
 
 $router = new Router();
 
 // ── Public routes ────────────────────────────────────────────────────────────
-$router->get('/',        [HomeController::class,   'index']);
-$router->get('/pricing', [PricingController::class, 'index']);
+$router->get('/',                [HomeController::class,   'index']);
+$router->get('/pricing',         [PricingController::class, 'index']);
+$router->get('/terms',           [PolicyController::class, 'terms']);
+$router->get('/privacy',         [PolicyController::class, 'privacy']);
+$router->get('/acceptable-use',  [PolicyController::class, 'acceptableUse']);
+$router->get('/abuse',           [PolicyController::class, 'abuse']);
+$router->get('/contact',         [PolicyController::class, 'contact']);
 $router->get('/login',     [AuthController::class, 'loginPage']);
 $router->post('/login',    [AuthController::class, 'loginSubmit']);
 $router->get('/register',  [AuthController::class, 'registerPage']);
