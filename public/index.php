@@ -136,6 +136,8 @@ $router->post('/admin/plans/{id}/features/{featureId}/delete',           [PlanCo
 $router->get('/admin/plans/{id}/clone',   [PlanController::class, 'clonePlanPage']);
 $router->post('/admin/plans/{id}/clone',  [PlanController::class, 'clonePlanSubmit']);
 $router->post('/admin/plans/{id}/retire', [PlanController::class, 'retirePlan']);
+$router->post('/admin/plans/{id}/billing-prices',                    [PlanController::class, 'addBillingPrice']);
+$router->post('/admin/plans/{id}/billing-prices/{priceId}/toggle',   [PlanController::class, 'toggleBillingPrice']);
 
 // Exact route registered before pattern route.
 $router->get('/admin/subscription-requests',              [SubscriptionRequestController::class, 'index']);

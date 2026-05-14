@@ -370,6 +370,9 @@ class AdminController
         $stmt = $pdo->prepare("
             SELECT us.id, us.status, us.billing_cycle, us.started_at, us.ends_at,
                    us.canceled_at, us.grandfathered_at, us.notes,
+                   us.billing_provider, us.billing_status,
+                   us.provider_subscription_id, us.current_period_end,
+                   us.cancel_at_period_end,
                    p.display_name, p.internal_name
             FROM   user_subscriptions us
             JOIN   plans p ON p.id = us.plan_id

@@ -332,6 +332,8 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | POST | `/admin/plans/{id}/features` | Add feature |
 | POST | `/admin/plans/{id}/features/{featureId}/update` | Update feature value |
 | POST | `/admin/plans/{id}/features/{featureId}/delete` | Delete feature |
+| POST | `/admin/plans/{id}/billing-prices` | Add billing price mapping (provider, price ID, cycle) |
+| POST | `/admin/plans/{id}/billing-prices/{priceId}/toggle` | Activate or deactivate a billing price mapping |
 
 ---
 
@@ -565,6 +567,8 @@ Admins have access to an internal-only area at `/admin` (yellow **Admin** link i
 | Delete feature | `POST /admin/plans/{id}/features/{featureId}/delete` | Remove a feature from a plan. |
 | Clone plan | `/admin/plans/{id}/clone` | Clone a plan and all its features into a new plan with a new unique internal name. Source plan is not modified. |
 | Retire plan | `POST /admin/plans/{id}/retire` | Set `is_public=0`, `is_legacy=1`, `is_active=1`. Removes the plan from sale while preserving existing subscribers. |
+| Add billing price | `POST /admin/plans/{id}/billing-prices` | Map a plan to a payment provider's price ID (e.g. a Stripe price ID). `amount_cents` is optional. No payment is processed — informational groundwork only. |
+| Toggle billing price | `POST /admin/plans/{id}/billing-prices/{priceId}/toggle` | Activate or deactivate a billing price mapping. |
 | Subscription request list | `/admin/subscription-requests` | All subscription change requests with status filter (pending / approved / denied / canceled / all). |
 | Subscription request detail | `/admin/subscription-requests/{id}` | Full request context: user, current plan, requested plan flags, action buttons. |
 | Approve request | `POST /admin/subscription-requests/{id}/approve` | Transactionally closes current subscription and creates new active subscription for the requested plan. Marks request approved. |
@@ -674,6 +678,10 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Admin audit log browser (list with filters, detail with metadata + related links)** | ✓ |
 | **Admin subscription history (cross-user view with filters)** | ✓ |
 | **Admin operations page (system health, DB counters, login activity)** | ✓ |
+| **Billing state schema on `user_subscriptions` (provider fields, billing_status, period dates)** | ✓ |
+| **`plan_billing_prices` table — maps plans to provider price IDs** | ✓ |
+| **Admin: billing price mapping UI on plan detail (add, activate/deactivate, health warning)** | ✓ |
+| **Admin: billing state columns in user detail and subscription history** | ✓ |
 
 ## Subscription Groundwork
 
@@ -785,6 +793,104 @@ No email sending is implemented. These are display-only values.
 
 ---
 
+## Billing State Model
+
+### Schema
+
+Two additions support the billing groundwork:
+
+**`user_subscriptions` billing columns** (migration 018):
+
+| Column | Type | Default | Purpose |
+|--------|------|---------|---------|
+| `billing_provider` | `VARCHAR(50)` | NULL | Payment provider slug (e.g. `stripe`) |
+| `provider_customer_id` | `VARCHAR(255)` | NULL | Provider's customer object ID |
+| `provider_subscription_id` | `VARCHAR(255)` | NULL | Provider's subscription object ID |
+| `billing_status` | ENUM | `not_applicable` | Mirrors provider lifecycle state |
+| `current_period_start` | `DATETIME` | NULL | Start of current billing period |
+| `current_period_end` | `DATETIME` | NULL | End of current billing period |
+| `trial_ends_at` | `DATETIME` | NULL | Trial expiry date |
+| `cancel_at_period_end` | `TINYINT(1)` | 0 | Cancellation is scheduled for period end |
+
+`billing_status` values:
+
+| Value | Meaning |
+|-------|---------|
+| `not_applicable` | Default for manual/free plans — no billing provider involved |
+| `manual` | Admin-assigned plan, manually tracked |
+| `trialing` | Subscription is in a free trial period |
+| `active` | Subscription is current and paid |
+| `past_due` | Payment failed; grace period in effect |
+| `canceled` | Subscription has been canceled |
+| `unpaid` | Grace period exhausted; access should be gated |
+| `incomplete` | Initial payment not yet confirmed |
+
+**`plan_billing_prices` table** (migration 019): Maps local plans to payment provider price objects for future billing integration. This is groundwork only — no payment is processed from these mappings. One plan may have multiple mappings — e.g. Stripe monthly and yearly price IDs.
+
+| Column | Type | Nullable | Purpose |
+|--------|------|----------|---------|
+| `plan_id` | `BIGINT UNSIGNED` | No | FK to `plans` (CASCADE DELETE) |
+| `provider` | `VARCHAR(50)` | No | Provider slug (e.g. `stripe`) |
+| `provider_price_id` | `VARCHAR(255)` | No | The provider's price object ID |
+| `billing_cycle` | ENUM | No | `monthly` or `yearly` |
+| `currency_code` | `CHAR(3)` | No | ISO 4217 (e.g. `USD`) |
+| `amount_cents` | `INT UNSIGNED` | **Yes** | Amount in cents. Optional — may be left NULL while billing is not yet finalized |
+| `is_active` | `TINYINT(1)` | No | Whether this mapping is live |
+
+`amount_cents` is intentionally nullable. Price mappings can be created before exact billing amounts are confirmed, allowing the provider price ID to be recorded as groundwork before billing goes live. Stripe price IDs already carry their own amount; the local column is a convenience reference only.
+
+### Admin visibility
+
+Billing state fields (`billing_status`, `provider_subscription_id`, `current_period_end`, `cancel_at_period_end`) are visible in the user detail subscription history table and the global subscription history list (`/admin/subscriptions`). All columns are `—` for manual and free subscriptions where `billing_status = 'not_applicable'`.
+
+The plan detail page (`/admin/plans/{id}`) shows all billing price mappings and provides add/activate/deactivate controls. A warning is shown when a paid plan (non-zero price) has no active price mapping.
+
+### Future Stripe integration lifecycle
+
+The following is a reference for wiring up a payment provider. Nothing here is implemented — it describes the intended integration contract.
+
+#### Checkout flow
+
+1. User selects a paid plan on `/account/subscription` and submits the change form.
+2. Server creates a `subscription_change_requests` row (existing behavior).
+3. Admin approves the request (existing behavior).
+4. **Future:** On approval, instead of immediately creating a subscription, the server creates a Stripe Checkout Session using the `provider_price_id` from `plan_billing_prices` for the selected plan and cycle.
+5. User completes payment in Stripe Checkout.
+6. Stripe fires `checkout.session.completed` → webhook handler creates the `user_subscriptions` row and sets `billing_provider='stripe'`, `provider_customer_id`, `provider_subscription_id`, `billing_status='active'`, `current_period_start/end`.
+
+#### Webhook events to handle
+
+| Stripe event | Action |
+|---|---|
+| `customer.subscription.created` | Set `billing_status='active'`, populate period dates |
+| `customer.subscription.updated` | Sync `billing_status`, `current_period_end`, `cancel_at_period_end` |
+| `customer.subscription.deleted` | Set `billing_status='canceled'`, set `canceled_at` |
+| `invoice.payment_failed` | Set `billing_status='past_due'` |
+| `invoice.payment_succeeded` | Reset `billing_status='active'`, update period dates |
+| `customer.subscription.trial_will_end` | Email notice (3 days before) |
+
+All webhook payloads must be verified with `Stripe-Signature` using the endpoint's signing secret. Use `stripe.webhooks.constructEvent()` from the official Stripe PHP SDK.
+
+#### Access gating
+
+When billing is live, `EntitlementService` should additionally check `billing_status`:
+- `active`, `trialing`, `manual` → full access
+- `past_due` → restricted access (show payment-failed banner, soft-block new QR creation)
+- `unpaid`, `canceled` → treat as free tier
+- `incomplete` → block non-free features; prompt to complete payment
+
+This gating logic should be implemented in `EntitlementService` so all access checks remain in one place.
+
+#### Subscription cancel flow
+
+1. User requests cancellation from `/account/subscription`.
+2. Server calls `stripe.subscriptions.update(subId, { cancel_at_period_end: true })`.
+3. Set `cancel_at_period_end = 1` locally.
+4. On `customer.subscription.deleted` webhook → set `billing_status='canceled'`.
+5. User retains access until `current_period_end`.
+
+---
+
 ## What Is NOT Implemented Yet
 
 The following are intentionally absent:
@@ -792,9 +898,8 @@ The following are intentionally absent:
 - Content-Security-Policy (requires inline style refactoring first)
 - Analytics retention data purge (retention is a query filter only)
 - Geolocation in scan events (country/region/city stored as NULL)
-- Billing / payment integration
-- Payment processing, Stripe, or checkout
-- Automated billing / payment processing / Stripe / checkout
+- Payment processing and checkout (Stripe integration — schema groundwork is in place; see Billing State Model)
+- Automated billing webhooks and access gating based on billing state
 - Team features
 - API endpoints
 - External malware / phishing scanning (Google Safe Browsing, VirusTotal, etc.)

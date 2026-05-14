@@ -234,3 +234,139 @@
         <button type="submit" class="btn">Add Feature</button>
     </div>
 </form>
+
+<!-- ── Billing Price Mappings ──────────────────────────────────────────────── -->
+<h2 style="margin-bottom:0.5rem">Billing Price Mappings</h2>
+<p style="font-size:0.85rem;color:#6b7280;margin-bottom:1rem;max-width:620px">
+    Maps this plan to a payment provider's price ID for future billing integration.
+    No payments are processed — these are informational only and will be used when a billing
+    provider (e.g. Stripe) is connected.
+</p>
+
+<?php
+$isPaidPlan       = ($plan['monthly_price_cents'] > 0 || $plan['yearly_price_cents'] > 0);
+$hasActiveMapping = !empty(array_filter($billingPrices, fn($bp) => (bool)$bp['is_active']));
+if ($isPaidPlan && !$hasActiveMapping && $plan['is_active'] && !$plan['is_legacy']):
+?>
+<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;padding:0.65rem 0.9rem;
+            max-width:580px;margin-bottom:1rem;font-size:0.88rem;color:#92400e">
+    This plan has a non-zero price but no active billing price mapping. Add a mapping below
+    before enabling billing integration.
+</div>
+<?php endif; ?>
+
+<?php if (!empty($billingPriceErrors)): ?>
+<ul class="errors" style="max-width:520px">
+    <?php foreach ($billingPriceErrors as $e): ?><li><?= View::e($e) ?></li><?php endforeach; ?>
+</ul>
+<?php endif; ?>
+
+<?php if (!empty($billingPrices)): ?>
+<div style="overflow-x:auto;margin-bottom:1.5rem">
+<table style="min-width:720px">
+    <thead>
+        <tr>
+            <th>Provider</th>
+            <th>Price ID</th>
+            <th style="width:90px">Cycle</th>
+            <th style="width:70px">Currency</th>
+            <th style="width:110px">Amount</th>
+            <th style="width:70px">Active</th>
+            <th style="width:110px"></th>
+        </tr>
+    </thead>
+    <tbody>
+    <?php foreach ($billingPrices as $bp): ?>
+        <tr>
+            <td><?= View::e($bp['provider']) ?></td>
+            <td><code style="font-size:0.82rem"><?= View::e($bp['provider_price_id']) ?></code></td>
+            <td style="font-size:0.85rem;color:#6b7280"><?= View::e($bp['billing_cycle']) ?></td>
+            <td style="font-size:0.85rem;color:#6b7280"><?= View::e($bp['currency_code']) ?></td>
+            <td style="font-size:0.85rem">
+                <?php if ($bp['amount_cents'] !== null): ?>
+                    <?= View::e($bp['currency_code']) ?> <?= number_format((int) $bp['amount_cents'] / 100, 2) ?>
+                <?php else: ?>
+                    <span style="color:#9ca3af">—</span>
+                <?php endif; ?>
+            </td>
+            <td>
+                <?= $bp['is_active']
+                    ? '<span style="color:#166534;font-weight:500">yes</span>'
+                    : '<span style="color:#9ca3af">no</span>' ?>
+            </td>
+            <td>
+                <form method="post"
+                      action="/admin/plans/<?= (int) $plan['id'] ?>/billing-prices/<?= (int) $bp['id'] ?>/toggle"
+                      style="display:inline">
+                    <?= CsrfService::field() ?>
+                    <button type="submit" class="btn btn-secondary"
+                            style="padding:0.2rem 0.55rem;font-size:0.8rem">
+                        <?= $bp['is_active'] ? 'Deactivate' : 'Activate' ?>
+                    </button>
+                </form>
+            </td>
+        </tr>
+    <?php endforeach; ?>
+    </tbody>
+</table>
+</div>
+<?php else: ?>
+<p style="color:#888;margin-bottom:1.25rem">No billing price mappings defined.</p>
+<?php endif; ?>
+
+<!-- ── Add Billing Price ────────────────────────────────────────────────────── -->
+<h3 style="font-size:1rem;font-weight:600;margin-bottom:0.75rem">Add Price Mapping</h3>
+
+<form method="post" action="/admin/plans/<?= (int) $plan['id'] ?>/billing-prices"
+      style="max-width:520px;margin-bottom:2rem">
+    <?= CsrfService::field() ?>
+
+    <div class="form-group">
+        <label for="bp_provider">Provider</label>
+        <input type="text" id="bp_provider" name="provider"
+               value="<?= View::e($oldBillingPrice['provider'] ?? 'stripe') ?>"
+               placeholder="e.g. stripe" style="max-width:180px" autocomplete="off">
+        <small style="display:block;color:#888;margin-top:0.2rem">
+            Lowercase letters, digits, underscores.
+        </small>
+    </div>
+
+    <div class="form-group">
+        <label for="bp_price_id">Provider Price ID</label>
+        <input type="text" id="bp_price_id" name="provider_price_id"
+               value="<?= View::e($oldBillingPrice['provider_price_id'] ?? '') ?>"
+               placeholder="e.g. price_1ABC2defGHIjklMN" style="max-width:340px" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+        <label for="bp_billing_cycle">Billing Cycle</label>
+        <select id="bp_billing_cycle" name="billing_cycle"
+                style="display:block;max-width:160px;padding:0.45rem 0.65rem;border:1px solid #ccc;border-radius:4px;font-size:0.95rem;background:#fff">
+            <?php foreach (['monthly', 'yearly'] as $cy): ?>
+            <option value="<?= $cy ?>"
+                    <?= ($oldBillingPrice['billing_cycle'] ?? 'monthly') === $cy ? 'selected' : '' ?>>
+                <?= $cy ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="bp_currency">Currency Code</label>
+        <input type="text" id="bp_currency" name="currency_code"
+               value="<?= View::e($oldBillingPrice['currency_code'] ?? 'USD') ?>"
+               maxlength="3" placeholder="USD" style="max-width:80px">
+    </div>
+
+    <div class="form-group">
+        <label for="bp_amount">Amount (cents, optional)</label>
+        <input type="text" id="bp_amount" name="amount_cents"
+               value="<?= View::e($oldBillingPrice['amount_cents'] ?? '') ?>"
+               placeholder="e.g. 999 for $9.99" style="max-width:180px">
+        <small style="display:block;color:#888;margin-top:0.2rem">Leave blank if not yet determined.</small>
+    </div>
+
+    <div class="form-group" style="margin-top:1.1rem">
+        <button type="submit" class="btn">Add Price Mapping</button>
+    </div>
+</form>

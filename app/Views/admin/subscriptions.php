@@ -78,6 +78,7 @@
             <th>User</th>
             <th>Plan</th>
             <th style="width:80px">Status</th>
+            <th style="width:100px">Billing State</th>
             <th style="width:75px">Cycle</th>
             <th style="width:100px">Started</th>
             <th style="width:100px">Canceled</th>
@@ -105,6 +106,11 @@
             <span style="color:#9ca3af;font-size:0.78rem">(<?= View::e($s['plan_internal_name']) ?>)</span>
         </td>
         <td style="font-size:0.83rem;<?= $statusStyle ?>"><?= View::e($s['status']) ?></td>
+        <td style="font-size:0.83rem;color:#6b7280">
+            <?= ($s['billing_status'] ?? 'not_applicable') !== 'not_applicable'
+                ? View::e($s['billing_status'])
+                : '<span style="color:#d1d5db">—</span>' ?>
+        </td>
         <td style="font-size:0.83rem;color:#6b7280"><?= View::e($s['billing_cycle']) ?></td>
         <td style="font-size:0.83rem;color:#6b7280;white-space:nowrap"><?= View::e(substr($s['started_at'], 0, 10)) ?></td>
         <td style="font-size:0.83rem;color:#6b7280;white-space:nowrap">

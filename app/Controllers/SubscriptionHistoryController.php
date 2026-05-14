@@ -54,7 +54,8 @@ class SubscriptionHistoryController
 
         $sql = "
             SELECT us.id, us.user_id, us.plan_id, us.status, us.billing_cycle,
-                   us.started_at, us.canceled_at, us.ends_at, us.grandfathered_at,
+                   us.billing_status, us.started_at, us.canceled_at, us.ends_at,
+                   us.grandfathered_at,
                    u.email AS user_email,
                    p.display_name AS plan_display_name, p.internal_name AS plan_internal_name
             FROM   user_subscriptions us

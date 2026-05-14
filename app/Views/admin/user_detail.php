@@ -45,10 +45,14 @@
         <tr>
             <th>Plan</th>
             <th>Status</th>
-            <th>Billing</th>
-            <th>Started</th>
-            <th>Canceled</th>
-            <th>Grandfathered</th>
+            <th style="width:75px">Cycle</th>
+            <th style="width:100px">Billing State</th>
+            <th style="width:185px">Provider Sub ID</th>
+            <th style="width:100px">Period End</th>
+            <th style="width:75px">Cancel EOP</th>
+            <th style="width:85px">Started</th>
+            <th style="width:85px">Canceled</th>
+            <th style="width:85px">GF'd</th>
             <th>Notes</th>
         </tr>
     </thead>
@@ -60,10 +64,30 @@
                 <small style="color:#888">(<?= View::e($sub['internal_name']) ?>)</small>
             </td>
             <td class="status-<?= View::e($sub['status']) ?>"><?= View::e($sub['status']) ?></td>
-            <td><?= View::e($sub['billing_cycle']) ?></td>
-            <td style="font-size:0.85rem"><?= View::e(substr($sub['started_at'], 0, 10)) ?></td>
-            <td style="font-size:0.85rem"><?= $sub['canceled_at'] ? View::e(substr($sub['canceled_at'], 0, 10)) : '—' ?></td>
-            <td style="font-size:0.85rem"><?= $sub['grandfathered_at'] ? View::e(substr($sub['grandfathered_at'], 0, 10)) : '—' ?></td>
+            <td style="font-size:0.83rem;color:#6b7280"><?= View::e($sub['billing_cycle']) ?></td>
+            <td style="font-size:0.83rem;color:#6b7280">
+                <?= ($sub['billing_status'] ?? 'not_applicable') !== 'not_applicable'
+                    ? View::e($sub['billing_status'])
+                    : '<span style="color:#d1d5db">—</span>' ?>
+            </td>
+            <td style="font-size:0.78rem;color:#6b7280;word-break:break-all;max-width:180px">
+                <?= $sub['provider_subscription_id']
+                    ? View::e($sub['provider_subscription_id'])
+                    : '<span style="color:#d1d5db">—</span>' ?>
+            </td>
+            <td style="font-size:0.83rem;color:#6b7280;white-space:nowrap">
+                <?= $sub['current_period_end']
+                    ? View::e(substr($sub['current_period_end'], 0, 10))
+                    : '<span style="color:#d1d5db">—</span>' ?>
+            </td>
+            <td style="font-size:0.83rem;color:#6b7280;text-align:center">
+                <?= $sub['cancel_at_period_end']
+                    ? '<span style="color:#d97706">yes</span>'
+                    : '<span style="color:#d1d5db">—</span>' ?>
+            </td>
+            <td style="font-size:0.83rem;color:#6b7280"><?= View::e(substr($sub['started_at'], 0, 10)) ?></td>
+            <td style="font-size:0.83rem;color:#6b7280"><?= $sub['canceled_at'] ? View::e(substr($sub['canceled_at'], 0, 10)) : '<span style="color:#d1d5db">—</span>' ?></td>
+            <td style="font-size:0.83rem;color:#6b7280"><?= $sub['grandfathered_at'] ? View::e(substr($sub['grandfathered_at'], 0, 10)) : '<span style="color:#d1d5db">—</span>' ?></td>
             <td style="font-size:0.82rem;color:#6b7280;max-width:180px;word-break:break-word"><?= $sub['notes'] ? View::e($sub['notes']) : '' ?></td>
         </tr>
     <?php endforeach; ?>

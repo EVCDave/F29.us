@@ -509,6 +509,142 @@ class PlanController
         redirect('/admin/plans/' . $planId);
     }
 
+    // ── Add billing price mapping ─────────────────────────────────────────────
+
+    public function addBillingPrice(array $params = []): void
+    {
+        CsrfService::requireValid();
+        $this->requireAdmin();
+
+        $planId      = (int) ($params['id'] ?? 0);
+        $adminUserId = (int) AuthService::userId();
+
+        $this->loadPlan($planId);
+
+        $provider       = trim($_POST['provider']          ?? '');
+        $priceId        = trim($_POST['provider_price_id'] ?? '');
+        $billingCycle   = trim($_POST['billing_cycle']     ?? '');
+        $currencyCode   = strtoupper(trim($_POST['currency_code'] ?? 'USD'));
+        $amountRaw      = trim($_POST['amount_cents']      ?? '');
+
+        $validCycles = ['monthly', 'yearly'];
+        $errors      = [];
+
+        if ($provider === '') {
+            $errors[] = 'Provider is required (e.g. stripe).';
+        } elseif (!preg_match('/^[a-z][a-z0-9_]*$/', $provider)) {
+            $errors[] = 'Provider must start with a lowercase letter and contain only lowercase letters, digits, and underscores.';
+        }
+
+        if ($priceId === '') {
+            $errors[] = 'Provider price ID is required.';
+        }
+
+        if (!in_array($billingCycle, $validCycles, true)) {
+            $errors[] = 'Billing cycle must be monthly or yearly.';
+        }
+
+        if (!preg_match('/^[A-Z]{3}$/', $currencyCode)) {
+            $errors[] = 'Currency code must be exactly 3 uppercase letters (e.g. USD).';
+        }
+
+        $amountCents = null;
+        if ($amountRaw !== '') {
+            if (!preg_match('/^\d+$/', $amountRaw)) {
+                $errors[] = 'Amount must be a non-negative integer (cents), or leave blank.';
+            } else {
+                $amountCents = (int) $amountRaw;
+            }
+        }
+
+        if (!empty($errors)) {
+            $this->renderPlanDetail($planId, [], [], null, [], $errors, $_POST);
+            return;
+        }
+
+        $pdo = Database::get();
+        $now = gmdate('Y-m-d H:i:s');
+
+        try {
+            $pdo->prepare("
+                INSERT INTO plan_billing_prices
+                    (plan_id, provider, provider_price_id, billing_cycle,
+                     currency_code, amount_cents, is_active, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+            ")->execute([
+                $planId, $provider, $priceId, $billingCycle,
+                $currencyCode, $amountCents, $now, $now,
+            ]);
+        } catch (PDOException $e) {
+            if ($e->getCode() === '23000') {
+                $errors[] = 'A price mapping for that provider and price ID already exists.';
+                $this->renderPlanDetail($planId, [], [], null, [], $errors, $_POST);
+                return;
+            }
+            throw $e;
+        }
+
+        $newId = (int) $pdo->lastInsertId();
+
+        AuditLogService::log($adminUserId, 'plan_billing_price', $newId, 'billing_price_added', [
+            'plan_id'           => $planId,
+            'provider'          => $provider,
+            'provider_price_id' => $priceId,
+            'billing_cycle'     => $billingCycle,
+            'currency_code'     => $currencyCode,
+            'amount_cents'      => $amountCents,
+        ]);
+
+        redirect('/admin/plans/' . $planId);
+    }
+
+    // ── Toggle billing price active state ─────────────────────────────────────
+
+    public function toggleBillingPrice(array $params = []): void
+    {
+        CsrfService::requireValid();
+        $this->requireAdmin();
+
+        $planId      = (int) ($params['id']      ?? 0);
+        $priceId     = (int) ($params['priceId'] ?? 0);
+        $adminUserId = (int) AuthService::userId();
+
+        $this->loadPlan($planId);
+
+        if ($priceId <= 0) {
+            $this->notFound();
+        }
+
+        $pdo  = Database::get();
+        $stmt = $pdo->prepare(
+            "SELECT * FROM plan_billing_prices WHERE id = ? AND plan_id = ? LIMIT 1"
+        );
+        $stmt->execute([$priceId, $planId]);
+        $price = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$price) {
+            $this->notFound();
+        }
+
+        $newActive = $price['is_active'] ? 0 : 1;
+        $now       = gmdate('Y-m-d H:i:s');
+
+        $pdo->prepare(
+            "UPDATE plan_billing_prices SET is_active = ?, updated_at = ? WHERE id = ?"
+        )->execute([$newActive, $now, $priceId]);
+
+        AuditLogService::log($adminUserId, 'plan_billing_price', $priceId, 'billing_price_toggled', [
+            'plan_id'           => $planId,
+            'provider'          => $price['provider'],
+            'provider_price_id' => $price['provider_price_id'],
+            'billing_cycle'     => $price['billing_cycle'],
+            'old_is_active'     => (int) $price['is_active'],
+            'new_is_active'     => $newActive,
+        ]);
+
+        redirect('/admin/plans/' . $planId);
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private function requireAdmin(): void
@@ -648,7 +784,9 @@ class PlanController
         array  $addErrors,
         array  $updateErrors,
         ?int   $updateFeatureId,
-        array  $oldAdd
+        array  $oldAdd,
+        array  $billingPriceErrors = [],
+        array  $oldBillingPrice    = []
     ): void {
         $plan = $this->loadPlan($planId);
         $pdo  = Database::get();
@@ -659,18 +797,27 @@ class PlanController
         $stmt->execute([$planId]);
         $features = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        $stmt = $pdo->prepare(
+            "SELECT * FROM plan_billing_prices WHERE plan_id = ? ORDER BY provider ASC, billing_cycle ASC"
+        );
+        $stmt->execute([$planId]);
+        $billingPrices = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
         [$subTotal, $subActive] = $this->loadSubCounts($planId);
 
         View::render('admin/plan_detail', [
-            'pageTitle'       => 'Admin: Plan — ' . $plan['display_name'] . ' — f29.us Dynamic QR',
-            'plan'            => $plan,
-            'features'        => $features,
-            'subTotal'        => $subTotal,
-            'subActive'       => $subActive,
-            'addErrors'       => $addErrors,
-            'updateErrors'    => $updateErrors,
-            'updateFeatureId' => $updateFeatureId,
-            'oldAdd'          => $oldAdd,
+            'pageTitle'          => 'Admin: Plan — ' . $plan['display_name'] . ' — f29.us Dynamic QR',
+            'plan'               => $plan,
+            'features'           => $features,
+            'subTotal'           => $subTotal,
+            'subActive'          => $subActive,
+            'addErrors'          => $addErrors,
+            'updateErrors'       => $updateErrors,
+            'updateFeatureId'    => $updateFeatureId,
+            'oldAdd'             => $oldAdd,
+            'billingPrices'      => $billingPrices,
+            'billingPriceErrors' => $billingPriceErrors,
+            'oldBillingPrice'    => $oldBillingPrice,
         ]);
     }
 
