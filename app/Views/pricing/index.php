@@ -45,7 +45,9 @@ $fv = static function (array $planFeatures, string $key): string {
                     <?php
                     $hasMonthly = $p['monthly_price_cents'] !== null && (int) $p['monthly_price_cents'] > 0;
                     $hasYearly  = $p['yearly_price_cents']  !== null && (int) $p['yearly_price_cents']  > 0;
-                    if ($hasMonthly) {
+                    if ($p['internal_name'] === 'free_v1') {
+                        echo 'Free';
+                    } elseif ($hasMonthly) {
                         echo '$' . number_format((int) $p['monthly_price_cents'] / 100, 2) . '/mo';
                     } elseif ($hasYearly) {
                         echo '$' . number_format((int) $p['yearly_price_cents'] / 100, 2) . '/yr';
