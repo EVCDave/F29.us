@@ -139,6 +139,7 @@
         <?php if ($navUser): ?>
             <a href="/dashboard" class="nav-link">Dashboard</a>
             <a href="/qr" class="nav-link">My QR Codes</a>
+            <a href="/account/settings" class="nav-link">Account</a>
             <a href="/account/subscription" class="nav-link">Subscription</a>
             <?php if ($navUser['role'] === 'admin'): ?>
             <a href="/admin" class="nav-link" style="color:#f9a825">Admin</a>

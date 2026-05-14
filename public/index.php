@@ -53,6 +53,7 @@ require APP_PATH . '/Controllers/AdminController.php';
 require APP_PATH . '/Controllers/PlanController.php';
 require APP_PATH . '/Controllers/PricingController.php';
 require APP_PATH . '/Controllers/AccountController.php';
+require APP_PATH . '/Controllers/AccountSettingsController.php';
 require APP_PATH . '/Controllers/SubscriptionRequestController.php';
 require APP_PATH . '/Controllers/AuditLogController.php';
 require APP_PATH . '/Controllers/SubscriptionHistoryController.php';
@@ -91,7 +92,13 @@ $router->get('/qr/{id}/download/svg',   [QrController::class, 'downloadSvg']);
 $router->get('/qr/{id}/analytics/export', [QrController::class, 'exportAnalytics']);
 $router->get('/qr/{id}/analytics',        [QrController::class, 'analytics']);
 
-// ── Account (authenticated) ───────────────────────────────────────────────────
+// ── Account settings (authenticated) ─────────────────────────────────────────
+$router->get('/account',                    [AccountSettingsController::class, 'redirect']);
+$router->get('/account/settings',           [AccountSettingsController::class, 'settingsPage']);
+$router->post('/account/settings/email',    [AccountSettingsController::class, 'updateEmail']);
+$router->post('/account/settings/password', [AccountSettingsController::class, 'updatePassword']);
+
+// ── Account subscription (authenticated) ──────────────────────────────────────
 $router->get('/account/subscription',                [AccountController::class, 'subscriptionPage']);
 $router->post('/account/subscription/change',        [AccountController::class, 'changeSubscription']);
 $router->post('/account/subscription/request-cancel',[AccountController::class, 'cancelRequest']);
