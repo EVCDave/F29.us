@@ -65,7 +65,8 @@
         label { display: block; margin-bottom: 0.3rem; font-size: 0.9rem; font-weight: 500; color: #333; }
         input[type="email"],
         input[type="password"],
-        input[type="text"] {
+        input[type="text"],
+        input[type="tel"] {
             display: block;
             width: 100%;
             max-width: 380px;
@@ -145,7 +146,7 @@
             <a href="/admin" class="nav-link" style="color:#f9a825">Admin</a>
             <?php endif; ?>
             <div class="nav-spacer"></div>
-            <span class="nav-user"><?= View::e($navUser['email']) ?></span>
+            <span class="nav-user"><?= View::e(UserService::displayName($navUser)) ?></span>
             <form method="post" action="/logout" class="nav-logout-form">
                 <?= CsrfService::field() ?>
                 <button type="submit" class="nav-logout-btn">Logout</button>

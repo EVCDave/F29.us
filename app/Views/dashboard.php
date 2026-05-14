@@ -1,6 +1,6 @@
 <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:0.5rem">
     <h1 style="margin-bottom:0">Dashboard</h1>
-    <span style="color:#9ca3af;font-size:0.88rem"><?= View::e($user['email'] ?? '') ?></span>
+    <span style="color:#9ca3af;font-size:0.88rem"><?= View::e(UserService::displayName($user)) ?></span>
 </div>
 
 <!-- ── QR code summary ────────────────────────────────────────────────────── -->
