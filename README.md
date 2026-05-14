@@ -758,6 +758,10 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Email change security notice — old address notified when change is requested** | ✓ |
 | **Verified email enforcement — QR create, destination edit, destination restore, paid plan request** | ✓ |
 | **Verification status in account settings and admin user detail** | ✓ |
+| **Password reset by email — forgot-password form, reset link, single-use hashed token** | ✓ |
+| **Password reset — non-enumerating (same response for known and unknown emails)** | ✓ |
+| **Password reset — 60-minute expiry, SHA-256 hashed, concurrency-safe (FOR UPDATE)** | ✓ |
+| **Password reset — security notification emails on request and on completion** | ✓ |
 
 ## Subscription Groundwork
 
@@ -869,6 +873,32 @@ These are display-only values used in policy pages and in outgoing notification 
 
 ---
 
+## Password Reset
+
+### Flow
+
+1. User visits `/forgot-password` and submits their email address.
+2. The server looks up the account. If found, it creates a single-use token and sends a reset link to that address. If no account exists for that email the response is identical — no account enumeration.
+3. The user clicks the link in the email (`/reset-password?token=…`).
+4. The server validates the token and presents a new-password form.
+5. On submission, the password is updated, the token is marked used, and a security notification is sent to the account email.
+
+### Security properties
+
+- **No enumeration** — `POST /forgot-password` always returns the same message.
+- **Hashed tokens** — only `hash('sha256', $rawToken)` is stored; the raw token travels only in the email link.
+- **60-minute expiry** — tokens expire one hour after creation.
+- **Single-use** — tokens are marked `used_at` on first use; the `FOR UPDATE` row lock prevents concurrent replay.
+- **Prior tokens invalidated** — when a new reset is requested, all earlier unused tokens for the same user are immediately voided.
+- **Suspended accounts** — silently skipped during request; no email sent, no enumeration.
+- **Session rotation** — if the browser performing the reset is currently logged in as the same user, `session_regenerate_id(true)` is called after the password change. Global session revocation (other sessions) is **not** implemented.
+
+### Mail dependency
+
+The reset email requires `MAIL_ENABLED=true` and valid SMTP configuration. If mail is disabled, the token is still written to the database (the reset link would work if the user could obtain the token another way, e.g. from the database directly during local dev), but no email is sent.
+
+---
+
 ## Transactional Email
 
 Transactional email is sent via **PHPMailer** (manually placed at `vendor/PHPMailer/`). No Composer package; no queue worker — emails are sent synchronously during the request and never block or crash the application on failure.
@@ -881,6 +911,8 @@ Set `MAIL_ENABLED=true` in `.env` and configure the SMTP variables. When `MAIL_E
 
 | Event | Recipient(s) |
 |---|---|
+| Password reset requested | Account email (reset link, 60 min expiry) |
+| Password reset completed | Account email (security alert) |
 | Registration — email verification | New user (verification link, 24 h expiry) |
 | Email change requested — verification | New address (confirm link, 24 h expiry) |
 | Email change requested — security notice | Old address (notification only) |
@@ -1025,7 +1057,7 @@ The following are intentionally absent:
 - Geolocation in scan events (country/region/city stored as NULL)
 - Payment processing and checkout (Stripe integration — schema groundwork is in place; see Billing State Model)
 - Automated billing webhooks and access gating based on billing state
-- Password reset by email (transactional email is implemented but password reset flow is not)
+- Global session revocation on password reset (only the current browser session is rotated; other active sessions remain valid)
 - Multi-factor authentication (MFA / TOTP)
 - Team / workspace / multi-user account features
 - API endpoints (REST or otherwise)

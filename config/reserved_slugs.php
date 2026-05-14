@@ -23,6 +23,8 @@ return [
     'abuse',
     'contact',
     'verify-email',
+    'forgot-password',
+    'reset-password',
     'assets',
     'public',
     'static',

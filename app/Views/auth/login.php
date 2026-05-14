@@ -37,3 +37,4 @@
 </form>
 
 <p><a href="/register">Don't have an account? Register free</a></p>
+<p><a href="/forgot-password">Forgot your password?</a></p>
