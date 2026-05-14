@@ -155,6 +155,8 @@ class ModerationController
             'has_note'        => $note !== '',
         ]);
 
+        NotificationService::linkDisabled($shortLinkId);
+
         $_SESSION['flash'] = ['type' => 'success',
             'text' => 'Link #' . $shortLinkId . ' (' . $link['slug'] . ') has been disabled.'];
         redirect('/admin/moderation/links/' . $shortLinkId);
@@ -188,6 +190,8 @@ class ModerationController
             'new_status'      => 'active',
             'disabled_reason' => $link['disabled_reason'],
         ]);
+
+        NotificationService::linkRestored($shortLinkId);
 
         $_SESSION['flash'] = ['type' => 'success',
             'text' => 'Link #' . $shortLinkId . ' (' . $link['slug'] . ') has been restored to active.'];

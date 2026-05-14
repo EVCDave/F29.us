@@ -29,6 +29,14 @@ class OpsController
         $c['gd_loaded']       = extension_loaded('gd');
         $c['mbstring_loaded'] = extension_loaded('mbstring');
 
+        // ── Mail ─────────────────────────────────────────────────────────────
+        $c['mail_enabled']       = MailerService::isEnabled();
+        $c['mail_smtp_host']     = $_ENV['MAIL_SMTP_HOST']        ?? '';
+        $c['mail_from_address']  = $_ENV['MAIL_FROM_ADDRESS']     ?? '';
+        $c['mail_support_address'] = $_ENV['MAIL_SUPPORT_ADDRESS'] ?? $_ENV['SUPPORT_EMAIL'] ?? '';
+        $c['mail_admin_address'] = trim($_ENV['MAIL_ADMIN_ADDRESS'] ?? '');
+        $c['phpmailer_ok']       = file_exists(ROOT_PATH . '/vendor/PHPMailer/PHPMailer.php');
+
         // ── Filesystem ────────────────────────────────────────────────────────
         $c['vendor_ok']         = file_exists(ROOT_PATH . '/vendor/autoload.php');
         $logsPath               = STORAGE_PATH . '/logs';

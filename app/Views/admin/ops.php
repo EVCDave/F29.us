@@ -49,6 +49,45 @@ $fail = static function (string $msg): string {
     </tr>
 </table>
 
+<!-- ── Mail ───────────────────────────────────────────────────────────────── -->
+<h2 style="margin-bottom:0.6rem">Mail Configuration</h2>
+<table style="max-width:560px;margin-bottom:2rem;font-size:0.9rem">
+    <tr>
+        <th style="width:200px">MAIL_ENABLED</th>
+        <td><?= $checks['mail_enabled']
+            ? $ok
+            : $warn('disabled — transactional emails will not be sent') ?></td>
+    </tr>
+    <tr>
+        <th>PHPMailer present</th>
+        <td><?= $checks['phpmailer_ok'] ? $ok : $fail('missing — vendor/PHPMailer/PHPMailer.php not found') ?></td>
+    </tr>
+    <?php if ($checks['mail_enabled']): ?>
+    <tr>
+        <th>MAIL_SMTP_HOST</th>
+        <td><?= $checks['mail_smtp_host'] !== ''
+            ? View::e($checks['mail_smtp_host'])
+            : $fail('not set') ?></td>
+    </tr>
+    <tr>
+        <th>MAIL_FROM_ADDRESS</th>
+        <td><?= $checks['mail_from_address'] !== ''
+            ? View::e($checks['mail_from_address'])
+            : $fail('not set') ?></td>
+    </tr>
+    <tr>
+        <th>MAIL_SUPPORT_ADDRESS</th>
+        <td><?= View::e($checks['mail_support_address'] !== '' ? $checks['mail_support_address'] : '(using SUPPORT_EMAIL fallback)') ?></td>
+    </tr>
+    <tr>
+        <th>MAIL_ADMIN_ADDRESS</th>
+        <td><?= $checks['mail_admin_address'] !== ''
+            ? View::e($checks['mail_admin_address'])
+            : '<span style="color:#6b7280">not set — admin notifications disabled</span>' ?></td>
+    </tr>
+    <?php endif; ?>
+</table>
+
 <!-- ── Filesystem ─────────────────────────────────────────────────────────── -->
 <h2 style="margin-bottom:0.6rem">Filesystem</h2>
 <table style="max-width:560px;margin-bottom:2rem;font-size:0.9rem">

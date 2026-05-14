@@ -257,6 +257,16 @@ In cPanel → **Cron Jobs**, add a daily job to prune old login attempt rows:
 | `SUPPORT_EMAIL` | No | `support@f29.us` | Contact address shown on the Contact page |
 | `ABUSE_EMAIL` | No | `abuse@f29.us` | Contact address shown on the Abuse and Contact pages |
 | `PRIVACY_EMAIL` | No | `privacy@f29.us` | Contact address shown on the Contact page |
+| `MAIL_ENABLED` | No | `false` | Set `true` to enable transactional email via SMTP |
+| `MAIL_FROM_ADDRESS` | No | `no-reply@f29.us` | Sender address for outgoing mail |
+| `MAIL_FROM_NAME` | No | `f29.us` | Sender display name |
+| `MAIL_SMTP_HOST` | No | — | SMTP server hostname |
+| `MAIL_SMTP_PORT` | No | `587` | SMTP port (587 = STARTTLS, 465 = SSL) |
+| `MAIL_SMTP_ENCRYPTION` | No | `tls` | `tls` (STARTTLS) or `ssl` |
+| `MAIL_SMTP_USERNAME` | No | — | SMTP authentication username |
+| `MAIL_SMTP_PASSWORD` | No | — | SMTP authentication password |
+| `MAIL_SUPPORT_ADDRESS` | No | *(falls back to `SUPPORT_EMAIL`)* | Support address included in security-alert notification emails |
+| `MAIL_ADMIN_ADDRESS` | No | *(empty)* | Address to notify when a user submits a plan-change request; leave blank to disable |
 
 The application validates all required variables on startup. A missing or invalid variable causes an immediate 500 response (web) or an error message to STDERR with exit code 1 (CLI).
 
@@ -732,6 +742,11 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **`plan_billing_prices` table — maps plans to provider price IDs** | ✓ |
 | **Admin: billing price mapping UI on plan detail (add, activate/deactivate, health warning)** | ✓ |
 | **Admin: billing state columns in user detail and subscription history** | ✓ |
+| **Transactional email foundation — PHPMailer SMTP, `MailerService`, `NotificationService`** | ✓ |
+| **Email notifications: subscription request submitted / approved / denied / canceled** | ✓ |
+| **Email notifications: email address changed (old + new), password changed** | ✓ |
+| **Email notifications: link disabled by admin, link restored by admin** | ✓ |
+| **Admin ops page — mail configuration section (enabled status, PHPMailer check, SMTP host)** | ✓ |
 
 ## Subscription Groundwork
 
@@ -839,7 +854,41 @@ Three optional environment variables control the contact addresses shown on poli
 | `ABUSE_EMAIL` | `abuse@f29.us` | Abuse page, Contact page |
 | `PRIVACY_EMAIL` | `privacy@f29.us` | Contact page |
 
-No email sending is implemented. These are display-only values.
+These are display-only values used in policy pages and in outgoing notification emails when `MAIL_ENABLED=true`.
+
+---
+
+## Transactional Email
+
+Transactional email is sent via **PHPMailer** (manually placed at `vendor/PHPMailer/`). No Composer package; no queue worker — emails are sent synchronously during the request and never block or crash the application on failure.
+
+### Enable / disable
+
+Set `MAIL_ENABLED=true` in `.env` and configure the SMTP variables. When `MAIL_ENABLED=false` (the default), all notification calls are silent no-ops.
+
+### Notifications sent
+
+| Event | Recipient(s) |
+|---|---|
+| Subscription plan-change request submitted | User (confirmation) + optional admin address (`MAIL_ADMIN_ADDRESS`) |
+| Plan-change request approved | User |
+| Plan-change request denied | User |
+| Plan-change request canceled by user | User |
+| Plan-change request canceled by admin | User |
+| Email address changed | Old address (security alert) + new address (confirmation) |
+| Password changed | Account email (security alert) |
+| Link disabled by admin | Link owner |
+| Link restored by admin | Link owner |
+
+### Architecture
+
+- **`MailerService`** — low-level SMTP wrapper. Loads PHPMailer with `require_once`, configures SMTP from env, sends one message, catches all exceptions and logs to `storage/logs/error.log`. Never exposes SMTP credentials outside the service.
+- **`NotificationService`** — high-level event methods. Each method loads the DB context it needs, builds the email, calls `MailerService::send()`, and catches any remaining exceptions. All methods no-op immediately when `MAIL_ENABLED=false`.
+- Controllers call `NotificationService` after the audit log entry and before the flash message redirect. Failures are logged; the main application action always completes.
+
+### Ops page
+
+The `/admin/ops` page includes a **Mail Configuration** section showing whether mail is enabled, whether PHPMailer files are present, and the configured SMTP host, from-address, and admin notify address.
 
 ---
 
@@ -962,8 +1011,7 @@ The following are intentionally absent:
 - Geolocation in scan events (country/region/city stored as NULL)
 - Payment processing and checkout (Stripe integration — schema groundwork is in place; see Billing State Model)
 - Automated billing webhooks and access gating based on billing state
-- Password reset by email (no email sending is implemented)
-- Email notifications of any kind
+- Password reset by email (transactional email is implemented but password reset flow is not)
 - Multi-factor authentication (MFA / TOTP)
 - Team / workspace / multi-user account features
 - API endpoints (REST or otherwise)

@@ -143,6 +143,7 @@ class SubscriptionRequestController
             throw $e;
         }
 
+        NotificationService::subscriptionRequestApproved($requestId);
         EntitlementService::clearCache($targetUserId);
         $_SESSION['flash'] = ['type' => 'success',
             'text' => 'Approved. User moved to ' . $plan['display_name'] . '.'];
@@ -181,6 +182,8 @@ class SubscriptionRequestController
             'requested_plan_id' => (int) $request['requested_plan_id'],
         ]);
 
+        NotificationService::subscriptionRequestDenied($requestId);
+
         $_SESSION['flash'] = ['type' => 'info', 'text' => 'Request denied.'];
         redirect('/admin/subscription-requests/' . $requestId);
     }
@@ -214,6 +217,8 @@ class SubscriptionRequestController
             'target_user_id'    => (int) $request['user_id'],
             'requested_plan_id' => (int) $request['requested_plan_id'],
         ]);
+
+        NotificationService::subscriptionRequestCanceled($requestId, true);
 
         $_SESSION['flash'] = ['type' => 'info', 'text' => 'Request canceled.'];
         redirect('/admin/subscription-requests/' . $requestId);
