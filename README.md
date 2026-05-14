@@ -320,7 +320,8 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | POST | `/qr/{id}/destination-history/{historyId}/restore` | Restore a previous destination URL from history |
 | GET | `/qr/{id}/download/png` | Download QR as PNG |
 | GET | `/qr/{id}/download/svg` | Download QR as SVG |
-| GET | `/qr/{id}/analytics` | QR analytics page |
+| GET | `/qr/{id}/analytics` | QR analytics page (date range filter, bot toggle, summary cards) |
+| GET | `/qr/{id}/analytics/export` | Export analytics as CSV (requires `can_export_analytics` entitlement) |
 | GET | `/{slug}` | **Public redirect** (catch-all, last priority) |
 | GET | `/admin/plans` | Plan catalog list |
 | GET | `/admin/plans/create` | Create plan form |
@@ -620,6 +621,9 @@ Billing, public checkout, and payment processor integration are **not implemente
 | Archive / Restore short link | ✓ |
 | **Destination history** — every destination change recorded | ✓ |
 | **Destination restore** — revert to any previous URL from history | ✓ |
+| **Analytics date range filter** (from/to, clamped to plan retention) | ✓ |
+| **Analytics bot toggle** (exclude or include bot traffic) | ✓ |
+| **Analytics CSV export** (plan-gated via `can_export_analytics`) | ✓ |
 | QR search and status filter on list page | ✓ |
 | QR preview (SVG, in-app display) | ✓ |
 | Copy short URL button (one-click, no library) | ✓ |
