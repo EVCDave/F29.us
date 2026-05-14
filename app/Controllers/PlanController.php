@@ -730,12 +730,13 @@ class PlanController
     {
         $errors = [];
 
-        if ($input['internal_name'] === '') {
-            $errors[] = 'Internal name is required.';
-        } elseif (!preg_match('/^[a-z][a-z0-9_]*$/', $input['internal_name'])) {
-            $errors[] = 'Internal name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.';
-        } else {
-            if ($currentPlanId === null) {
+        if ($currentPlanId === null) {
+            // internal_name is required and immutable — only validate on create.
+            if ($input['internal_name'] === '') {
+                $errors[] = 'Internal name is required.';
+            } elseif (!preg_match('/^[a-z][a-z0-9_]*$/', $input['internal_name'])) {
+                $errors[] = 'Internal name must start with a lowercase letter and contain only lowercase letters, digits, and underscores.';
+            } else {
                 $stmt = Database::get()->prepare(
                     "SELECT id FROM plans WHERE internal_name = ? LIMIT 1"
                 );
