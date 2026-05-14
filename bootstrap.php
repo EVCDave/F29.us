@@ -79,6 +79,7 @@ require APP_PATH . '/Services/UserService.php';
 require APP_PATH . '/Services/MailerService.php';
 require APP_PATH . '/Services/NotificationService.php';
 require APP_PATH . '/Services/EmailVerificationService.php';
+require APP_PATH . '/Services/PasswordResetService.php';
 
 // Establish database connection
 $dbConfig = require CONFIG_PATH . '/database.php';

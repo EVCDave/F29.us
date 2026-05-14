@@ -61,6 +61,7 @@ require APP_PATH . '/Controllers/OpsController.php';
 require APP_PATH . '/Controllers/ModerationController.php';
 require APP_PATH . '/Controllers/PolicyController.php';
 require APP_PATH . '/Controllers/EmailVerificationController.php';
+require APP_PATH . '/Controllers/PasswordResetController.php';
 
 $router = new Router();
 
@@ -76,7 +77,11 @@ $router->get('/login',     [AuthController::class, 'loginPage']);
 $router->post('/login',    [AuthController::class, 'loginSubmit']);
 $router->get('/register',  [AuthController::class, 'registerPage']);
 $router->post('/register', [AuthController::class, 'registerSubmit']);
-$router->get('/verify-email', [EmailVerificationController::class, 'verify']);
+$router->get('/verify-email',    [EmailVerificationController::class, 'verify']);
+$router->get('/forgot-password', [PasswordResetController::class, 'forgotPage']);
+$router->post('/forgot-password',[PasswordResetController::class, 'forgotSubmit']);
+$router->get('/reset-password',  [PasswordResetController::class, 'resetPage']);
+$router->post('/reset-password', [PasswordResetController::class, 'resetSubmit']);
 
 // ── Authenticated: dashboard ─────────────────────────────────────────────────
 $router->get('/dashboard', [DashboardController::class, 'index']);

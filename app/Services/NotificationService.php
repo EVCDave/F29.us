@@ -400,6 +400,80 @@ class NotificationService
         }
     }
 
+    // ── Password reset: reset requested ──────────────────────────────────────
+
+    public static function passwordResetRequested(int $userId, string $rawToken): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $stmt = Database::get()->prepare("SELECT email FROM users WHERE id = ? LIMIT 1");
+            $stmt->execute([$userId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                return;
+            }
+
+            $email    = $row['email'];
+            $appUrl   = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
+            $link     = $appUrl . '/reset-password?token=' . urlencode($rawToken);
+            $linkE    = self::e($link);
+            $support  = self::supportEmail();
+            $supportE = self::e($support);
+
+            $subject  = 'Reset your password — f29.us Dynamic QR';
+            $bodyHtml = self::wrap(
+                "We received a request to reset the password for your f29.us Dynamic QR account.<br><br>"
+                . "Click the link below to set a new password. This link expires in 60 minutes.<br><br>"
+                . "<a href=\"{$linkE}\" style=\"display:inline-block;padding:0.5rem 1.2rem;background:#1a1a2e;color:#fff;text-decoration:none;border-radius:4px\">Reset Password</a><br><br>"
+                . "Or copy and paste this URL into your browser:<br>"
+                . "<a href=\"{$linkE}\">{$linkE}</a><br><br>"
+                . "If you did not request a password reset, you can safely ignore this email — your password has not been changed.<br><br>"
+                . "If you have concerns, contact us at <a href=\"mailto:{$supportE}\">{$supportE}</a>."
+            );
+
+            MailerService::send($email, $email, $subject, $bodyHtml);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] passwordResetRequested user #' . $userId . ': ' . $e->getMessage());
+        }
+    }
+
+    // ── Password reset: reset completed ───────────────────────────────────────
+
+    public static function passwordResetCompleted(int $userId): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $stmt = Database::get()->prepare("SELECT email FROM users WHERE id = ? LIMIT 1");
+            $stmt->execute([$userId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                return;
+            }
+
+            $email    = $row['email'];
+            $support  = self::supportEmail();
+            $supportE = self::e($support);
+
+            $subject  = 'Your password was reset — f29.us Dynamic QR';
+            $bodyHtml = self::wrap(
+                "The password for your f29.us Dynamic QR account has been reset.<br><br>"
+                . "If you made this change, no further action is needed.<br><br>"
+                . "If you did not reset your password, contact us immediately at "
+                . "<a href=\"mailto:{$supportE}\">{$supportE}</a>."
+            );
+
+            MailerService::send($email, $email, $subject, $bodyHtml);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] passwordResetCompleted user #' . $userId . ': ' . $e->getMessage());
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private static function loadSubscriptionRequest(int $requestId): array|false
