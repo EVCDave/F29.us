@@ -67,7 +67,8 @@ $statusHistoryColors = [
 <?php else: ?>
 <p style="color:#555;margin-bottom:0.75rem;font-size:0.92rem;max-width:520px">
     You are on the <strong><?= View::e($activeSub['plan_display_name']) ?></strong> plan.
-    Billing is not yet automated — plan changes are reviewed manually by our team.
+    Plan changes are reviewed manually by our team. Online checkout is not yet available —
+    no charges apply until billing is confirmed with you directly.
 </p>
 <?php endif; ?>
 
@@ -299,8 +300,9 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
 </div>
 
 <p style="font-size:0.82rem;color:#6b7280;margin-top:0.5rem">
-    Switching to Free takes effect immediately. Requests for other plans are reviewed manually.
-    Billing is not automated yet — no charges apply until explicitly confirmed.
+    Switching to Free takes effect immediately. Requests for other plans are reviewed manually
+    by our team. Prices shown are informational — online checkout is not yet available and
+    no charges apply until billing is confirmed with you directly.
 </p>
 
 <?php endif; ?>
