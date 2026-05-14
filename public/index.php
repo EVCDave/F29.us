@@ -58,6 +58,7 @@ require APP_PATH . '/Controllers/SubscriptionRequestController.php';
 require APP_PATH . '/Controllers/AuditLogController.php';
 require APP_PATH . '/Controllers/SubscriptionHistoryController.php';
 require APP_PATH . '/Controllers/OpsController.php';
+require APP_PATH . '/Controllers/ModerationController.php';
 
 $router = new Router();
 
@@ -147,6 +148,17 @@ $router->get('/admin/subscriptions', [SubscriptionHistoryController::class, 'ind
 
 // ── Admin: operations ─────────────────────────────────────────────────────────
 $router->get('/admin/ops', [OpsController::class, 'index']);
+
+// ── Admin: moderation ─────────────────────────────────────────────────────────
+// Exact routes before patterns to prevent /admin/moderation/links from
+// being captured by /admin/moderation/links/{id}.
+$router->get('/admin/moderation/links',                        [ModerationController::class, 'links']);
+$router->get('/admin/moderation/links/{id}',                   [ModerationController::class, 'linkDetail']);
+$router->post('/admin/moderation/links/{id}/disable',          [ModerationController::class, 'disable']);
+$router->post('/admin/moderation/links/{id}/restore',          [ModerationController::class, 'restore']);
+$router->get('/admin/moderation/domains',                      [ModerationController::class, 'domains']);
+$router->post('/admin/moderation/domains',                     [ModerationController::class, 'addDomain']);
+$router->post('/admin/moderation/domains/{id}/toggle',         [ModerationController::class, 'toggleDomain']);
 
 // ── Public slug catch-all (must be last) ─────────────────────────────────────
 // All named routes above take precedence via exact-match and ordered pattern

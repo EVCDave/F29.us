@@ -15,6 +15,13 @@
     <p style="color:#888;font-size:0.9rem">
         If you expected this to work, contact whoever shared the link with you.
     </p>
+    <?php elseif (($status ?? '') === 'disabled'): ?>
+    <p style="font-size:1.05rem;color:#555;margin-bottom:0.5rem">
+        This short link is no longer available.
+    </p>
+    <p style="color:#888;font-size:0.9rem">
+        If you expected this to work, contact support.
+    </p>
     <?php else: ?>
     <p style="font-size:1.05rem;color:#555;margin-bottom:0.5rem">
         This short link is no longer available.

@@ -119,6 +119,8 @@ class QrController
             $errors[] = 'Destination URL must be 2048 characters or fewer.';
         } elseif (!$this->isValidUrl($destUrl)) {
             $errors[] = 'Destination URL must be a valid http or https URL.';
+        } elseif (DomainBlocklistService::isBlockedUrl($destUrl)['blocked']) {
+            $errors[] = 'This destination domain is not allowed.';
         }
 
         $resolvedSlug = null;
@@ -290,6 +292,8 @@ class QrController
                 $errors[] = 'Destination URL must be 2048 characters or fewer.';
             } elseif (!$this->isValidUrl($newUrl)) {
                 $errors[] = 'Destination URL must be a valid http or https URL.';
+            } elseif (DomainBlocklistService::isBlockedUrl($newUrl)['blocked']) {
+                $errors[] = 'This destination domain is not allowed.';
             }
         }
 
@@ -563,6 +567,13 @@ class QrController
         if (!$this->isValidUrl($restoreUrl)) {
             $_SESSION['flash'] = ['type' => 'error',
                 'text' => 'That historical URL is no longer valid and cannot be restored.'];
+            redirect('/qr/' . $qrId);
+        }
+
+        $block = DomainBlocklistService::isBlockedUrl($restoreUrl);
+        if ($block['blocked']) {
+            $_SESSION['flash'] = ['type' => 'error',
+                'text' => 'This destination domain is not allowed.'];
             redirect('/qr/' . $qrId);
         }
 
