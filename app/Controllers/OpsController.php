@@ -9,10 +9,48 @@ class OpsController
 
         $checks = $this->runChecks();
 
+        $flash = $_SESSION['flash'] ?? null;
+        unset($_SESSION['flash']);
+
+        $adminUser  = AuthService::currentUser();
+        $adminEmail = $adminUser['email'] ?? '';
+
         View::render('admin/ops', [
-            'pageTitle' => 'Admin: Operations — f29.us Dynamic QR',
-            'checks'    => $checks,
+            'pageTitle'  => 'Admin: Operations — f29.us Dynamic QR',
+            'checks'     => $checks,
+            'flash'      => $flash,
+            'adminEmail' => $adminEmail,
         ]);
+    }
+
+    public function sendTestEmail(array $params = []): void
+    {
+        CsrfService::requireValid();
+        $this->requireAdmin();
+
+        $recipient = trim($_POST['recipient_email'] ?? '');
+
+        if (!filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            $_SESSION['flash'] = ['type' => 'error', 'text' => 'Please enter a valid recipient email address.'];
+            redirect('/admin/ops');
+        }
+
+        $subject  = 'f29.us test email';
+        $bodyHtml = '<p>This is a test email from f29.us Dynamic QR.</p>'
+                  . '<p>If you received this message, SMTP delivery is working.</p>';
+        $bodyText = "This is a test email from f29.us Dynamic QR.\n\n"
+                  . "If you received this message, SMTP delivery is working.";
+
+        $sent = MailerService::send($recipient, $recipient, $subject, $bodyHtml, $bodyText);
+
+        if ($sent) {
+            $_SESSION['flash'] = ['type' => 'success', 'text' => 'Test email sent to ' . $recipient . '.'];
+        } else {
+            $_SESSION['flash'] = ['type' => 'error',
+                'text' => 'Test email could not be sent. Check storage/logs/error.log for details.'];
+        }
+
+        redirect('/admin/ops');
     }
 
     private function runChecks(): array

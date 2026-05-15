@@ -319,6 +319,17 @@ All checklist items are manual unless noted otherwise.
 
 ### Operations page
 - [ ] `/admin/ops` shows PHP version, extension status, migration count, DB counters
+- [ ] Mail Configuration section shows "configured" (not "OK" / "ready") for MAIL_ENABLED when enabled
+- [ ] Mail Configuration section does not show `MAIL_SMTP_PASSWORD`
+- [ ] Explanatory note reads: "Configured means the app has enough settings to attempt delivery."
+- [ ] Send Test Email form pre-fills recipient with the current admin's email address
+- [ ] Submitting invalid email address shows validation error flash, no email attempted
+- [ ] `MAIL_ENABLED=false` → failure flash "Test email could not be sent…"; no crash
+- [ ] Missing CSRF token on POST → rejected
+- [ ] Non-admin user cannot POST to `/admin/ops/send-test-email` (returns 403)
+- [ ] Valid SMTP: test email delivered; success flash "Test email sent to {address}."
+- [ ] Bad SMTP host: failure flash shown; error logged to `storage/logs/error.log`; no stack trace in browser
+- [ ] Send Test Email must be tested before enabling Stripe/payment flows to confirm delivery
 
 ---
 
