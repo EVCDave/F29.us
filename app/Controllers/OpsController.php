@@ -89,6 +89,14 @@ class OpsController
             ? basename(end($migrationFiles), '.php')
             : 'none';
 
+        // ── Stripe ────────────────────────────────────────────────────────────
+        $c['stripe_enabled']              = StripeService::isEnabled();
+        $c['stripe_mode']                 = StripeService::mode();
+        $c['stripe_secret_set']           = trim($_ENV['STRIPE_SECRET_KEY']      ?? '') !== '';
+        $c['stripe_publishable_key_set']  = trim($_ENV['STRIPE_PUBLISHABLE_KEY']  ?? '') !== '';
+        $c['stripe_webhook_set']          = trim($_ENV['STRIPE_WEBHOOK_SECRET']   ?? '') !== '';
+        $c['stripe_sdk_ok']               = StripeService::clientReady();
+
         // ── Database + counters ───────────────────────────────────────────────
         $c['db_connected'] = false;
         try {
@@ -118,6 +126,41 @@ class OpsController
             );
             $stmt->execute([$cutoff]);
             $c['login_failures_24h'] = (int) $stmt->fetchColumn();
+
+            // ── Stripe DB checks ─────────────────────────────────────────────
+            $c['stripe_active_prices'] = (int) $pdo->query(
+                "SELECT COUNT(*) FROM plan_billing_prices WHERE provider = 'stripe' AND is_active = 1"
+            )->fetchColumn();
+
+            $c['stripe_plans_missing_prices'] = $pdo->query(
+                "SELECT p.display_name FROM plans p
+                  WHERE p.is_active = 1
+                    AND (p.monthly_price_cents > 0 OR p.yearly_price_cents > 0)
+                    AND NOT EXISTS (
+                        SELECT 1 FROM plan_billing_prices pbp
+                         WHERE pbp.plan_id = p.id
+                           AND pbp.provider = 'stripe'
+                           AND pbp.is_active = 1
+                    )
+                  ORDER BY p.sort_order, p.display_name"
+            )->fetchAll(PDO::FETCH_COLUMN);
+
+            // Webhook table exists only after Phase 37 migration — tolerate absence
+            try {
+                $c['stripe_latest_webhook'] = $pdo->query(
+                    "SELECT MAX(created_at) FROM stripe_webhook_events"
+                )->fetchColumn() ?: null;
+
+                $stmt = $pdo->prepare(
+                    "SELECT COUNT(*) FROM stripe_webhook_events
+                      WHERE processing_status = 'failed' AND created_at >= ?"
+                );
+                $stmt->execute([$cutoff]);
+                $c['stripe_failed_webhooks_24h'] = (int) $stmt->fetchColumn();
+            } catch (Throwable) {
+                $c['stripe_latest_webhook']      = null;
+                $c['stripe_failed_webhooks_24h'] = null;
+            }
         } catch (Throwable) {
             // db_connected stays false; numeric checks remain absent
         }

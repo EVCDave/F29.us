@@ -62,6 +62,31 @@ class ConfigValidator
             }
         }
 
+        if (filter_var($_ENV['STRIPE_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN)) {
+            foreach (['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY', 'STRIPE_WEBHOOK_SECRET'] as $var) {
+                if (trim($_ENV[$var] ?? '') === '') {
+                    $errors[] = "{$var} is required when STRIPE_ENABLED=true";
+                }
+            }
+            $stripeMode = $_ENV['STRIPE_MODE'] ?? '';
+            if (!in_array($stripeMode, ['test', 'live'], true)) {
+                $errors[] = "STRIPE_MODE must be 'test' or 'live' (got: \"{$stripeMode}\")";
+            }
+            foreach (['STRIPE_SUCCESS_URL', 'STRIPE_CANCEL_URL'] as $var) {
+                $url = trim($_ENV[$var] ?? '');
+                if ($url === '') {
+                    $errors[] = "{$var} is required when STRIPE_ENABLED=true";
+                } elseif (!self::isHttpUrl($url)) {
+                    $errors[] = "{$var} must be an http or https URL (got: \"{$url}\")";
+                }
+            }
+        }
+
+        $currency = trim($_ENV['STRIPE_CURRENCY'] ?? '');
+        if ($currency !== '' && !preg_match('/^[a-z]{3}$/', $currency)) {
+            $errors[] = "STRIPE_CURRENCY must be a lowercase 3-letter ISO 4217 code (got: \"{$currency}\")";
+        }
+
         return $errors;
     }
 

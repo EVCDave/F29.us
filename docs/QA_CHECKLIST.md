@@ -386,15 +386,54 @@ All checklist items are manual unless noted otherwise.
 
 ---
 
-## 12. Known Gaps (Not Blockers for Current Launch)
+## 12. Stripe Configuration (Phase 35 — Ops Readiness)
+
+> These checks apply even before Stripe is enabled. They verify that the SDK is installed,
+> env vars are wired, and the ops page reflects the correct status.
+
+### SDK and config
+- [ ] `composer install` completes without errors after `stripe/stripe-php ^16.0` is added to `composer.json`
+- [ ] `vendor/stripe/stripe-php/` directory exists after install
+- [ ] `/admin/ops` Stripe Configuration section loads without error
+- [ ] With `STRIPE_ENABLED=false` in `.env`: ops page shows "disabled" for STRIPE_ENABLED
+- [ ] With `STRIPE_ENABLED=true` and all required vars set: ops page shows "enabled", correct mode, "configured" for keys
+- [ ] `STRIPE_SECRET_KEY` value is **never** displayed on the ops page — only "configured" or "not set"
+- [ ] `STRIPE_WEBHOOK_SECRET` value is **never** displayed on the ops page — only "configured" or "not set"
+- [ ] `STRIPE_PUBLISHABLE_KEY` value is shown (it is a public key — safe to display)
+- [ ] `STRIPE_MODE=live` shows a yellow warning ("live — real charges will be made")
+- [ ] SDK row shows "present" when `stripe/stripe-php` is installed; "not found — run: composer require stripe/stripe-php" when missing
+
+### Validation
+- [ ] With `STRIPE_ENABLED=true` and `STRIPE_SECRET_KEY=` blank in `.env`: app returns 500 on boot (or CLI exits 1) with config error naming the missing var
+- [ ] With `STRIPE_ENABLED=true` and `STRIPE_MODE=badvalue`: app returns 500 on boot with "STRIPE_MODE must be 'test' or 'live'"
+- [ ] With `STRIPE_ENABLED=false`: leaving `STRIPE_SECRET_KEY` blank does **not** cause a startup error
+
+### Price coverage
+- [ ] Ops page shows "Active Stripe prices: 0" when no `plan_billing_prices` rows exist for provider=stripe
+- [ ] After adding active Stripe price mappings via admin: count increments correctly
+- [ ] "Paid plans missing active Stripe price" shows plan names correctly when paid plans lack prices
+- [ ] "Paid plans missing active Stripe price" shows "none" with OK indicator when all paid plans have coverage
+
+### Migration
+- [ ] `php migrate.php` after adding migration 027 reports `RUN 027_add_stripe_customer_id_to_users ... done`
+- [ ] `DESCRIBE users;` in MySQL shows `stripe_customer_id VARCHAR(255) NULL` column present
+- [ ] Re-running `php migrate.php` shows `SKIP 027_add_stripe_customer_id_to_users` (idempotent)
+
+### Webhook table placeholder
+- [ ] Before Phase 37 migration: ops page shows "Webhook events table: not yet created (Phase 37)" — no error
+- [ ] After Phase 37 migration: ops page shows latest webhook timestamp and 24 h failure count
+
+---
+
+## 13. Known Gaps (Not Blockers for Current Launch)
 
 These are intentional absences. Confirm they are clearly communicated to users where applicable:
 
 | Gap | Status |
 |-----|--------|
-| Online checkout / Stripe payment processing | Not implemented (schema groundwork only) |
-| Password reset by email | Not implemented |
-| Email notifications of any kind | Not implemented |
+| Online checkout / Stripe payment processing | Not implemented (SDK + config groundwork in place; checkout Phase 36+) |
+| Password reset by email | Implemented (Phase 24) |
+| Email notifications of any kind | Implemented (Phase 27) |
 | Multi-factor authentication (MFA) | Not implemented |
 | Team / workspace / multi-user features | Not implemented |
 | API endpoints | Not implemented |
@@ -405,4 +444,4 @@ These are intentional absences. Confirm they are clearly communicated to users w
 
 ---
 
-*Last updated: 2026-05-15*
+*Last updated: 2026-05-15 — Phase 35 Stripe ops readiness section added*

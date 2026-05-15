@@ -294,12 +294,14 @@ Add a Stripe section to `/admin/ops`:
 
 ## Phased Implementation Order
 
-### Phase 35 — SDK, Config, Ops Readiness
-- Install `stripe/stripe-php` via Composer
-- Add env vars to `.env.example`
-- Create `StripeService` skeleton (API key init only)
-- Add Stripe section to `/admin/ops`
-- Add migration 027: `stripe_customer_id` on `users`
+### Phase 35 — SDK, Config, Ops Readiness ✓ COMPLETE
+- `stripe/stripe-php ^16.0` added to `composer.json` (run `composer install` to install)
+- Stripe env vars added to `.env.example` (8 vars: STRIPE_ENABLED, STRIPE_MODE, keys, URLs, currency)
+- Config validation added to `ConfigValidator` — required vars fatal on startup when `STRIPE_ENABLED=true`
+- `app/Services/StripeService.php` created — `isEnabled()`, `mode()`, `currency()`, `clientReady()`, `requireEnabled()`
+- `StripeService` loaded in `bootstrap.php`
+- Migration 027 added — `stripe_customer_id VARCHAR(255) NULL` on `users`, with index
+- Stripe Configuration section added to `/admin/ops` — SDK presence, key status (no values shown), price coverage, webhook table status
 - No checkout, no webhooks
 
 ### Phase 36 — Checkout Session Creation
