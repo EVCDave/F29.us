@@ -2,7 +2,7 @@
 
 <?php if ($submitted): ?>
 
-<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:4px;padding:0.9rem 1rem;margin-bottom:1.5rem;color:#166534;font-size:0.92rem">
+<div class="flash flash-success flash-lg">
     If an account exists for that email address, a password reset link has been sent.
     Please check your inbox within 60 minutes.
 </div>
@@ -11,14 +11,14 @@
 <?php else: ?>
 
 <?php if ($error !== ''): ?>
-<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:4px;padding:0.75rem 1rem;margin-bottom:1.25rem;color:#991b1b;font-size:0.9rem">
+<div class="flash flash-error">
     <?= View::e($error) ?>
 </div>
 <?php endif; ?>
 
-<p style="color:#444;max-width:420px">Enter your account email address and we will send you a link to reset your password.</p>
+<p class="mw-420">Enter your account email address and we will send you a link to reset your password.</p>
 
-<form method="post" action="/forgot-password" style="max-width:420px">
+<form method="post" action="/forgot-password" class="mw-420">
     <?= CsrfService::field() ?>
     <div class="form-group">
         <label for="email">Email address</label>
@@ -29,6 +29,6 @@
     </div>
 </form>
 
-<p style="margin-top:0.5rem"><a href="/login">&larr; Back to login</a></p>
+<p class="mt-2"><a href="/login">&larr; Back to login</a></p>
 
 <?php endif; ?>

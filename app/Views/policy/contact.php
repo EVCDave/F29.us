@@ -1,8 +1,8 @@
-<div style="max-width:680px">
+<div class="mw-680">
 
 <h1>Contact</h1>
 
-<div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:5px;padding:0.75rem 1rem;margin-bottom:1.5rem;font-size:0.85rem;color:#555">
+<div class="card-note">
     A contact form and ticketing system are not yet implemented. Use the email addresses below to reach us.
 </div>
 

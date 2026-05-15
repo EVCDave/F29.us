@@ -1,15 +1,15 @@
-<div style="max-width:680px">
+<div class="mw-680">
 
 <h1>Report Abuse</h1>
 
-<p style="font-size:1.05rem;color:#444;margin-bottom:1.75rem">
+<p class="text-105 mb-7">
     If you have found a f29.us short link or QR code being used for phishing, malware, spam,
     or other harmful purposes, please report it so we can investigate and take action.
 </p>
 
 <h2>What to Report</h2>
 <p>Reports are most useful when they involve:</p>
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<ul class="ul-content">
     <li>Phishing pages or credential-harvesting sites</li>
     <li>Malware downloads or drive-by exploits</li>
     <li>Spam campaigns</li>
@@ -23,7 +23,7 @@
 
 <h2>What to Include</h2>
 <p>Please include as much of the following as you can:</p>
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<ul class="ul-content">
     <li><strong>The short URL</strong> — the full f29.us link (e.g. <code>https://f29.us/xyz</code>)</li>
     <li><strong>The destination URL</strong> — where the link redirected you, if you were able to capture it safely</li>
     <li><strong>Reason for report</strong> — a brief description of why this is abusive or harmful</li>
@@ -38,7 +38,7 @@
 respond individually to every report, but all reports are reviewed.</p>
 <p>Automated scanning is not currently implemented. Our review process is manual.</p>
 
-<p style="margin-top:2rem;font-size:0.85rem;color:#6b7280">
+<p class="mt-8 text-sm text-muted">
     For general support questions, see the <a href="/contact">contact page</a>.<br>
     For privacy questions, see our <a href="/privacy">Privacy Policy</a>.
 </p>

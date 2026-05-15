@@ -1,13 +1,13 @@
-<div style="max-width:720px">
+<div class="mw-720">
 
 <h1>Terms of Service</h1>
 
-<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:4px;padding:0.65rem 1rem;margin-bottom:1.5rem;font-size:0.85rem">
+<div class="card-warn mb-6 text-sm">
     <strong>Draft notice:</strong> This document is a placeholder and has not been reviewed by legal counsel.
     It should be reviewed and updated before wider public launch.
 </div>
 
-<p style="color:#6b7280;font-size:0.85rem;margin-bottom:1.75rem">Last updated: <?= date('F j, Y') ?></p>
+<p class="text-sm text-muted mb-7">Last updated: <?= date('F j, Y') ?></p>
 
 <h2>1. Acceptance of Terms</h2>
 <p>By accessing or using f29.us Dynamic QR ("the Service"), you agree to be bound by these Terms of Service.
@@ -44,7 +44,7 @@ redirects, impersonation, or any illegal purpose.</p>
 
 <h2>7. Moderation and Account Actions</h2>
 <p>We may, at our sole discretion:</p>
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<ul class="ul-content">
     <li>disable any short link that violates these Terms or the Acceptable Use Policy</li>
     <li>suspend or terminate accounts engaged in repeated or serious violations</li>
     <li>block destination domains associated with abuse</li>

@@ -22,7 +22,7 @@
         >
     </div>
     <div class="form-group">
-        <label for="password">Password <small style="color:#888;font-weight:400">(min 8 characters)</small></label>
+        <label for="password">Password <small class="text-muted-2 fw-normal">(min 8 characters)</small></label>
         <input
             type="password"
             id="password"

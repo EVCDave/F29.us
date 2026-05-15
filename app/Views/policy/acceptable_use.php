@@ -1,13 +1,13 @@
-<div style="max-width:720px">
+<div class="mw-720">
 
 <h1>Acceptable Use Policy</h1>
 
-<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:4px;padding:0.65rem 1rem;margin-bottom:1.5rem;font-size:0.85rem">
+<div class="card-warn mb-6 text-sm">
     <strong>Draft notice:</strong> This document is a placeholder and has not been reviewed by legal counsel.
     It should be reviewed and updated before wider public launch.
 </div>
 
-<p style="color:#6b7280;font-size:0.85rem;margin-bottom:1.75rem">Last updated: <?= date('F j, Y') ?></p>
+<p class="text-sm text-muted mb-7">Last updated: <?= date('F j, Y') ?></p>
 
 <h2>1. Overview</h2>
 <p>This Acceptable Use Policy ("AUP") describes what you may and may not do with the f29.us Dynamic QR
@@ -17,7 +17,7 @@ permanent termination.</p>
 <h2>2. Prohibited Destinations and Content</h2>
 <p>You must not use f29.us short links or QR codes to direct users to content or services that:</p>
 
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<ul class="ul-content">
     <li><strong>Phishing</strong> — impersonate websites, services, or individuals to steal credentials or personal information</li>
     <li><strong>Malware</strong> — distribute malicious software, ransomware, spyware, or any harmful code</li>
     <li><strong>Credential theft</strong> — collect usernames, passwords, or payment information deceptively</li>
@@ -32,7 +32,7 @@ permanent termination.</p>
 
 <h2>3. Prohibited Platform Behavior</h2>
 <p>You must not:</p>
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<ul class="ul-content">
     <li>Attempt to evade domain blocklists by using redirectors, URL shorteners, or other intermediaries to reach a blocked destination</li>
     <li>Create accounts or QR codes for the purpose of circumventing a prior suspension or account action</li>
     <li>Abuse the redirect or analytics infrastructure (e.g. automated scanning to inflate analytics counts)</li>
@@ -42,7 +42,7 @@ permanent termination.</p>
 
 <h2>4. Enforcement</h2>
 <p>f29.us may, without prior notice where urgent action is required:</p>
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<ul class="ul-content">
     <li>Disable individual short links that are found to violate this AUP</li>
     <li>Add offending domains to the service-wide blocked-domain list</li>
     <li>Suspend or terminate accounts engaged in repeated or serious violations</li>

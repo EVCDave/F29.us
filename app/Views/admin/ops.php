@@ -1,23 +1,23 @@
 <?php
-$ok   = '<span style="color:#166534;font-weight:500">&#10003; OK</span>';
+$ok   = '<span class="ops-ok">&#10003; OK</span>';
 $warn = static function (string $msg): string {
-    return '<span style="color:#92400e;font-weight:500">&#9888; ' . View::e($msg) . '</span>';
+    return '<span class="ops-warn">&#9888; ' . View::e($msg) . '</span>';
 };
 $fail = static function (string $msg): string {
-    return '<span style="color:#991b1b;font-weight:500">&#10007; ' . View::e($msg) . '</span>';
+    return '<span class="ops-fail">&#10007; ' . View::e($msg) . '</span>';
 };
 ?>
-<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1rem">
+<div class="page-header">
     <h1>Operations</h1>
-    <a href="/admin" style="color:#666;font-size:0.9rem">&larr; Admin</a>
+    <a href="/admin" class="back-link">&larr; Admin</a>
 </div>
-<p style="color:#666;margin-bottom:2rem">System health snapshot. Refresh the page to recheck.</p>
+<p class="text-muted-3 mb-8">System health snapshot. Refresh the page to recheck.</p>
 
 <!-- ── Environment ────────────────────────────────────────────────────────── -->
-<h2 style="margin-bottom:0.6rem">Environment</h2>
-<table style="max-width:560px;margin-bottom:2rem;font-size:0.9rem">
+<h2 class="mb-3">Environment</h2>
+<table class="mw-560 mb-8 text-base">
     <tr>
-        <th style="width:200px">APP_ENV</th>
+        <th class="col-200">APP_ENV</th>
         <td><?= View::e($checks['app_env']) ?></td>
     </tr>
     <tr>
@@ -37,10 +37,10 @@ $fail = static function (string $msg): string {
 </table>
 
 <!-- ── Extensions ────────────────────────────────────────────────────────── -->
-<h2 style="margin-bottom:0.6rem">PHP Extensions</h2>
-<table style="max-width:560px;margin-bottom:2rem;font-size:0.9rem">
+<h2 class="mb-3">PHP Extensions</h2>
+<table class="mw-560 mb-8 text-base">
     <tr>
-        <th style="width:200px">GD (PNG generation)</th>
+        <th class="col-200">GD (PNG generation)</th>
         <td><?= $checks['gd_loaded'] ? $ok : $warn('not loaded — PNG downloads will fail') ?></td>
     </tr>
     <tr>
@@ -50,10 +50,10 @@ $fail = static function (string $msg): string {
 </table>
 
 <!-- ── Mail ───────────────────────────────────────────────────────────────── -->
-<h2 style="margin-bottom:0.6rem">Mail Configuration</h2>
-<table style="max-width:560px;margin-bottom:2rem;font-size:0.9rem">
+<h2 class="mb-3">Mail Configuration</h2>
+<table class="mw-560 mb-8 text-base">
     <tr>
-        <th style="width:200px">MAIL_ENABLED</th>
+        <th class="col-200">MAIL_ENABLED</th>
         <td><?= $checks['mail_enabled']
             ? $ok
             : $warn('disabled — transactional emails will not be sent') ?></td>
@@ -83,16 +83,16 @@ $fail = static function (string $msg): string {
         <th>MAIL_ADMIN_ADDRESS</th>
         <td><?= $checks['mail_admin_address'] !== ''
             ? View::e($checks['mail_admin_address'])
-            : '<span style="color:#6b7280">not set — admin notifications disabled</span>' ?></td>
+            : '<span class="text-muted">not set — admin notifications disabled</span>' ?></td>
     </tr>
     <?php endif; ?>
 </table>
 
 <!-- ── Filesystem ─────────────────────────────────────────────────────────── -->
-<h2 style="margin-bottom:0.6rem">Filesystem</h2>
-<table style="max-width:560px;margin-bottom:2rem;font-size:0.9rem">
+<h2 class="mb-3">Filesystem</h2>
+<table class="mw-560 mb-8 text-base">
     <tr>
-        <th style="width:200px">vendor/autoload.php</th>
+        <th class="col-200">vendor/autoload.php</th>
         <td><?= $checks['vendor_ok'] ? $ok : $fail('missing — run composer install') ?></td>
     </tr>
     <tr>
@@ -106,23 +106,23 @@ $fail = static function (string $msg): string {
 </table>
 
 <!-- ── Migrations ─────────────────────────────────────────────────────────── -->
-<h2 style="margin-bottom:0.6rem">Migrations</h2>
-<table style="max-width:560px;margin-bottom:2rem;font-size:0.9rem">
+<h2 class="mb-3">Migrations</h2>
+<table class="mw-560 mb-8 text-base">
     <tr>
-        <th style="width:200px">Migration files</th>
+        <th class="col-200">Migration files</th>
         <td><?= (int) $checks['migration_count'] ?></td>
     </tr>
     <tr>
         <th>Latest migration</th>
-        <td style="font-family:monospace;font-size:0.85rem"><?= View::e($checks['latest_migration']) ?></td>
+        <td class="monospace text-sm"><?= View::e($checks['latest_migration']) ?></td>
     </tr>
 </table>
 
 <!-- ── Database ───────────────────────────────────────────────────────────── -->
-<h2 style="margin-bottom:0.6rem">Database</h2>
-<table style="max-width:560px;margin-bottom:2rem;font-size:0.9rem">
+<h2 class="mb-3">Database</h2>
+<table class="mw-560 mb-8 text-base">
     <tr>
-        <th style="width:200px">Connection</th>
+        <th class="col-200">Connection</th>
         <td><?= $checks['db_connected'] ? $ok : $fail('cannot connect — check DB credentials') ?></td>
     </tr>
     <?php if ($checks['db_connected']): ?>
@@ -147,7 +147,7 @@ $fail = static function (string $msg): string {
         <td>
             <?= (int) $checks['pending_requests'] ?>
             <?php if ($checks['pending_requests'] > 0): ?>
-            <a href="/admin/subscription-requests" style="font-size:0.82rem;margin-left:0.5rem">View</a>
+            <a href="/admin/subscription-requests" class="text-sm ml-2">View</a>
             <?php endif; ?>
         </td>
     </tr>
@@ -156,10 +156,10 @@ $fail = static function (string $msg): string {
 
 <!-- ── Login Activity ─────────────────────────────────────────────────────── -->
 <?php if ($checks['db_connected']): ?>
-<h2 style="margin-bottom:0.6rem">Login Activity (last 24 h)</h2>
-<table style="max-width:560px;margin-bottom:2rem;font-size:0.9rem">
+<h2 class="mb-3">Login Activity (last 24 h)</h2>
+<table class="mw-560 mb-8 text-base">
     <tr>
-        <th style="width:200px">Total attempts</th>
+        <th class="col-200">Total attempts</th>
         <td><?= (int) $checks['login_attempts_24h'] ?></td>
     </tr>
     <tr>

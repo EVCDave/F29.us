@@ -14,13 +14,13 @@ $displayFeatures = [
 
 $fv = static function (array $planFeatures, string $key): string {
     if (!isset($planFeatures[$key])) {
-        return '<span style="color:#9ca3af">—</span>';
+        return '<span class="text-faint">—</span>';
     }
     $f = $planFeatures[$key];
     if ($f['value_type'] === 'bool') {
         return $f['feature_value'] === 'true'
-            ? '<span style="color:#166534">&#10003;</span>'
-            : '<span style="color:#9ca3af">—</span>';
+            ? '<span class="text-success">&#10003;</span>'
+            : '<span class="text-faint">—</span>';
     }
     return View::e($f['feature_value']);
 };
@@ -30,57 +30,45 @@ $statusHistoryMessages = [
     'denied'   => 'Denied — your current subscription was not changed.',
     'canceled' => 'Canceled — this request was canceled and no subscription change was made.',
 ];
-$statusHistoryColors = [
-    'approved' => 'color:#166534',
-    'denied'   => 'color:#991b1b',
-    'canceled' => 'color:#6b7280',
-];
 ?>
 
-<h1 style="margin-bottom:1.5rem">My Subscription</h1>
+<h1 class="mb-6">My Subscription</h1>
 
 <?php if ($flash): ?>
-<div class="notice" style="display:block;margin-bottom:1.5rem;
-    <?= $flash['type'] === 'error'   ? 'background:#fef2f2;border-color:#fca5a5;color:#991b1b;' : '' ?>
-    <?= $flash['type'] === 'success' ? 'background:#f0fdf4;border-color:#86efac;color:#166534;' : '' ?>
-    <?= $flash['type'] === 'info'    ? 'background:#eff6ff;border-color:#93c5fd;color:#1e40af;' : '' ?>">
-    <?= View::e($flash['text']) ?>
-</div>
+<div class="flash flash-<?= View::e($flash['type']) ?> mb-6"><?= View::e($flash['text']) ?></div>
 <?php endif; ?>
 
 <!-- ── Current Plan ────────────────────────────────────────────────────────── -->
-<h2 style="margin-bottom:0.75rem">Current Plan</h2>
+<h2 class="mb-3">Current Plan</h2>
 
 <?php if ($activeSub): ?>
 
 <?php if ($isPlanLegacy): ?>
-<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:4px;padding:0.65rem 0.9rem;
-            max-width:520px;margin-bottom:1rem;font-size:0.88rem;color:#92400e">
+<div class="card-warn mw-520 mb-4">
     You are on a legacy version of this plan. It is no longer publicly available. Your access continues
     as long as your subscription remains active.
 </div>
 <?php elseif ($isFreePlan): ?>
-<p style="color:#555;margin-bottom:0.75rem;font-size:0.92rem;max-width:520px">
+<p class="text-92 text-muted-3 mb-3 mw-520">
     You are on the Free plan. To access more features, submit a request for another plan using the
     comparison table below.
 </p>
 <?php else: ?>
-<p style="color:#555;margin-bottom:0.75rem;font-size:0.92rem;max-width:520px">
+<p class="text-92 text-muted-3 mb-3 mw-520">
     You are on the <strong><?= View::e($activeSub['plan_display_name']) ?></strong> plan.
     Plan changes are reviewed manually by our team. Online checkout is not yet available —
     no charges apply until billing is confirmed with you directly.
 </p>
 <?php endif; ?>
 
-<table style="max-width:480px;margin-bottom:2rem">
+<table class="mw-480 mb-8">
     <tr>
-        <th style="width:160px">Plan</th>
+        <th class="col-160">Plan</th>
         <td>
             <strong><?= View::e($activeSub['plan_display_name']) ?></strong>
-            <span style="color:#9ca3af;font-size:0.85rem">(<?= View::e($activeSub['plan_internal_name']) ?>)</span>
+            <span class="text-faint text-sm">(<?= View::e($activeSub['plan_internal_name']) ?>)</span>
             <?php if ($isPlanLegacy): ?>
-            <span style="font-size:0.72rem;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;
-                         padding:0.1rem 0.4rem;border-radius:3px;margin-left:0.4rem">legacy</span>
+            <span class="badge badge-legacy ml-2">legacy</span>
             <?php endif; ?>
         </td>
     </tr>
@@ -105,7 +93,7 @@ $statusHistoryColors = [
 </table>
 
 <?php else: ?>
-<p style="color:#888;margin-bottom:2rem">You do not have an active subscription.</p>
+<p class="text-muted-2 mb-8">You do not have an active subscription.</p>
 <?php endif; ?>
 
 <!-- ── Usage Summary ──────────────────────────────────────────────────────── -->
@@ -117,57 +105,57 @@ $canCustomSlug   = $entitlements['can_use_custom_slug']      ?? null;
 $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== null || $canCustomSlug !== null;
 ?>
 <?php if ($showUsage): ?>
-<h2 style="margin-bottom:0.75rem">Current Usage &amp; Limits</h2>
-<table style="max-width:380px;margin-bottom:2rem;font-size:0.9rem">
+<h2 class="mb-3">Current Usage &amp; Limits</h2>
+<table class="mw-380 mb-8 text-base">
     <?php if ($maxQr !== null): ?>
     <tr>
-        <th style="width:200px;font-weight:500;color:#374151">QR Codes</th>
+        <th class="col-200 fw-medium">QR Codes</th>
         <td>
             <?= (int) $currentQrCount ?> / <?= View::e((string) $maxQr) ?>
             <?php if ((int) $currentQrCount >= (int) $maxQr): ?>
-            <span style="color:#991b1b;font-size:0.82rem;margin-left:0.35rem">limit reached</span>
+            <span class="text-danger text-82 ml-2">limit reached</span>
             <?php endif; ?>
         </td>
     </tr>
     <?php endif; ?>
     <?php if ($analyticsRetain !== null): ?>
     <tr>
-        <th style="font-weight:500;color:#374151">Analytics Retention</th>
+        <th class="fw-medium">Analytics Retention</th>
         <td><?= View::e((string) $analyticsRetain) ?> days</td>
     </tr>
     <?php endif; ?>
     <?php if ($canCustomSlug !== null): ?>
     <tr>
-        <th style="font-weight:500;color:#374151">Custom Short Links</th>
-        <td><?= $canCustomSlug ? '<span style="color:#166534">&#10003; available</span>' : '<span style="color:#9ca3af">not available</span>' ?></td>
+        <th class="fw-medium">Custom Short Links</th>
+        <td><?= $canCustomSlug ? '<span class="text-success">&#10003; available</span>' : '<span class="text-faint">not available</span>' ?></td>
     </tr>
     <?php endif; ?>
     <?php if ($canSvg !== null): ?>
     <tr>
-        <th style="font-weight:500;color:#374151">SVG Export</th>
-        <td><?= $canSvg ? '<span style="color:#166534">&#10003; available</span>' : '<span style="color:#9ca3af">not available</span>' ?></td>
+        <th class="fw-medium">SVG Export</th>
+        <td><?= $canSvg ? '<span class="text-success">&#10003; available</span>' : '<span class="text-faint">not available</span>' ?></td>
     </tr>
     <?php endif; ?>
 </table>
 <?php endif; ?>
 
 <!-- ── Pending Requests ───────────────────────────────────────────────────── -->
-<h2 style="margin-bottom:0.75rem">Pending Plan-Change Requests</h2>
+<h2 class="mb-3">Pending Plan-Change Requests</h2>
 
 <?php if (empty($pendingRequests)): ?>
-<p style="color:#888;font-size:0.9rem;margin-bottom:2rem">You do not have any pending plan-change requests.</p>
+<p class="text-muted-2 text-sm mb-8">You do not have any pending plan-change requests.</p>
 <?php else: ?>
-<p style="color:#555;font-size:0.88rem;margin-bottom:0.75rem;max-width:520px">
+<p class="text-muted-3 text-88 mb-3 mw-520">
     The following requests are waiting for admin review. You will be notified once a decision is made.
     Canceling a request does not affect your current subscription.
 </p>
-<table style="max-width:620px;margin-bottom:2rem">
+<table class="mw-620 mb-8">
     <thead>
         <tr>
             <th>Requested Plan</th>
-            <th style="width:140px">Current Plan at Request</th>
-            <th style="width:100px">Submitted</th>
-            <th style="width:90px"></th>
+            <th class="col-140">Current Plan at Request</th>
+            <th class="col-100">Submitted</th>
+            <th class="col-90"></th>
         </tr>
     </thead>
     <tbody>
@@ -175,19 +163,18 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
     <tr>
         <td>
             <strong><?= View::e($req['requested_plan_name']) ?></strong>
-            <span style="color:#9ca3af;font-size:0.83rem">(<?= View::e($req['requested_plan_internal']) ?>)</span>
+            <span class="text-faint text-83">(<?= View::e($req['requested_plan_internal']) ?>)</span>
         </td>
-        <td style="font-size:0.85rem;color:#6b7280">
-            <?= $req['current_plan_name'] ? View::e($req['current_plan_name']) : '<span style="color:#9ca3af">none</span>' ?>
+        <td class="text-sm text-muted">
+            <?= $req['current_plan_name'] ? View::e($req['current_plan_name']) : '<span class="text-faint">none</span>' ?>
         </td>
-        <td style="font-size:0.85rem;color:#6b7280"><?= View::e(substr($req['requested_at'], 0, 10)) ?></td>
+        <td class="text-sm text-muted"><?= View::e(substr($req['requested_at'], 0, 10)) ?></td>
         <td>
             <form method="post" action="/account/subscription/request-cancel"
-                  onsubmit="return confirm('Cancel this plan-change request?\nYour current subscription will not be affected.')">
+                  data-confirm="Cancel this plan-change request? Your current subscription will not be affected.">
                 <?= CsrfService::field() ?>
                 <input type="hidden" name="request_id" value="<?= (int) $req['id'] ?>">
-                <button type="submit" class="btn btn-secondary"
-                        style="padding:0.2rem 0.6rem;font-size:0.8rem">Cancel Request</button>
+                <button type="submit" class="btn btn-secondary btn-sm">Cancel Request</button>
             </form>
         </td>
     </tr>
@@ -198,14 +185,14 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
 
 <!-- ── Request History ────────────────────────────────────────────────────── -->
 <?php if (!empty($requestHistory)): ?>
-<h2 style="margin-bottom:0.75rem">Recent Request History</h2>
-<table style="max-width:680px;margin-bottom:2rem;font-size:0.88rem">
+<h2 class="mb-3">Recent Request History</h2>
+<table class="mw-680 mb-8 text-88">
     <thead>
         <tr>
             <th>Requested Plan</th>
-            <th style="width:100px">Status</th>
-            <th style="width:100px">Submitted</th>
-            <th style="width:100px">Reviewed</th>
+            <th class="col-100">Status</th>
+            <th class="col-100">Submitted</th>
+            <th class="col-100">Reviewed</th>
             <th>Outcome</th>
         </tr>
     </thead>
@@ -214,16 +201,16 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
     <tr>
         <td>
             <?= View::e($h['requested_plan_name']) ?>
-            <span style="color:#9ca3af;font-size:0.82rem">(<?= View::e($h['requested_plan_internal']) ?>)</span>
+            <span class="text-faint text-82">(<?= View::e($h['requested_plan_internal']) ?>)</span>
         </td>
-        <td style="<?= $statusHistoryColors[$h['status']] ?? '' ?>;font-weight:500">
+        <td class="status-<?= View::e($h['status']) ?>">
             <?= View::e($h['status']) ?>
         </td>
-        <td style="color:#6b7280"><?= View::e(substr($h['requested_at'], 0, 10)) ?></td>
-        <td style="color:#6b7280">
-            <?= $h['reviewed_at'] ? View::e(substr($h['reviewed_at'], 0, 10)) : '<span style="color:#d1d5db">—</span>' ?>
+        <td class="text-muted"><?= View::e(substr($h['requested_at'], 0, 10)) ?></td>
+        <td class="text-muted">
+            <?= $h['reviewed_at'] ? View::e(substr($h['reviewed_at'], 0, 10)) : '<span class="text-dim">—</span>' ?>
         </td>
-        <td style="color:#6b7280;font-size:0.85rem">
+        <td class="text-muted text-sm">
             <?php if (!empty($h['note'])): ?>
                 <?= View::e($h['note']) ?>
             <?php elseif (isset($statusHistoryMessages[$h['status']])): ?>
@@ -237,22 +224,22 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
 <?php endif; ?>
 
 <!-- ── Available Plans ────────────────────────────────────────────────────── -->
-<h2 style="margin-bottom:0.75rem">Available Plans</h2>
+<h2 class="mb-3">Available Plans</h2>
 
 <?php if (empty($plans)): ?>
-<p style="color:#888;margin-bottom:2rem">No plans are currently available.</p>
+<p class="text-muted-2 mb-8">No plans are currently available.</p>
 <?php else: ?>
 
-<div style="overflow-x:auto;margin-bottom:0.5rem">
-<table style="min-width:520px;margin-bottom:0">
+<div class="scroll-x mb-2">
+<table class="min-w-520 mb-0">
     <thead>
         <tr>
-            <th style="width:170px;font-size:0.82rem;color:#6b7280">Feature</th>
+            <th class="col-170 text-82 text-muted">Feature</th>
             <?php foreach ($plans as $p): ?>
-            <th style="text-align:center;min-width:120px">
+            <th class="text-center">
                 <?= View::e($p['display_name']) ?>
                 <?php if ($currentPlanId === (int) $p['id']): ?>
-                <div style="font-size:0.7rem;color:#166534;font-weight:500;margin-top:0.1rem">&#10003; current</div>
+                <div class="text-xs text-success fw-medium">&#10003; current</div>
                 <?php endif; ?>
             </th>
             <?php endforeach; ?>
@@ -261,9 +248,9 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
     <tbody>
     <?php foreach ($displayFeatures as $key => $label): ?>
     <tr>
-        <td style="font-size:0.85rem;color:#374151"><?= View::e($label) ?></td>
+        <td class="text-sm"><?= View::e($label) ?></td>
         <?php foreach ($plans as $p): ?>
-        <td style="text-align:center;font-size:0.88rem">
+        <td class="text-center text-88">
             <?= $fv($features[(int) $p['id']] ?? [], $key) ?>
         </td>
         <?php endforeach; ?>
@@ -278,16 +265,16 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
         $isPending = in_array($pid, $pendingPlanIds, true);
         $isFree    = $p['internal_name'] === 'free_v1';
         ?>
-        <td style="text-align:center;padding-top:0.9rem;padding-bottom:0.5rem">
+        <td class="text-center pt-3 pb-2">
             <?php if ($isCurrent): ?>
-                <span class="btn-disabled" style="font-size:0.8rem;padding:0.3rem 0.75rem">Current Plan</span>
+                <span class="btn-disabled btn-disabled-sm">Current Plan</span>
             <?php elseif ($isPending): ?>
-                <span class="btn-disabled" style="font-size:0.8rem;padding:0.3rem 0.75rem">Request Pending</span>
+                <span class="btn-disabled btn-disabled-sm">Request Pending</span>
             <?php else: ?>
                 <form method="post" action="/account/subscription/change">
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
-                    <button type="submit" class="btn" style="font-size:0.8rem;padding:0.3rem 0.75rem">
+                    <button type="submit" class="btn btn-sm">
                         <?= $isFree ? 'Switch to Free' : 'Request Review' ?>
                     </button>
                 </form>
@@ -299,7 +286,7 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
 </table>
 </div>
 
-<p style="font-size:0.82rem;color:#6b7280;margin-top:0.5rem">
+<p class="text-82 text-muted mt-2">
     Switching to Free takes effect immediately. Requests for other plans are reviewed manually
     by our team. Prices shown are informational — online checkout is not yet available and
     no charges apply until billing is confirmed with you directly.

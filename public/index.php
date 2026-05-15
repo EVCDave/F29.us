@@ -36,8 +36,7 @@ set_exception_handler(static function (Throwable $e) use (&$debug): void {
 
     header('Content-Type: text/html; charset=utf-8');
     echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Server Error</title></head>'
-       . '<body style="font-family:sans-serif;text-align:center;padding:4rem 1rem">'
-       . '<h1>Server Error</h1><p>Something went wrong. Please try again later.</p>'
+       . '<body><h1>Server Error</h1><p>Something went wrong. Please try again later.</p>'
        . '</body></html>';
 });
 

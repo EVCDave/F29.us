@@ -1,15 +1,15 @@
-<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1rem">
+<div class="page-header">
     <h1>Edit QR Code</h1>
-    <a href="/qr/<?= (int) $qr['id'] ?>" style="color:#666;font-size:0.9rem">&larr; <?= View::e($qr['name']) ?></a>
+    <a href="/qr/<?= (int) $qr['id'] ?>" class="back-link">&larr; <?= View::e($qr['name']) ?></a>
 </div>
 
 <?php if ($canEditDestination): ?>
-<p style="color:#666;margin-bottom:1.5rem">
+<p class="text-muted-3 mb-6">
     Changing the destination does not affect your QR code or slug —
     the short URL <strong><?= View::e($qr['slug']) ?></strong> stays the same.
 </p>
 <?php else: ?>
-<p style="color:#666;margin-bottom:1.5rem">
+<p class="text-muted-3 mb-6">
     You can update the QR code name. Destination editing is not available on your plan.
 </p>
 <?php endif; ?>
@@ -33,16 +33,14 @@
             name="name"
             value="<?= View::e($oldName) ?>"
             maxlength="200"
-            style="max-width:520px"
+            class="mw-520"
             required
         >
-        <p style="font-size:0.8rem;color:#888;margin-top:0.25rem;margin-bottom:0">
-            Internal label — not visible to people who scan the code.
-        </p>
+        <p class="hint">Internal label — not visible to people who scan the code.</p>
     </div>
 
     <?php if ($canEditDestination): ?>
-    <div class="form-group" style="margin-top:1.25rem">
+    <div class="form-group mt-5">
         <label for="destination_url">Destination URL</label>
         <input
             type="text"
@@ -50,15 +48,15 @@
             name="destination_url"
             value="<?= View::e($oldUrl) ?>"
             maxlength="2048"
-            style="max-width:520px"
+            class="mw-520"
             required
         >
     </div>
     <?php endif; ?>
 
-    <div class="form-group" style="margin-top:1.25rem">
+    <div class="form-group mt-5">
         <button type="submit" class="btn">Save Changes</button>
-        <a href="/qr/<?= (int) $qr['id'] ?>" style="margin-left:1rem;color:#666">Cancel</a>
+        <a href="/qr/<?= (int) $qr['id'] ?>" class="cancel-link">Cancel</a>
     </div>
 
 </form>

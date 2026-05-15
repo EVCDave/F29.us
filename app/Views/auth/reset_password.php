@@ -2,14 +2,14 @@
 
 <?php if ($success): ?>
 
-<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:4px;padding:0.9rem 1rem;margin-bottom:1.5rem;color:#166534;font-size:0.92rem">
+<div class="flash flash-success flash-lg">
     Your password has been reset successfully.
 </div>
 <p><a href="/login">Sign in with your new password &rarr;</a></p>
 
 <?php elseif (!$valid): ?>
 
-<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:4px;padding:0.75rem 1rem;margin-bottom:1.25rem;color:#991b1b;font-size:0.9rem">
+<div class="flash flash-error">
     <?php if ($error !== ''): ?>
         <?= View::e($error) ?>
     <?php else: ?>
@@ -21,14 +21,14 @@
 <?php else: ?>
 
 <?php if ($error !== ''): ?>
-<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:4px;padding:0.75rem 1rem;margin-bottom:1.25rem;color:#991b1b;font-size:0.9rem">
+<div class="flash flash-error">
     <?= View::e($error) ?>
 </div>
 <?php endif; ?>
 
-<p style="color:#444;max-width:420px">Enter a new password for your account. Minimum 8 characters.</p>
+<p class="mw-420">Enter a new password for your account. Minimum 8 characters.</p>
 
-<form method="post" action="/reset-password" style="max-width:420px">
+<form method="post" action="/reset-password" class="mw-420">
     <?= CsrfService::field() ?>
     <input type="hidden" name="token" value="<?= View::e($token) ?>">
 

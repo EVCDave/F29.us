@@ -1,13 +1,13 @@
-<div style="max-width:720px">
+<div class="mw-720">
 
 <h1>Privacy Policy</h1>
 
-<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:4px;padding:0.65rem 1rem;margin-bottom:1.5rem;font-size:0.85rem">
+<div class="card-warn mb-6 text-sm">
     <strong>Draft notice:</strong> This document is a placeholder and has not been reviewed by legal counsel.
     It should be reviewed and updated before wider public launch.
 </div>
 
-<p style="color:#6b7280;font-size:0.85rem;margin-bottom:1.75rem">Last updated: <?= date('F j, Y') ?></p>
+<p class="text-sm text-muted mb-7">Last updated: <?= date('F j, Y') ?></p>
 
 <h2>1. Overview</h2>
 <p>This Privacy Policy describes what data f29.us Dynamic QR collects, how it is used, and how it is
@@ -15,23 +15,23 @@ protected. We aim to collect only what is necessary to operate the Service.</p>
 
 <h2>2. Data We Collect</h2>
 
-<h3 style="font-size:1.05rem;margin:1rem 0 0.4rem">Account data</h3>
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<h3>Account data</h3>
+<ul class="ul-content">
     <li>Email address — used for login and account identification</li>
     <li>Password — stored as a bcrypt hash; your raw password is never stored or logged</li>
     <li>Account status, role, and timestamps (created, last login)</li>
 </ul>
 
-<h3 style="font-size:1.05rem;margin:1rem 0 0.4rem">QR code and short-link data</h3>
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<h3>QR code and short-link data</h3>
+<ul class="ul-content">
     <li>QR code names you assign</li>
     <li>Short-link slugs (including custom slugs you choose)</li>
     <li>Destination URLs you set and their history</li>
 </ul>
 
-<h3 style="font-size:1.05rem;margin:1rem 0 0.4rem">Scan analytics</h3>
+<h3>Scan analytics</h3>
 <p>When a visitor scans one of your QR codes, we log:</p>
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<ul class="ul-content">
     <li>Timestamp of the scan</li>
     <li>IP address — stored as an HMAC-SHA256 hash, not in plain text (see section 4)</li>
     <li>User agent string (browser/device identifier, truncated to 1000 characters)</li>
@@ -41,8 +41,8 @@ protected. We aim to collect only what is necessary to operate the Service.</p>
     <li>Geographic fields (country, region, city) — currently stored as empty; geolocation is not yet implemented</li>
 </ul>
 
-<h3 style="font-size:1.05rem;margin:1rem 0 0.4rem">Subscription and administrative data</h3>
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<h3>Subscription and administrative data</h3>
+<ul class="ul-content">
     <li>Plan assignments and billing cycle records</li>
     <li>Subscription change requests and their status</li>
     <li>Admin audit log entries (records of significant actions within the admin area)</li>
@@ -50,7 +50,7 @@ protected. We aim to collect only what is necessary to operate the Service.</p>
 </ul>
 
 <h2>3. How We Use Your Data</h2>
-<ul style="margin:0 0 0.9rem 1.25rem;color:#444">
+<ul class="ul-content">
     <li><strong>Account operation</strong> — authentication, session management, plan enforcement</li>
     <li><strong>Redirect service</strong> — resolving short links to destination URLs</li>
     <li><strong>Analytics</strong> — providing you with scan statistics on your own QR codes</li>

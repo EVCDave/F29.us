@@ -1,37 +1,37 @@
-<div style="text-align:center;padding:4rem 1rem">
-    <h1 style="font-size:2rem;margin-bottom:0.75rem">Link Unavailable</h1>
+<div class="page-center">
+    <h1>Link Unavailable</h1>
 
     <?php if (($status ?? '') === 'paused'): ?>
-    <p style="font-size:1.05rem;color:#555;margin-bottom:0.5rem">
+    <p class="page-lead">
         This short link has been paused by its owner.
     </p>
-    <p style="color:#888;font-size:0.9rem">
+    <p class="text-base text-muted-2">
         It may become available again in the future.
     </p>
     <?php elseif (($status ?? '') === 'archived'): ?>
-    <p style="font-size:1.05rem;color:#555;margin-bottom:0.5rem">
+    <p class="page-lead">
         This short link has been archived by its owner.
     </p>
-    <p style="color:#888;font-size:0.9rem">
+    <p class="text-base text-muted-2">
         If you expected this to work, contact whoever shared the link with you.
     </p>
     <?php elseif (($status ?? '') === 'disabled'): ?>
-    <p style="font-size:1.05rem;color:#555;margin-bottom:0.5rem">
+    <p class="page-lead">
         This short link is no longer available.
     </p>
-    <p style="color:#888;font-size:0.9rem">
+    <p class="text-base text-muted-2">
         If you expected this to work, contact support.
     </p>
     <?php else: ?>
-    <p style="font-size:1.05rem;color:#555;margin-bottom:0.5rem">
+    <p class="page-lead">
         This short link is no longer available.
     </p>
-    <p style="color:#888;font-size:0.9rem">
+    <p class="text-base text-muted-2">
         If you expected this to work, contact whoever shared the link with you.
     </p>
     <?php endif; ?>
 
-    <p style="margin-top:2.5rem">
+    <p class="mt-10">
         <a href="/" class="btn btn-secondary">Go to f29.us</a>
     </p>
 </div>
