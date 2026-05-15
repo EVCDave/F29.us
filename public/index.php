@@ -126,6 +126,7 @@ $router->get('/account/security',           [AccountSecurityController::class, '
 // ── Account subscription (authenticated) ──────────────────────────────────────
 $router->get('/account/subscription',                [AccountController::class, 'subscriptionPage']);
 $router->post('/account/subscription/change',        [AccountController::class, 'changeSubscription']);
+$router->post('/account/subscription/checkout',      [AccountController::class, 'checkout']);
 $router->post('/account/subscription/request-cancel',[AccountController::class, 'cancelRequest']);
 
 // ── Logout ───────────────────────────────────────────────────────────────────

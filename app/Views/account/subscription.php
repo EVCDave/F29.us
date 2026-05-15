@@ -49,6 +49,17 @@ $statusHistoryMessages = [
 <div class="flash flash-<?= View::e($flash['type']) ?> mb-6"><?= View::e($flash['text']) ?></div>
 <?php endif; ?>
 
+<?php if ($checkoutStatus === 'success'): ?>
+<div class="flash flash-info mb-6">
+    Checkout completed. Your subscription will update after Stripe confirms payment.
+    This usually takes a few seconds — refresh the page if your plan has not updated.
+</div>
+<?php elseif ($checkoutStatus === 'canceled'): ?>
+<div class="flash flash-info mb-6">
+    Checkout was canceled. Your subscription was not changed.
+</div>
+<?php endif; ?>
+
 <!-- ── Current Plan ────────────────────────────────────────────────────────── -->
 <h2 class="mb-3">Current Plan</h2>
 
@@ -61,14 +72,15 @@ $statusHistoryMessages = [
 </div>
 <?php elseif ($isFreePlan): ?>
 <p class="text-92 text-muted-3 mb-3 mw-520">
-    You are on the Free plan. To access more features, submit a request for another plan using the
-    comparison table below.
+    You are on the Free plan. Use the plan comparison below to upgrade.
 </p>
 <?php else: ?>
 <p class="text-92 text-muted-3 mb-3 mw-520">
     You are on the <strong><?= View::e($activeSub['plan_display_name']) ?></strong> plan.
+    <?php if (!$stripeEnabled): ?>
     Plan changes are reviewed manually by our team. Online checkout is not yet available —
     no charges apply until billing is confirmed with you directly.
+    <?php endif; ?>
 </p>
 <?php endif; ?>
 
@@ -284,19 +296,38 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
         $isCurrent = $currentPlanId === $pid;
         $isPending = in_array($pid, $pendingPlanIds, true);
         $isFree    = $p['internal_name'] === 'free_v1';
+        // Determine checkout cycle when Stripe is enabled
+        $planPrices    = $stripePricesByPlan[$pid] ?? [];
+        $checkoutCycle = isset($planPrices['monthly']) ? 'monthly'
+                       : (isset($planPrices['yearly']) ? 'yearly' : null);
         ?>
         <td class="text-center pt-3 pb-2">
             <?php if ($isCurrent): ?>
                 <span class="btn-disabled btn-disabled-sm">Current Plan</span>
             <?php elseif ($isPending): ?>
                 <span class="btn-disabled btn-disabled-sm">Request Pending</span>
+            <?php elseif ($isFree): ?>
+                <form method="post" action="/account/subscription/change">
+                    <?= CsrfService::field() ?>
+                    <input type="hidden" name="plan_id" value="<?= $pid ?>">
+                    <button type="submit" class="btn btn-sm">Switch to Free</button>
+                </form>
+            <?php elseif ($stripeEnabled): ?>
+                <?php if ($checkoutCycle): ?>
+                <form method="post" action="/account/subscription/checkout">
+                    <?= CsrfService::field() ?>
+                    <input type="hidden" name="plan_id" value="<?= $pid ?>">
+                    <input type="hidden" name="billing_cycle" value="<?= View::e($checkoutCycle) ?>">
+                    <button type="submit" class="btn btn-sm">Subscribe</button>
+                </form>
+                <?php else: ?>
+                <span class="btn-disabled btn-disabled-sm text-83">Online checkout<br>not configured</span>
+                <?php endif; ?>
             <?php else: ?>
                 <form method="post" action="/account/subscription/change">
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
-                    <button type="submit" class="btn btn-sm">
-                        <?= $isFree ? 'Switch to Free' : 'Request Review' ?>
-                    </button>
+                    <button type="submit" class="btn btn-sm">Request Review</button>
                 </form>
             <?php endif; ?>
         </td>
@@ -307,9 +338,14 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
 </div>
 
 <p class="text-82 text-muted mt-2">
-    Switching to Free takes effect immediately. Requests for other plans are reviewed manually
-    by our team. Prices shown are informational — online checkout is not yet available and
-    no charges apply until billing is confirmed with you directly.
+    Switching to Free takes effect immediately.
+    <?php if ($stripeEnabled): ?>
+    Paid plan subscriptions are processed via Stripe Checkout. Your subscription activates
+    after payment is confirmed by Stripe.
+    <?php else: ?>
+    Requests for other plans are reviewed manually by our team. No charges apply until
+    billing is confirmed with you directly.
+    <?php endif; ?>
 </p>
 
 <?php endif; ?>

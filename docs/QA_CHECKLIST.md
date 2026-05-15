@@ -399,7 +399,7 @@ All checklist items are manual unless noted otherwise.
 - [ ] With `STRIPE_ENABLED=true` and all required vars set: ops page shows "enabled", correct mode, "configured" for keys
 - [ ] `STRIPE_SECRET_KEY` value is **never** displayed on the ops page — only "configured" or "not set"
 - [ ] `STRIPE_WEBHOOK_SECRET` value is **never** displayed on the ops page — only "configured" or "not set"
-- [ ] `STRIPE_PUBLISHABLE_KEY` value is shown (it is a public key — safe to display)
+- [ ] `STRIPE_PUBLISHABLE_KEY` value is **not** shown — only "configured" or "not set" (consistent with all other keys)
 - [ ] `STRIPE_MODE=live` shows a yellow warning ("live — real charges will be made")
 - [ ] SDK row shows "present" when `stripe/stripe-php` is installed; "not found — run: composer require stripe/stripe-php" when missing
 
@@ -425,13 +425,66 @@ All checklist items are manual unless noted otherwise.
 
 ---
 
-## 13. Known Gaps (Not Blockers for Current Launch)
+## 13. Stripe Checkout Session (Phase 36)
+
+> These checks require `STRIPE_ENABLED=true`, valid credentials, and at least one active
+> Stripe price mapping in `plan_billing_prices`. Use Stripe test mode throughout.
+
+### UI — Stripe disabled
+- [ ] With `STRIPE_ENABLED=false`: subscription page shows "Request Review" for paid plans
+- [ ] With `STRIPE_ENABLED=false`: pricing page shows "Request Review" for paid plans
+- [ ] With `STRIPE_ENABLED=false`: submitting a paid plan via `/account/subscription/change` creates a pending request as before
+
+### UI — Stripe enabled, no price mapped
+- [ ] With `STRIPE_ENABLED=true` and no active Stripe price for a paid plan: subscription page shows "Online checkout not configured" (disabled button)
+- [ ] With `STRIPE_ENABLED=true` and no active Stripe price: pricing page shows "Not available" (disabled button)
+
+### UI — Stripe enabled, price mapped
+- [ ] With `STRIPE_ENABLED=true` and active monthly Stripe price: subscription page shows "Subscribe" button posting to `/account/subscription/checkout` with `billing_cycle=monthly`
+- [ ] With `STRIPE_ENABLED=true` and only yearly price: button uses `billing_cycle=yearly`
+- [ ] Clicking Subscribe on subscription page (with active price): user is redirected to Stripe-hosted Checkout URL (not a local page)
+- [ ] Clicking Subscribe on pricing page: same redirect behavior
+
+### Security guards
+- [ ] Submitting `/account/subscription/checkout` without a CSRF token → 403
+- [ ] Submitting `/account/subscription/checkout` when logged out → redirect to `/login`
+- [ ] Submitting `/account/subscription/checkout` with unverified email → redirect to `/account/verify-email` (no checkout created)
+- [ ] Submitting `/account/subscription/checkout` with `plan_id` of a free plan → error flash, no checkout created
+- [ ] Submitting `/account/subscription/checkout` with `plan_id` of a non-public plan → error flash
+- [ ] Submitting `/account/subscription/checkout` with `billing_cycle=weekly` (invalid) → error flash
+- [ ] Submitting `/account/subscription/change` for a paid plan when `STRIPE_ENABLED=true` → error flash: "Online checkout is now used for paid plans. Please use the Subscribe button."
+
+### Checkout session tracking
+- [ ] After a successful checkout redirect: `SELECT * FROM stripe_checkout_sessions` shows one row with `status='pending'`
+- [ ] Row has correct `user_id`, `plan_id`, `plan_billing_price_id`, `stripe_session_id`
+- [ ] `checkout_url` is populated in the local row
+- [ ] `stripe_customer_id` is populated in the local row
+
+### Customer persistence
+- [ ] After first checkout attempt: `SELECT stripe_customer_id FROM users WHERE id = ?` returns a non-null `cus_*` value
+- [ ] After second checkout attempt for the same user: no new Stripe customer is created; existing `stripe_customer_id` is reused (verify in Stripe Dashboard test mode)
+
+### Return URLs
+- [ ] Completing payment in Stripe test mode: browser returns to `STRIPE_SUCCESS_URL` (e.g. `/account/subscription?checkout=success`)
+- [ ] Success return shows info banner: "Checkout completed. Your subscription will update after Stripe confirms payment."
+- [ ] No paid subscription row is created in `user_subscriptions` from the browser return alone
+- [ ] Canceling checkout in Stripe: browser returns to `STRIPE_CANCEL_URL` (e.g. `/account/subscription?checkout=canceled`)
+- [ ] Cancel return shows info banner: "Checkout was canceled. Your subscription was not changed."
+- [ ] User's plan and `user_subscriptions` row are unchanged after cancel
+
+### What is NOT expected yet (Phase 37+)
+- [ ] Subscription row is NOT updated to `billing_status=active` after checkout — that is webhook work
+- [ ] No webhook endpoint exists at this phase — verify no route `/stripe/webhook` returns 200
+
+---
+
+## 14. Known Gaps (Not Blockers for Current Launch)
 
 These are intentional absences. Confirm they are clearly communicated to users where applicable:
 
 | Gap | Status |
 |-----|--------|
-| Online checkout / Stripe payment processing | Not implemented (SDK + config groundwork in place; checkout Phase 36+) |
+| Online checkout / Stripe payment processing | Checkout session creation implemented (Phase 36); subscription activation via webhook is Phase 37 |
 | Password reset by email | Implemented (Phase 24) |
 | Email notifications of any kind | Implemented (Phase 27) |
 | Multi-factor authentication (MFA) | Not implemented |
@@ -444,4 +497,4 @@ These are intentional absences. Confirm they are clearly communicated to users w
 
 ---
 
-*Last updated: 2026-05-15 — Phase 35 Stripe ops readiness section added*
+*Last updated: 2026-05-15 — Phase 36 Stripe Checkout Session section added*

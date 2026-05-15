@@ -36,9 +36,15 @@ $fv = static function (array $planFeatures, string $key): string {
 ?>
 <h1 class="mb-2">Pricing</h1>
 <p class="mb-2">Simple, transparent plans for every use case.</p>
+<?php if (!$stripeEnabled): ?>
 <p class="text-sm text-muted mb-8">
     Paid plan requests are reviewed manually. Online billing is not yet enabled.
 </p>
+<?php else: ?>
+<p class="text-sm text-muted mb-8">
+    Paid plans are billed via Stripe Checkout.
+</p>
+<?php endif; ?>
 
 <?php if (empty($plans)): ?>
 <p class="text-muted-2">No plans are currently available. Check back soon.</p>
@@ -100,6 +106,9 @@ $fv = static function (array $planFeatures, string $key): string {
             $isCurrent = $currentPlanId === $pid;
             $isPending = in_array($pid, $pendingPlanIds, true);
             $isFree    = $p['internal_name'] === 'free_v1';
+            $planPrices    = $stripePricesByPlan[$pid] ?? [];
+            $checkoutCycle = isset($planPrices['monthly']) ? 'monthly'
+                           : (isset($planPrices['yearly']) ? 'yearly' : null);
             ?>
             <?php if (!$currentUser): ?>
                 <a href="/register" class="btn btn-sm">Create Account</a>
@@ -107,13 +116,28 @@ $fv = static function (array $planFeatures, string $key): string {
                 <span class="btn-disabled btn-disabled-sm">Current Plan</span>
             <?php elseif ($isPending): ?>
                 <span class="btn-disabled btn-disabled-sm">Request Pending</span>
+            <?php elseif ($isFree): ?>
+                <form method="post" action="/account/subscription/change">
+                    <?= CsrfService::field() ?>
+                    <input type="hidden" name="plan_id" value="<?= $pid ?>">
+                    <button type="submit" class="btn btn-sm">Switch to Free</button>
+                </form>
+            <?php elseif ($stripeEnabled): ?>
+                <?php if ($checkoutCycle): ?>
+                <form method="post" action="/account/subscription/checkout">
+                    <?= CsrfService::field() ?>
+                    <input type="hidden" name="plan_id" value="<?= $pid ?>">
+                    <input type="hidden" name="billing_cycle" value="<?= View::e($checkoutCycle) ?>">
+                    <button type="submit" class="btn btn-sm">Subscribe</button>
+                </form>
+                <?php else: ?>
+                <span class="btn-disabled btn-disabled-sm">Not available</span>
+                <?php endif; ?>
             <?php else: ?>
                 <form method="post" action="/account/subscription/change">
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
-                    <button type="submit" class="btn btn-sm">
-                        <?= $isFree ? 'Switch to Free' : 'Request Review' ?>
-                    </button>
+                    <button type="submit" class="btn btn-sm">Request Review</button>
                 </form>
             <?php endif; ?>
         </td>
@@ -124,8 +148,12 @@ $fv = static function (array $planFeatures, string $key): string {
 </div>
 
 <p class="text-82 text-muted mt-2">
-    Switching to Free takes effect immediately. All other plan requests are reviewed manually.
-    No charges apply — billing is not yet automated.
+    Switching to Free takes effect immediately.
+    <?php if ($stripeEnabled): ?>
+    Paid plans use Stripe Checkout. Your subscription activates after payment is confirmed.
+    <?php else: ?>
+    All other plan requests are reviewed manually. No charges apply — billing is not yet automated.
+    <?php endif; ?>
 </p>
 
 <?php endif; ?>
