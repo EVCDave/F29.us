@@ -208,3 +208,88 @@ $fail = static function (string $msg): string {
     </tr>
 </table>
 <?php endif; ?>
+
+<!-- ── Stripe ─────────────────────────────────────────────────────────────── -->
+<h2 class="mb-3">Stripe Configuration</h2>
+<p class="text-sm text-muted mb-3">
+    <em>Configured</em> means the value is set. No key values are displayed.
+    Enable <code>STRIPE_ENABLED=true</code> in <code>.env</code> to activate billing.
+</p>
+<table class="mw-560 mb-4 text-base">
+    <tr>
+        <th class="col-200">STRIPE_ENABLED</th>
+        <td><?= $checks['stripe_enabled']
+            ? '<span class="ops-ok">&#10003; enabled</span>'
+            : '<span class="text-muted">disabled</span>' ?></td>
+    </tr>
+    <tr>
+        <th>STRIPE_MODE</th>
+        <td>
+            <?php $stripeMode = View::e($checks['stripe_mode']); ?>
+            <?= $checks['stripe_mode'] === 'live'
+                ? $warn('live — real charges will be made')
+                : View::e($checks['stripe_mode']) ?>
+        </td>
+    </tr>
+    <tr>
+        <th>STRIPE_SECRET_KEY</th>
+        <td><?= $checks['stripe_secret_set']
+            ? '<span class="ops-ok">&#10003; configured</span>'
+            : $warn('not set') ?></td>
+    </tr>
+    <tr>
+        <th>STRIPE_PUBLISHABLE_KEY</th>
+        <td><?= $checks['stripe_publishable_key_set']
+            ? '<span class="ops-ok">&#10003; configured</span>'
+            : $warn('not set') ?></td>
+    </tr>
+    <tr>
+        <th>STRIPE_WEBHOOK_SECRET</th>
+        <td><?= $checks['stripe_webhook_set']
+            ? '<span class="ops-ok">&#10003; configured</span>'
+            : $warn('not set') ?></td>
+    </tr>
+    <tr>
+        <th>Stripe SDK</th>
+        <td><?= $checks['stripe_sdk_ok']
+            ? '<span class="ops-ok">&#10003; present</span>'
+            : $warn('not found — run: composer require stripe/stripe-php') ?></td>
+    </tr>
+    <?php if ($checks['db_connected']): ?>
+    <tr>
+        <th>Active Stripe prices</th>
+        <td><?= (int) ($checks['stripe_active_prices'] ?? 0) ?></td>
+    </tr>
+    <tr>
+        <th>Paid plans missing<br>active Stripe price</th>
+        <td>
+            <?php $missing = $checks['stripe_plans_missing_prices'] ?? []; ?>
+            <?php if (empty($missing)): ?>
+                <span class="ops-ok">&#10003; none</span>
+            <?php else: ?>
+                <?= $warn(implode(', ', array_map('htmlspecialchars', $missing))) ?>
+            <?php endif; ?>
+        </td>
+    </tr>
+    <?php if ($checks['stripe_latest_webhook'] !== null): ?>
+    <tr>
+        <th>Latest webhook processed</th>
+        <td class="monospace text-sm"><?= View::e((string) $checks['stripe_latest_webhook']) ?></td>
+    </tr>
+    <tr>
+        <th>Failed webhooks (24 h)</th>
+        <td>
+            <?php $wfail = (int) ($checks['stripe_failed_webhooks_24h'] ?? 0); ?>
+            <?= $wfail > 0
+                ? $warn($wfail . ' failed')
+                : '<span class="ops-ok">&#10003; 0</span>' ?>
+        </td>
+    </tr>
+    <?php else: ?>
+    <tr>
+        <th>Webhook events table</th>
+        <td><span class="text-muted">not yet created (Phase 37)</span></td>
+    </tr>
+    <?php endif; ?>
+    <?php endif; ?>
+</table>

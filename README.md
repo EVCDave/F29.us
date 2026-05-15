@@ -31,6 +31,7 @@ Check which extensions are loaded: `php -m`
 | Package | Purpose |
 |---|---|
 | `endroid/qr-code ^5.0` | Server-side QR image generation (PNG + SVG) |
+| `stripe/stripe-php ^16.0` | Stripe billing SDK — used by `StripeService` (inactive until `STRIPE_ENABLED=true`) |
 
 PNG generation requires the **PHP GD extension** (`php-gd`). SVG generation is pure PHP — no extra extension needed.
 
@@ -267,6 +268,14 @@ In cPanel → **Cron Jobs**, add a daily job to prune old login attempt rows:
 | `MAIL_SMTP_PASSWORD` | No | — | SMTP authentication password |
 | `MAIL_SUPPORT_ADDRESS` | No | *(falls back to `SUPPORT_EMAIL`)* | Support address included in security-alert notification emails |
 | `MAIL_ADMIN_ADDRESS` | No | *(empty)* | Address to notify when a user submits a plan-change request; leave blank to disable |
+| `STRIPE_ENABLED` | No | `false` | Set `true` to activate Stripe billing. When `false`, all Stripe paths are inactive. |
+| `STRIPE_MODE` | No | `test` | `test` or `live`. Required to be one of these values when `STRIPE_ENABLED=true`. |
+| `STRIPE_SECRET_KEY` | If enabled | — | Stripe secret key. Never logged or displayed in the ops page or browser output. Required when `STRIPE_ENABLED=true`. |
+| `STRIPE_PUBLISHABLE_KEY` | If enabled | — | Stripe publishable key. Never displayed in full in the ops page — shown only as "configured" or "not set". Required when `STRIPE_ENABLED=true`. |
+| `STRIPE_WEBHOOK_SECRET` | If enabled | — | Webhook signing secret. Never logged or displayed. Required when `STRIPE_ENABLED=true`. |
+| `STRIPE_SUCCESS_URL` | If enabled | — | Redirect URL after successful checkout. Required when `STRIPE_ENABLED=true`. |
+| `STRIPE_CANCEL_URL` | If enabled | — | Redirect URL when checkout is canceled. Required when `STRIPE_ENABLED=true`. |
+| `STRIPE_CURRENCY` | No | `usd` | ISO 4217 lowercase currency code (e.g. `usd`). |
 
 The application validates all required variables on startup. A missing or invalid variable causes an immediate 500 response (web) or an error message to STDERR with exit code 1 (CLI).
 
@@ -739,7 +748,7 @@ Admins have access to an internal-only area at `/admin` (yellow **Admin** link i
 | Subscription history | `/admin/subscriptions` | All user subscriptions with filters: user email, plan, status, billing cycle, date range. Capped at 100. Links to user and plan detail. |
 | Audit log list | `/admin/audit-logs` | Browse all audit log entries. Filterable by action, entity type, user email, and date range. Capped at 100. |
 | Audit log detail | `/admin/audit-logs/{id}` | Full audit entry: acting user, entity, action, pretty-printed metadata JSON. Related links to user, plan, or subscription request where applicable. |
-| Operations | `/admin/ops` | System health snapshot: environment, PHP version, extensions (GD, mbstring), filesystem checks, migration count, database counters, login activity (24 h). Send Test Email form to verify SMTP delivery. |
+| Operations | `/admin/ops` | System health snapshot: environment, PHP version, extensions (GD, mbstring), filesystem checks, migration count, database counters, login activity (24 h), Stripe configuration readiness. Send Test Email form to verify SMTP delivery. |
 
 All admin POST endpoints are CSRF-protected and require the admin role. Non-admins receive a 403. All subscription changes, override operations, and plan catalog changes are written to `audit_logs`.
 
@@ -864,6 +873,12 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Password reset — non-enumerating (same response for known and unknown emails)** | ✓ |
 | **Password reset — 60-minute expiry, SHA-256 hashed, concurrency-safe (FOR UPDATE)** | ✓ |
 | **Password reset — security notification emails on request and on completion** | ✓ |
+| **Stripe SDK (`stripe/stripe-php`) added to Composer dependencies** | ✓ |
+| **`StripeService` — `isEnabled()`, `mode()`, `currency()`, `clientReady()`, `requireEnabled()`** | ✓ |
+| **Migration 027 — `stripe_customer_id` column on `users` (user-level Stripe customer reference)** | ✓ |
+| **Stripe env vars in `.env.example` — 8 vars including keys, mode, URLs, currency** | ✓ |
+| **Config validation — required Stripe vars validated on startup when `STRIPE_ENABLED=true`** | ✓ |
+| **Admin ops Stripe section — SDK presence, key config status, price mapping counts, plan coverage** | ✓ |
 
 ## Subscription Groundwork
 
