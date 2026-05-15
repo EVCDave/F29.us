@@ -103,9 +103,31 @@ All checklist items are manual unless noted otherwise.
 - [ ] Visiting the short URL while paused shows the unavailable page (not a redirect)
 - [ ] Resume button sets status back to `active`; short URL redirects again
 
-### Archive / Restore
+### Archive / Restore and QR quota
+
+**Quota policy:** active, paused, and disabled QR codes count toward `max_qr_codes`. Archived QR codes do **not** count.
+
 - [ ] Archive button sets status to `archived`; short URL shows unavailable page
-- [ ] Restore button sets status back to `active`; short URL redirects again
+- [ ] After archiving, active QR usage count on dashboard and subscription page drops by 1
+- [ ] Archived QR detail page shows info note: "not redirecting and does not count against your active QR code limit"
+- [ ] QR list filtered to Archived shows note: "Archived QR codes do not count against your active QR limit"
+
+**Restore at-capacity:**
+- [ ] With user at max active QR codes (e.g. 5 of 5): Restore button on archived QR detail is disabled (not a form button)
+- [ ] Attempting to POST `/qr/{id}/restore` directly while at capacity (e.g. via curl) redirects back to detail with error flash: "active QR code limit has been reached"
+- [ ] After archiving a different QR (dropping to 4 of 5), Restore button is enabled; restore succeeds; QR becomes active
+
+**Restore succeeds:**
+- [ ] Restoring an archived QR sets status back to `active`; short URL redirects again
+- [ ] Active usage count increments after successful restore
+
+**History and analytics preserved through archive/restore:**
+- [ ] Archived QR detail page: analytics page still loads; scan history visible
+- [ ] Archived QR detail page: destination history still visible
+- [ ] Audit log shows archive and restore events
+
+**Disabled QR codes still count:**
+- [ ] A disabled QR (admin-disabled) is counted toward the active quota — user cannot create a new QR when at limit, even if all their codes are disabled
 
 ### Ownership check
 - [ ] Accessing `/qr/{id}` for another user's QR code returns 404 (not the code)
@@ -281,9 +303,9 @@ These are intentional absences. Confirm they are clearly communicated to users w
 | API endpoints | Not implemented |
 | External malware / phishing URL scanning | Not implemented |
 | Geolocation in scan analytics | Not implemented (fields stored as NULL) |
-| Content-Security-Policy header | Not implemented (requires inline style refactor) |
 | Analytics data purge | Not implemented (retention is query filter only) |
+| Hard deletion of QR codes | Not implemented — archive is the only retire action; slugs remain reserved |
 
 ---
 
-*Last updated: 2026-05-13*
+*Last updated: 2026-05-15*

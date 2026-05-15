@@ -901,6 +901,23 @@ The `subscription_change_requests` table stores all requests with `current_plan_
 
 Users can pause, resume, archive, and restore their own links. Users **cannot** resume or restore a `disabled` link. Only admins can disable and restore links via the moderation panel.
 
+### QR quota policy
+
+The `max_qr_codes` entitlement is enforced against **countable** QR codes only. Archived QR codes do not count toward the limit, allowing users to retire printed materials without losing history or consuming plan capacity.
+
+| Status | Counts toward `max_qr_codes` |
+|--------|------------------------------|
+| `active` | Yes |
+| `paused` | Yes |
+| `disabled` | Yes |
+| `archived` | **No** |
+
+**Restore requires capacity.** Restoring an archived QR code transitions it to `active`, so the user must have available quota. The server blocks restore if the limit is reached; the detail page also disables the Restore button when the user is at capacity.
+
+**Slug reservation.** Archived slugs remain reserved in `short_links` and are not reused for new QR codes.
+
+**No hard deletion.** QR codes, slugs, analytics, audit history, and destination history are never permanently deleted. Archive is the only retire action.
+
 ### Admin-disabling a link
 
 When an admin disables a short link:

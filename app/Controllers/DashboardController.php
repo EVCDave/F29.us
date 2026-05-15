@@ -23,16 +23,24 @@ class DashboardController
         $stmt->execute([$userId]);
         $counts = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        $countActive   = (int) ($counts['active']   ?? 0);
+        $countPaused   = (int) ($counts['paused']   ?? 0);
+        $countDisabled = (int) ($counts['disabled'] ?? 0);
+        $countableQr   = $countActive + $countPaused + $countDisabled;
+        $maxQr         = (int) EntitlementService::getValue($userId, 'max_qr_codes', 0);
+
         View::render('dashboard', [
-            'pageTitle' => 'Dashboard — f29.us Dynamic QR',
-            'user'      => AuthService::currentUser(),
-            'counts'    => [
+            'pageTitle'   => 'Dashboard — f29.us Dynamic QR',
+            'user'        => AuthService::currentUser(),
+            'counts'      => [
                 'total'    => (int) ($counts['total']    ?? 0),
-                'active'   => (int) ($counts['active']   ?? 0),
-                'paused'   => (int) ($counts['paused']   ?? 0),
+                'active'   => $countActive,
+                'paused'   => $countPaused,
                 'archived' => (int) ($counts['archived'] ?? 0),
-                'disabled' => (int) ($counts['disabled'] ?? 0),
+                'disabled' => $countDisabled,
             ],
+            'maxQr'       => $maxQr,
+            'countableQr' => $countableQr,
         ]);
     }
 }

@@ -36,6 +36,10 @@
     <?php endif; ?>
 </form>
 
+<?php if ($status === 'archived'): ?>
+<p class="text-sm text-muted-2 mb-4">Archived QR codes are retained for history but do not count against your active QR limit.</p>
+<?php endif; ?>
+
 <?php if (empty($qrCodes) && $search === '' && $status === ''): ?>
     <p class="text-muted-3">You haven't created any QR codes yet.</p>
     <p><a href="/qr/create" class="btn">Create your first QR Code</a></p>

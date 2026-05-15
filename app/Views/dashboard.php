@@ -36,6 +36,15 @@
 
 </div>
 
+<?php if ($maxQr > 0): ?>
+<p class="text-sm text-muted-2 mb-4">
+    Active QR usage: <?= $countableQr ?> of <?= $maxQr ?>
+    <?php if ($countableQr >= $maxQr): ?>
+    &mdash; <span class="text-danger">limit reached</span>
+    <?php endif; ?>
+</p>
+<?php endif; ?>
+
 <?php if ($counts['disabled'] > 0): ?>
 <p class="text-sm text-danger mb-6">
     <?= $counts['disabled'] ?> QR code<?= $counts['disabled'] !== 1 ? 's' : '' ?> disabled by an administrator.
