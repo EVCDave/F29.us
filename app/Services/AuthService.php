@@ -160,6 +160,11 @@ class AuthService
         // Protect against session fixation before writing the authenticated user ID
         session_regenerate_id(true);
         self::setUserId($userId);
+        $_SESSION['session_started_at'] = gmdate('Y-m-d H:i:s');
+
+        $pdo->prepare(
+            "UPDATE users SET last_login_at = ? WHERE id = ?"
+        )->execute([gmdate('Y-m-d H:i:s'), $userId]);
 
         return ['ok' => true];
     }
@@ -196,6 +201,7 @@ class AuthService
         // Protect against session fixation
         session_regenerate_id(true);
         self::setUserId((int) $user['id']);
+        $_SESSION['session_started_at'] = gmdate('Y-m-d H:i:s');
 
         Database::get()->prepare(
             "UPDATE users SET last_login_at = ? WHERE id = ?"

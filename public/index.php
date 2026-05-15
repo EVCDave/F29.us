@@ -62,6 +62,7 @@ require APP_PATH . '/Controllers/ModerationController.php';
 require APP_PATH . '/Controllers/PolicyController.php';
 require APP_PATH . '/Controllers/EmailVerificationController.php';
 require APP_PATH . '/Controllers/PasswordResetController.php';
+require APP_PATH . '/Controllers/AccountSecurityController.php';
 
 $router = new Router();
 
@@ -116,6 +117,7 @@ $router->get('/account/settings',           [AccountSettingsController::class, '
 $router->post('/account/settings/profile',  [AccountSettingsController::class, 'updateProfile']);
 $router->post('/account/settings/email',    [AccountSettingsController::class, 'updateEmail']);
 $router->post('/account/settings/password', [AccountSettingsController::class, 'updatePassword']);
+$router->get('/account/security',           [AccountSecurityController::class, 'securityPage']);
 
 // ── Account subscription (authenticated) ──────────────────────────────────────
 $router->get('/account/subscription',                [AccountController::class, 'subscriptionPage']);

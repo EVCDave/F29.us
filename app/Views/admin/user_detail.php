@@ -72,6 +72,26 @@
         </td>
     </tr>
     <tr>
+        <th>Password changed</th>
+        <td>
+            <?php if (!empty($user['password_changed_at'])): ?>
+                <?= View::e(substr($user['password_changed_at'], 0, 16)) ?> UTC
+            <?php else: ?>
+                <span style="color:#9ca3af">Not recorded</span>
+            <?php endif; ?>
+        </td>
+    </tr>
+    <tr>
+        <th>Last login</th>
+        <td>
+            <?php if (!empty($user['last_login_at'])): ?>
+                <?= View::e(substr($user['last_login_at'], 0, 16)) ?> UTC
+            <?php else: ?>
+                <span style="color:#9ca3af">Never</span>
+            <?php endif; ?>
+        </td>
+    </tr>
+    <tr>
         <th>Created</th>
         <td><?= View::e($user['created_at']) ?></td>
     </tr>

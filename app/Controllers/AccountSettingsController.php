@@ -219,8 +219,8 @@ class AccountSettingsController
         $hash = password_hash($newPass, PASSWORD_BCRYPT);
 
         $pdo->prepare(
-            "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?"
-        )->execute([$hash, $now, $userId]);
+            "UPDATE users SET password_hash = ?, password_changed_at = ?, updated_at = ? WHERE id = ?"
+        )->execute([$hash, $now, $now, $userId]);
 
         session_regenerate_id(true);
         AuthService::clearCache();
