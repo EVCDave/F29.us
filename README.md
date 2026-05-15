@@ -371,7 +371,8 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | GET | `/account/verify-email` | Email verification status / resend page |
 | POST | `/account/verify-email/resend` | Resend verification email (60 s cooldown) |
 | GET | `/account/subscription` | Current plan, usage summary, pending requests, request history, plan comparison |
-| POST | `/account/subscription/change` | Plan change — free plan is immediate; paid plan creates a pending request |
+| POST | `/account/subscription/change` | Plan change — free plan is immediate; paid plan creates a pending request (or is blocked if Stripe is enabled) |
+| POST | `/account/subscription/checkout` | Start Stripe Checkout Session for a paid plan (STRIPE_ENABLED=true only) |
 | POST | `/account/subscription/request-cancel` | Cancel a pending plan-change request |
 
 ### QR codes
@@ -879,6 +880,14 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Stripe env vars in `.env.example` — 8 vars including keys, mode, URLs, currency** | ✓ |
 | **Config validation — required Stripe vars validated on startup when `STRIPE_ENABLED=true`** | ✓ |
 | **Admin ops Stripe section — SDK presence, key config status, price mapping counts, plan coverage** | ✓ |
+| **Migration 028 — `stripe_checkout_sessions` table (pending/completed/expired/canceled)** | ✓ |
+| **`StripeService::getOrCreateCustomerForUser()` — create or reuse Stripe customer, persist to `users.stripe_customer_id`** | ✓ |
+| **`StripeService::createCheckoutSession()` — server-side plan/price validation, Stripe Checkout Session creation, local row insert** | ✓ |
+| **`POST /account/subscription/checkout` — CSRF, auth, verified email, server-side lookup, redirect to Stripe** | ✓ |
+| **Subscription page: Subscribe button (Stripe) vs Request Review (manual) vs disabled when no price configured** | ✓ |
+| **Pricing page: Subscribe/Request Review/Not available buttons based on Stripe status** | ✓ |
+| **Checkout return URL handling: `?checkout=success` and `?checkout=canceled` — info messages only, no access granted** | ✓ |
+| **Paid plan request blocked via `POST /account/subscription/change` when Stripe is enabled** | ✓ |
 
 ## Subscription Groundwork
 
@@ -1172,7 +1181,7 @@ Two additions support the billing groundwork:
 | `unpaid` | Grace period exhausted; access should be gated |
 | `incomplete` | Initial payment not yet confirmed |
 
-**`plan_billing_prices` table** (migration 019): Maps local plans to payment provider price objects for future billing integration. This is groundwork only — no payment is processed from these mappings. One plan may have multiple mappings — e.g. Stripe monthly and yearly price IDs.
+**`plan_billing_prices` table** (migration 019): Maps local plans to payment provider price objects. `StripeService::createCheckoutSession()` (Phase 36) reads `provider_price_id` from active rows to create Checkout Sessions. One plan may have multiple mappings — e.g. Stripe monthly and yearly price IDs.
 
 | Column | Type | Nullable | Purpose |
 |--------|------|----------|---------|
@@ -1192,18 +1201,23 @@ Billing state fields (`billing_status`, `provider_subscription_id`, `current_per
 
 The plan detail page (`/admin/plans/{id}`) shows all billing price mappings and provides add/activate/deactivate controls. A warning is shown when a paid plan (non-zero price) has no active price mapping.
 
-### Future Stripe integration lifecycle
+### Stripe integration lifecycle
 
-The following is a reference for wiring up a payment provider. Nothing here is implemented — it describes the intended integration contract.
+Checkout Session creation (Phase 36) is implemented. Webhook-based subscription activation (Phase 37) is not yet implemented.
 
-#### Checkout flow
+#### Checkout flow (Phase 36 implemented; Phase 37 pending)
 
-1. User selects a paid plan on `/account/subscription` and submits the change form.
-2. Server creates a `subscription_change_requests` row (existing behavior).
-3. Admin approves the request (existing behavior).
-4. **Future:** On approval, instead of immediately creating a subscription, the server creates a Stripe Checkout Session using the `provider_price_id` from `plan_billing_prices` for the selected plan and cycle.
-5. User completes payment in Stripe Checkout.
-6. Stripe fires `checkout.session.completed` → webhook handler creates the `user_subscriptions` row and sets `billing_provider='stripe'`, `provider_customer_id`, `provider_subscription_id`, `billing_status='active'`, `current_period_start/end`.
+1. User clicks **Subscribe** on `/account/subscription` or `/pricing` — the form posts `plan_id` and `billing_cycle` to `POST /account/subscription/checkout`.
+2. Server validates auth, verified email, plan eligibility, and active Stripe price mapping server-side (never trusts posted price ID).
+3. `StripeService::getOrCreateCustomerForUser()` creates or retrieves the Stripe customer and persists `users.stripe_customer_id`.
+4. `StripeService::createCheckoutSession()` creates a Stripe Checkout Session (`mode=subscription`) and inserts a local `stripe_checkout_sessions` row with `status='pending'`.
+5. Server redirects user to the Stripe-hosted checkout URL.
+6. User completes payment on Stripe.
+7. **Phase 37 (not yet implemented):** Stripe fires `checkout.session.completed` → webhook handler activates the local `user_subscriptions` row and sets `billing_provider='stripe'`, `billing_status='active'`, `current_period_start/end`.
+
+> **Admin/manual assignment** (via `POST /admin/users/{id}/subscription`) remains available as a fallback for complimentary and grandfathered access. It is not the normal paid checkout path.
+
+> **`POST /account/subscription/change`** (the previous request-review path) is blocked for paid plans when `STRIPE_ENABLED=true`, with an error directing the user to the Subscribe button.
 
 #### Webhook events to handle
 
@@ -1256,8 +1270,11 @@ The following are intentionally absent:
 
 - Analytics retention data purge (retention is a query filter only — old rows are not deleted)
 - Geolocation in scan events (country/region/city stored as NULL)
-- Payment processing and checkout (Stripe integration — schema groundwork is in place; see Billing State Model)
-- Automated billing webhooks and access gating based on billing state
+- Webhook-based subscription activation — Checkout Sessions can be created (Phase 36), but paid access is not granted until `checkout.session.completed` is handled via webhook (Phase 37)
+- Billing webhook endpoint and event processing (`POST /stripe/webhook`, `stripe_webhook_events` table — Phase 37)
+- `EntitlementService` billing-status gating — `billing_status` is stored but not yet checked when resolving entitlements (Phase 38)
+- Cancellation via Stripe API and `cancel_at_period_end` flow (Phase 38)
+- `past_due` / `unpaid` access degradation and payment-failed banners (Phase 38)
 - Global session revocation on password reset (only the current browser session is rotated; other active sessions remain valid)
 - Multi-factor authentication (MFA / TOTP)
 - Team / workspace / multi-user account features

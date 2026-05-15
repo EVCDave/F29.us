@@ -43,13 +43,31 @@ class PricingController
             );
         }
 
+        $stripeEnabled = StripeService::isEnabled();
+        $stripePricesByPlan = [];
+        if ($stripeEnabled && !empty($plans)) {
+            $planIds      = array_column($plans, 'id');
+            $placeholders = implode(',', array_fill(0, count($planIds), '?'));
+            $stmt = $pdo->prepare(
+                "SELECT plan_id, billing_cycle
+                   FROM plan_billing_prices
+                  WHERE plan_id IN ({$placeholders}) AND provider = 'stripe' AND is_active = 1"
+            );
+            $stmt->execute($planIds);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $stripePricesByPlan[(int) $row['plan_id']][$row['billing_cycle']] = true;
+            }
+        }
+
         View::render('pricing/index', [
-            'pageTitle'      => 'Pricing — f29.us Dynamic QR',
-            'plans'          => $plans,
-            'features'       => $features,
-            'currentUser'    => $currentUser,
-            'currentPlanId'  => $currentPlanId,
-            'pendingPlanIds' => $pendingPlanIds,
+            'pageTitle'          => 'Pricing — f29.us Dynamic QR',
+            'plans'              => $plans,
+            'features'           => $features,
+            'currentUser'        => $currentUser,
+            'currentPlanId'      => $currentPlanId,
+            'pendingPlanIds'     => $pendingPlanIds,
+            'stripeEnabled'      => $stripeEnabled,
+            'stripePricesByPlan' => $stripePricesByPlan,
         ]);
     }
 

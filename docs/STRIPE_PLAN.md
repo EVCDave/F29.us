@@ -1,28 +1,43 @@
 # Stripe Integration Plan — f29.us Dynamic QR
 
 This document defines the Stripe checkout and subscription billing architecture for f29.us.
-It is a planning document. No live Stripe code has been implemented yet.
+
+**Current state:** Stripe SDK, configuration, `StripeService`, `users.stripe_customer_id`, and Checkout
+Session creation (Phase 35–36) are implemented. Webhook-based subscription activation and
+lifecycle synchronization (Phase 37–38) are not implemented yet.
 
 ---
 
-## Current Billing Groundwork (Already Shipped)
+## Current Implementation State
 
-The following schema and features are already in place:
+The following schema, services, and features are already in place:
 
-| Item | Location |
-|------|----------|
-| `user_subscriptions.billing_provider` | migration 018 |
-| `user_subscriptions.provider_customer_id` | migration 018 |
-| `user_subscriptions.provider_subscription_id` | migration 018 |
-| `user_subscriptions.billing_status` ENUM | migration 018 |
-| `user_subscriptions.current_period_start/end` | migration 018 |
-| `user_subscriptions.trial_ends_at` | migration 018 |
-| `user_subscriptions.cancel_at_period_end` | migration 018 |
-| `plan_billing_prices` table | migration 019 |
-| Admin billing price mapping UI | `PlanController` |
-| `EntitlementService` | gating |
-| `NotificationService` | transactional email |
-| `/admin/ops` + Send Test Email | `OpsController` |
+| Item | Location | Phase |
+|------|----------|-------|
+| `user_subscriptions.billing_provider` | migration 018 | pre-35 |
+| `user_subscriptions.provider_customer_id` | migration 018 | pre-35 |
+| `user_subscriptions.provider_subscription_id` | migration 018 | pre-35 |
+| `user_subscriptions.billing_status` ENUM | migration 018 | pre-35 |
+| `user_subscriptions.current_period_start/end` | migration 018 | pre-35 |
+| `user_subscriptions.trial_ends_at` | migration 018 | pre-35 |
+| `user_subscriptions.cancel_at_period_end` | migration 018 | pre-35 |
+| `plan_billing_prices` table | migration 019 | pre-35 |
+| Admin billing price mapping UI | `PlanController` | pre-35 |
+| `EntitlementService` | gating (billing_status not yet checked) | pre-35 |
+| `NotificationService` | transactional email | pre-35 |
+| `/admin/ops` + Send Test Email | `OpsController` | pre-35 |
+| `stripe/stripe-php ^16.0` | `composer.json` | 35 |
+| Stripe env vars (`STRIPE_ENABLED`, keys, URLs…) | `.env.example` | 35 |
+| Config validation for Stripe vars | `ConfigValidator` | 35 |
+| `StripeService` (`isEnabled`, `mode`, `currency`, `clientReady`, `requireEnabled`) | `app/Services/StripeService.php` | 35 |
+| `users.stripe_customer_id` | migration 027 | 35 |
+| Stripe ops readiness section | `/admin/ops` | 35 |
+| `stripe_checkout_sessions` table | migration 028 | 36 |
+| `StripeService::getOrCreateCustomerForUser()` | `app/Services/StripeService.php` | 36 |
+| `StripeService::createCheckoutSession()` | `app/Services/StripeService.php` | 36 |
+| `POST /account/subscription/checkout` | `AccountController` | 36 |
+| Subscribe/Request Review button logic | subscription + pricing views | 36 |
+| Checkout return messaging (`?checkout=success/canceled`) | `AccountController` + subscription view | 36 |
 
 The `billing_status` ENUM values are:
 `not_applicable`, `manual`, `trialing`, `active`, `past_due`, `canceled`, `unpaid`, `incomplete`
@@ -64,7 +79,7 @@ ALTER TABLE users
 Implement `stripe_checkout_sessions` in Phase 36.
 
 ```sql
--- Migration: 028_create_stripe_checkout_sessions.php
+-- Migration: 028_create_stripe_checkout_sessions.php  ✓ IMPLEMENTED
 CREATE TABLE stripe_checkout_sessions (
     id                      BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     user_id                 BIGINT UNSIGNED NOT NULL,
@@ -74,11 +89,14 @@ CREATE TABLE stripe_checkout_sessions (
     stripe_customer_id      VARCHAR(255)    NULL,
     status                  ENUM('pending','completed','expired','canceled')
                                 NOT NULL DEFAULT 'pending',
+    checkout_url            TEXT            NULL,
     created_at              DATETIME        NOT NULL,
     completed_at            DATETIME        NULL,
 
     UNIQUE KEY uq_stripe_session_id (stripe_session_id),
     INDEX idx_scs_user_id (user_id),
+    INDEX idx_scs_status (status),
+    INDEX idx_scs_created_at (created_at),
     CONSTRAINT fk_scs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     CONSTRAINT fk_scs_plan FOREIGN KEY (plan_id) REFERENCES plans(id),
     CONSTRAINT fk_scs_price FOREIGN KEY (plan_billing_price_id)
@@ -283,7 +301,7 @@ Add a Stripe section to `/admin/ops`:
 | `STRIPE_ENABLED` | enabled / disabled |
 | `STRIPE_MODE` | test / live |
 | `STRIPE_SECRET_KEY` | configured / not set (never show value) |
-| `STRIPE_PUBLISHABLE_KEY` | configured / not set (value safe to show) |
+| `STRIPE_PUBLISHABLE_KEY` | configured / not set (never show value) |
 | `STRIPE_WEBHOOK_SECRET` | configured / not set (never show value) |
 | Active `plan_billing_prices` | count per provider |
 | Paid plans missing active Stripe prices | list plan names |
@@ -304,14 +322,16 @@ Add a Stripe section to `/admin/ops`:
 - Stripe Configuration section added to `/admin/ops` — SDK presence, key status (no values shown), price coverage, webhook table status
 - No checkout, no webhooks
 
-### Phase 36 — Checkout Session Creation
-- Add migration 028: `stripe_checkout_sessions`
-- Create `POST /account/subscription/checkout` controller action
-- Create Checkout Session via `StripeService`
-- Create/retrieve Stripe customer and store `stripe_customer_id`
-- Redirect user to Stripe-hosted checkout
-- Handle `GET /account/subscription?checkout=success` and `?checkout=canceled` return pages
-- Update subscription page buttons: "Subscribe" replaces "Request Review" for paid plans
+### Phase 36 — Checkout Session Creation ✓ COMPLETE
+- Migration 028 added — `stripe_checkout_sessions` tracking table
+- `StripeService::getOrCreateCustomerForUser()` — creates/reuses Stripe customer, writes `users.stripe_customer_id`
+- `StripeService::createCheckoutSession()` — validates plan + price server-side, creates Stripe Checkout Session (mode=subscription), inserts local row with status=pending, returns checkout URL
+- `POST /account/subscription/checkout` added to `AccountController` — CSRF + auth + verified email + server-side plan/price lookup
+- `POST /account/subscription/change` now blocks paid plans when `STRIPE_ENABLED=true` (redirects with error)
+- Subscription page: "Subscribe" button (posts to /checkout) when Stripe enabled + active price exists; "Online checkout not configured" when no active price; "Request Review" when Stripe disabled
+- Pricing page: same button logic; subtitle updated based on `STRIPE_ENABLED`
+- Return URL handling: `?checkout=success` and `?checkout=canceled` show informational banners only
+- No entitlements granted or subscription activated from browser return — webhook phase handles that
 
 ### Phase 37 — Webhook Endpoint
 - Add migration 029: `stripe_webhook_events`
@@ -374,12 +394,17 @@ Add a Stripe section to `/admin/ops`:
 |------|---------|
 | `database/migrations/018_*.php` | `billing_status`, provider ID columns |
 | `database/migrations/019_*.php` | `plan_billing_prices` table |
-| `app/Services/EntitlementService.php` | Access gating (will be extended in Phase 38) |
+| `database/migrations/027_*.php` | `users.stripe_customer_id` (Phase 35) |
+| `database/migrations/028_*.php` | `stripe_checkout_sessions` table (Phase 36) |
+| `app/Services/StripeService.php` | Customer + checkout session creation (Phase 35–36) |
+| `app/Services/EntitlementService.php` | Access gating (billing_status gating added in Phase 38) |
 | `app/Services/NotificationService.php` | Transactional email |
 | `app/Services/MailerService.php` | SMTP delivery |
-| `app/Controllers/AccountController.php` | Subscription page + change flow |
+| `app/Controllers/AccountController.php` | Subscription page, change flow, checkout (Phase 36) |
+| `app/Controllers/PricingController.php` | Pricing page with Stripe-aware buttons (Phase 36) |
 | `app/Controllers/OpsController.php` | Ops page (Stripe section in Phase 35) |
 | `app/Controllers/PlanController.php` | Admin billing price mapping |
-| `app/Views/account/subscription.php` | Subscription UI (changes in Phase 36/38) |
-| `app/Views/admin/ops.php` | Ops view (Stripe section in Phase 35) |
-| `docs/QA_CHECKLIST.md` | Checklist (Stripe section to be added in Phase 39) |
+| `app/Views/account/subscription.php` | Subscription UI — Subscribe/Request Review buttons (Phase 36) |
+| `app/Views/pricing/index.php` | Pricing page — Subscribe/Request Review buttons (Phase 36) |
+| `app/Views/admin/ops.php` | Ops view — Stripe configuration section (Phase 35) |
+| `docs/QA_CHECKLIST.md` | Manual QA checklist — Stripe sections added for Phase 35 and 36 |

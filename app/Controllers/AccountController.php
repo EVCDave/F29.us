@@ -77,19 +77,45 @@ class AccountController
         $flash = $_SESSION['flash'] ?? null;
         unset($_SESSION['flash']);
 
+        // Checkout return messages (success/canceled query param from Stripe redirect)
+        $checkoutStatus = null;
+        $rawCheckout = $_GET['checkout'] ?? '';
+        if ($rawCheckout === 'success' || $rawCheckout === 'canceled') {
+            $checkoutStatus = $rawCheckout;
+        }
+
+        $stripeEnabled = StripeService::isEnabled();
+        $stripePricesByPlan = [];
+        if ($stripeEnabled && !empty($plans)) {
+            $planIds      = array_column($plans, 'id');
+            $placeholders = implode(',', array_fill(0, count($planIds), '?'));
+            $stmt = $pdo->prepare(
+                "SELECT plan_id, billing_cycle
+                   FROM plan_billing_prices
+                  WHERE plan_id IN ({$placeholders}) AND provider = 'stripe' AND is_active = 1"
+            );
+            $stmt->execute($planIds);
+            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $stripePricesByPlan[(int) $row['plan_id']][$row['billing_cycle']] = true;
+            }
+        }
+
         View::render('account/subscription', [
-            'pageTitle'       => 'My Subscription — f29.us Dynamic QR',
-            'activeSub'       => $activeSub,
-            'currentPlanId'   => $currentPlanId,
-            'plans'           => $plans,
-            'features'        => $features,
-            'pendingRequests' => $pendingRequests,
-            'pendingPlanIds'  => $pendingPlanIds,
-            'requestHistory'  => $requestHistory,
-            'activeQrCount'   => $activeQrCount,
-            'archivedQrCount' => $archivedQrCount,
-            'entitlements'    => $entitlements,
-            'flash'           => $flash,
+            'pageTitle'          => 'My Subscription — f29.us Dynamic QR',
+            'activeSub'          => $activeSub,
+            'currentPlanId'      => $currentPlanId,
+            'plans'              => $plans,
+            'features'           => $features,
+            'pendingRequests'    => $pendingRequests,
+            'pendingPlanIds'     => $pendingPlanIds,
+            'requestHistory'     => $requestHistory,
+            'activeQrCount'      => $activeQrCount,
+            'archivedQrCount'    => $archivedQrCount,
+            'entitlements'       => $entitlements,
+            'flash'              => $flash,
+            'checkoutStatus'     => $checkoutStatus,
+            'stripeEnabled'      => $stripeEnabled,
+            'stripePricesByPlan' => $stripePricesByPlan,
         ]);
     }
 
@@ -134,9 +160,14 @@ class AccountController
             redirect('/account/subscription');
         }
 
-        // Only free_v1 is self-switchable immediately. All other public plans go through
-        // the request flow regardless of price fields (which are currently all null).
         $isFree = $plan['internal_name'] === 'free_v1';
+
+        // When Stripe is enabled, paid plans must go through checkout, not the request flow.
+        if (!$isFree && StripeService::isEnabled()) {
+            $_SESSION['flash'] = ['type' => 'error',
+                'text' => 'Online checkout is now used for paid plans. Please use the Subscribe button.'];
+            redirect('/account/subscription');
+        }
 
         $now = gmdate('Y-m-d H:i:s');
 
@@ -146,6 +177,69 @@ class AccountController
             EmailVerificationService::requireVerifiedEmail($userId);
             $this->createChangeRequest($pdo, $userId, $planId, $plan, $currentPlanId, $now);
         }
+    }
+
+    // ── Stripe Checkout ───────────────────────────────────────────────────────
+
+    public function checkout(array $params = []): void
+    {
+        CsrfService::requireValid();
+        AuthService::requireAuth();
+
+        if (!StripeService::isEnabled()) {
+            $_SESSION['flash'] = ['type' => 'error', 'text' => 'Online checkout is not available.'];
+            redirect('/account/subscription');
+        }
+
+        $userId = (int) AuthService::userId();
+        EmailVerificationService::requireVerifiedEmail($userId);
+
+        $planId       = (int) ($_POST['plan_id'] ?? 0);
+        $billingCycle = $_POST['billing_cycle'] ?? '';
+
+        if ($planId <= 0 || !in_array($billingCycle, ['monthly', 'yearly'], true)) {
+            $_SESSION['flash'] = ['type' => 'error', 'text' => 'Invalid plan or billing cycle selection.'];
+            redirect('/account/subscription');
+        }
+
+        $pdo  = Database::get();
+
+        // Server-side plan validation — never trust posted plan state
+        $stmt = $pdo->prepare("SELECT * FROM plans WHERE id = ? LIMIT 1");
+        $stmt->execute([$planId]);
+        $plan = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$plan || !$plan['is_public'] || !$plan['is_active'] || $plan['is_legacy']
+            || $plan['internal_name'] === 'free_v1') {
+            $_SESSION['flash'] = ['type' => 'error', 'text' => 'That plan is not available for checkout.'];
+            redirect('/account/subscription');
+        }
+
+        // Server-side price lookup — never trust posted provider_price_id
+        $stmt = $pdo->prepare(
+            "SELECT id FROM plan_billing_prices
+              WHERE plan_id = ? AND provider = 'stripe' AND billing_cycle = ? AND is_active = 1
+              LIMIT 1"
+        );
+        $stmt->execute([$planId, $billingCycle]);
+        $priceId = $stmt->fetchColumn();
+
+        if ($priceId === false) {
+            $_SESSION['flash'] = ['type' => 'error',
+                'text' => 'This plan is not available for online checkout yet.'];
+            redirect('/account/subscription');
+        }
+
+        try {
+            $result = StripeService::createCheckoutSession($userId, $planId, (int) $priceId);
+        } catch (Throwable $e) {
+            error_log('Stripe checkout error for user ' . $userId . ': ' . $e->getMessage());
+            $_SESSION['flash'] = ['type' => 'error',
+                'text' => 'Could not start checkout. Please try again or contact support.'];
+            redirect('/account/subscription');
+        }
+
+        redirect($result['checkout_url']);
     }
 
     // ── Cancel a pending change request ──────────────────────────────────────
