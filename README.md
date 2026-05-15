@@ -375,6 +375,12 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | POST | `/account/subscription/checkout` | Start Stripe Checkout Session for a paid plan (STRIPE_ENABLED=true only) |
 | POST | `/account/subscription/request-cancel` | Cancel a pending plan-change request |
 
+### Stripe webhooks
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/stripe/webhook` | Stripe event ingestion — signature-verified, idempotent. No CSRF; authenticated via `Stripe-Signature` header. |
+
 ### QR codes
 
 | Method | Path | Description |
@@ -888,6 +894,14 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Pricing page: Subscribe/Request Review/Not available buttons based on Stripe status** | ✓ |
 | **Checkout return URL handling: `?checkout=success` and `?checkout=canceled` — info messages only, no access granted** | ✓ |
 | **Paid plan request blocked via `POST /account/subscription/change` when Stripe is enabled** | ✓ |
+| **Migration 029 — `stripe_webhook_events` table (idempotent event recording, UNIQUE on stripe_event_id)** | ✓ |
+| **`StripeService::constructWebhookEvent()` — Stripe-Signature header verification via Stripe SDK** | ✓ |
+| **`StripeService::retrieveSubscription()` — retrieve live Stripe Subscription object by ID** | ✓ |
+| **`StripeWebhookService` — idempotent event recording, event routing, mark processed/failed/ignored** | ✓ |
+| **`checkout.session.completed` handler — activates `user_subscriptions`, maps billing_status, clears entitlement cache** | ✓ |
+| **`checkout.session.expired` handler — marks local checkout session expired** | ✓ |
+| **`POST /stripe/webhook` endpoint — raw body read, signature verified, 400 on failure, 200 after recording** | ✓ |
+| **Admin ops webhook stats — total event count, latest processed timestamp, failed/ignored counts (24 h)** | ✓ |
 
 ## Subscription Groundwork
 
@@ -1203,9 +1217,9 @@ The plan detail page (`/admin/plans/{id}`) shows all billing price mappings and 
 
 ### Stripe integration lifecycle
 
-Checkout Session creation (Phase 36) is implemented. Webhook-based subscription activation (Phase 37) is not yet implemented.
+Checkout Session creation (Phase 36) and webhook-based subscription activation (Phase 37) are implemented.
 
-#### Checkout flow (Phase 36 implemented; Phase 37 pending)
+#### Checkout flow (Phase 36 + 37 implemented)
 
 1. User clicks **Subscribe** on `/account/subscription` or `/pricing` — the form posts `plan_id` and `billing_cycle` to `POST /account/subscription/checkout`.
 2. Server validates auth, verified email, plan eligibility, and active Stripe price mapping server-side (never trusts posted price ID).
@@ -1213,7 +1227,7 @@ Checkout Session creation (Phase 36) is implemented. Webhook-based subscription 
 4. `StripeService::createCheckoutSession()` creates a Stripe Checkout Session (`mode=subscription`) and inserts a local `stripe_checkout_sessions` row with `status='pending'`.
 5. Server redirects user to the Stripe-hosted checkout URL.
 6. User completes payment on Stripe.
-7. **Phase 37 (not yet implemented):** Stripe fires `checkout.session.completed` → webhook handler activates the local `user_subscriptions` row and sets `billing_provider='stripe'`, `billing_status='active'`, `current_period_start/end`.
+7. Stripe fires `checkout.session.completed` → `POST /stripe/webhook` → `StripeWebhookService::handleCheckoutCompleted()` — cancels old active subscription, inserts new `user_subscriptions` row with `billing_provider='stripe'`, `billing_status='active'` (or `'trialing'`), `current_period_start/end`, clears entitlement cache.
 
 > **Admin/manual assignment** (via `POST /admin/users/{id}/subscription`) remains available as a fallback for complimentary and grandfathered access. It is not the normal paid checkout path.
 
@@ -1270,9 +1284,8 @@ The following are intentionally absent:
 
 - Analytics retention data purge (retention is a query filter only — old rows are not deleted)
 - Geolocation in scan events (country/region/city stored as NULL)
-- Webhook-based subscription activation — Checkout Sessions can be created (Phase 36), but paid access is not granted until `checkout.session.completed` is handled via webhook (Phase 37)
-- Billing webhook endpoint and event processing (`POST /stripe/webhook`, `stripe_webhook_events` table — Phase 37)
-- `EntitlementService` billing-status gating — `billing_status` is stored but not yet checked when resolving entitlements (Phase 38)
+- `EntitlementService` billing-status gating — `billing_status` is stored and populated by the webhook handler (Phase 37), but not yet checked when resolving entitlements (Phase 38)
+- Subscription lifecycle webhooks — `customer.subscription.updated/deleted`, `invoice.payment_succeeded/failed` (Phase 38)
 - Cancellation via Stripe API and `cancel_at_period_end` flow (Phase 38)
 - `past_due` / `unpaid` access degradation and payment-failed banners (Phase 38)
 - Global session revocation on password reset (only the current browser session is rotated; other active sessions remain valid)

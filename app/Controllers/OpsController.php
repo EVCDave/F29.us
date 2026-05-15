@@ -145,10 +145,15 @@ class OpsController
                   ORDER BY p.sort_order, p.display_name"
             )->fetchAll(PDO::FETCH_COLUMN);
 
-            // Webhook table exists only after Phase 37 migration — tolerate absence
+            // Webhook table — tolerate absence if migration not yet run
             try {
+                $c['stripe_webhook_total'] = (int) $pdo->query(
+                    "SELECT COUNT(*) FROM stripe_webhook_events"
+                )->fetchColumn();
+
                 $c['stripe_latest_webhook'] = $pdo->query(
-                    "SELECT MAX(created_at) FROM stripe_webhook_events"
+                    "SELECT MAX(created_at) FROM stripe_webhook_events
+                      WHERE processing_status = 'processed'"
                 )->fetchColumn() ?: null;
 
                 $stmt = $pdo->prepare(
@@ -157,9 +162,18 @@ class OpsController
                 );
                 $stmt->execute([$cutoff]);
                 $c['stripe_failed_webhooks_24h'] = (int) $stmt->fetchColumn();
+
+                $stmt = $pdo->prepare(
+                    "SELECT COUNT(*) FROM stripe_webhook_events
+                      WHERE processing_status = 'ignored' AND created_at >= ?"
+                );
+                $stmt->execute([$cutoff]);
+                $c['stripe_ignored_webhooks_24h'] = (int) $stmt->fetchColumn();
             } catch (Throwable) {
-                $c['stripe_latest_webhook']      = null;
-                $c['stripe_failed_webhooks_24h'] = null;
+                $c['stripe_webhook_total']        = null;
+                $c['stripe_latest_webhook']       = null;
+                $c['stripe_failed_webhooks_24h']  = null;
+                $c['stripe_ignored_webhooks_24h'] = null;
             }
         } catch (Throwable) {
             // db_connected stays false; numeric checks remain absent

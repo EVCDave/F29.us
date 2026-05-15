@@ -472,19 +472,59 @@ All checklist items are manual unless noted otherwise.
 - [ ] Cancel return shows info banner: "Checkout was canceled. Your subscription was not changed."
 - [ ] User's plan and `user_subscriptions` row are unchanged after cancel
 
-### What is NOT expected yet (Phase 37+)
-- [ ] Subscription row is NOT updated to `billing_status=active` after checkout — that is webhook work
-- [ ] No webhook endpoint exists at this phase — verify no route `/stripe/webhook` returns 200
+---
+
+## 14. Stripe — Webhook Processing (Phase 37)
+
+**Prerequisites:** `STRIPE_ENABLED=true`, Stripe SDK installed, migration 029 run, `STRIPE_WEBHOOK_SECRET` set.
+Test with [Stripe CLI](https://stripe.com/docs/stripe-cli): `stripe listen --forward-to http://localhost:8000/stripe/webhook`
+
+### Webhook signature verification
+- [ ] POST `/stripe/webhook` without a `Stripe-Signature` header → HTTP 400, body `Missing Stripe-Signature header.`
+- [ ] POST `/stripe/webhook` with an invalid signature → HTTP 400, body `Signature verification failed.`
+- [ ] POST `/stripe/webhook` with a valid signature and known event type → HTTP 200, body `OK`
+
+### Idempotency
+- [ ] Replay the same event (same `stripe_event_id`) a second time → HTTP 200 (no error); `stripe_webhook_events` still has only one row for that event ID
+- [ ] `processing_status` on the first row is unchanged after the replay
+
+### Event recording
+- [ ] After a successful event: `SELECT * FROM stripe_webhook_events` shows one row per event with `processing_status='processed'` and non-null `processed_at`
+- [ ] Unknown/unhandled event type (e.g. `payment_intent.created`): row has `processing_status='ignored'`
+
+### `checkout.session.completed` — subscription activation
+- [ ] Trigger `checkout.session.completed` via Stripe CLI: `stripe trigger checkout.session.completed`
+  - Or complete a real test-mode checkout session
+- [ ] After event: `stripe_checkout_sessions` row for the session has `status='completed'`, `completed_at` set
+- [ ] After event: `user_subscriptions` has a new row with `status='active'`, `billing_provider='stripe'`, `provider_subscription_id` set
+- [ ] New row has `billing_status='active'` (or `'trialing'` if Stripe subscription is trialing)
+- [ ] New row has `current_period_start` and `current_period_end` populated from Stripe
+- [ ] Previous active subscription for the user has `status='canceled'`, `canceled_at` set
+- [ ] `audit_logs` has an entry with `action='stripe_checkout_completed'` and correct metadata
+- [ ] Entitlement cache cleared (user immediately sees new plan features on refresh)
+
+### `checkout.session.expired` — expired checkout
+- [ ] Trigger `checkout.session.expired`: after event, local `stripe_checkout_sessions` row has `status='expired'`
+- [ ] No changes to `user_subscriptions`
+
+### Mode = non-subscription ignored gracefully
+- [ ] A `checkout.session.completed` event with `mode != 'subscription'` does not crash; `processing_status='ignored'`
+
+### Admin ops — webhook stats
+- [ ] `/admin/ops` Stripe section shows "Webhook events (total)" count
+- [ ] After processing an event: "Latest processed" shows a recent timestamp
+- [ ] After a failed event (simulate by breaking DB temporarily): "Failed webhooks (24 h)" count is > 0 and shows warning
+- [ ] Table exists warning gone (was "not yet created (Phase 37)")
 
 ---
 
-## 14. Known Gaps (Not Blockers for Current Launch)
+## 15. Known Gaps (Not Blockers for Current Launch)
 
 These are intentional absences. Confirm they are clearly communicated to users where applicable:
 
 | Gap | Status |
 |-----|--------|
-| Online checkout / Stripe payment processing | Checkout session creation implemented (Phase 36); subscription activation via webhook is Phase 37 |
+| Online checkout / Stripe payment processing | Checkout session creation (Phase 36) + webhook activation (Phase 37) implemented. Lifecycle sync (Phase 38) not yet done. |
 | Password reset by email | Implemented (Phase 24) |
 | Email notifications of any kind | Implemented (Phase 27) |
 | Multi-factor authentication (MFA) | Not implemented |
@@ -497,4 +537,4 @@ These are intentional absences. Confirm they are clearly communicated to users w
 
 ---
 
-*Last updated: 2026-05-15 — Phase 36 Stripe Checkout Session section added*
+*Last updated: 2026-05-15 — Phase 37 Stripe Webhook Processing section added*

@@ -170,6 +170,33 @@ class StripeService
         ];
     }
 
+    // ── Webhook helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Verify Stripe-Signature header and parse the event payload.
+     * Throws \Stripe\Exception\SignatureVerificationException on invalid signature.
+     */
+    public static function constructWebhookEvent(
+        string $payload,
+        string $signature
+    ): \Stripe\Event {
+        self::requireEnabled();
+        return \Stripe\Webhook::constructEvent(
+            $payload,
+            $signature,
+            $_ENV['STRIPE_WEBHOOK_SECRET'] ?? ''
+        );
+    }
+
+    /**
+     * Retrieve a Stripe Subscription object by its ID.
+     */
+    public static function retrieveSubscription(string $subscriptionId): \Stripe\Subscription
+    {
+        self::requireEnabled();
+        return self::client()->subscriptions->retrieve($subscriptionId);
+    }
+
     // ── Internal ──────────────────────────────────────────────────────────────
 
     private static function client(): \Stripe\StripeClient
