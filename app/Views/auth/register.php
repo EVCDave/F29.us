@@ -1,3 +1,4 @@
+<?php $op = static fn(string $k): string => View::e($oldProfile[$k] ?? ''); ?>
 <h1>Create an Account</h1>
 
 <?php if (!empty($errors)): ?>
@@ -41,6 +42,51 @@
             required
         >
     </div>
+
+    <div class="form-grid-2">
+        <div class="form-group">
+            <label for="first_name">First name <small class="text-muted-2 fw-normal">(optional)</small></label>
+            <input type="text" id="first_name" name="first_name"
+                   value="<?= $op('first_name') ?>"
+                   maxlength="100" autocomplete="given-name">
+        </div>
+        <div class="form-group">
+            <label for="last_name">Last name <small class="text-muted-2 fw-normal">(optional)</small></label>
+            <input type="text" id="last_name" name="last_name"
+                   value="<?= $op('last_name') ?>"
+                   maxlength="100" autocomplete="family-name">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="display_name">Display name <small class="text-muted-2 fw-normal">(optional)</small></label>
+        <input type="text" id="display_name" name="display_name"
+               value="<?= $op('display_name') ?>"
+               maxlength="150" autocomplete="nickname">
+    </div>
+
+    <div class="form-grid-2">
+        <div class="form-group">
+            <label for="company_name">Company <small class="text-muted-2 fw-normal">(optional)</small></label>
+            <input type="text" id="company_name" name="company_name"
+                   value="<?= $op('company_name') ?>"
+                   maxlength="150" autocomplete="organization">
+        </div>
+        <div class="form-group">
+            <label for="phone">Phone <small class="text-muted-2 fw-normal">(optional)</small></label>
+            <input type="tel" id="phone" name="phone"
+                   value="<?= $op('phone') ?>"
+                   maxlength="50" autocomplete="tel">
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="timezone">Timezone <small class="text-muted-2 fw-normal">(optional — e.g. America/Chicago)</small></label>
+        <input type="text" id="timezone" name="timezone"
+               value="<?= $op('timezone') ?>"
+               maxlength="100">
+    </div>
+
     <div class="form-group">
         <button type="submit" class="btn">Create Account</button>
     </div>
