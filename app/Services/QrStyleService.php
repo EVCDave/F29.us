@@ -11,6 +11,7 @@ class QrStyleService
         return [
             'foreground_color'       => '#000000',
             'background_color'       => '#FFFFFF',
+            'background_transparent' => false,
             'error_correction_level' => 'M',
             'logo_enabled'           => false,
             'logo_path'              => null,
@@ -40,6 +41,7 @@ class QrStyleService
         return [
             'foreground_color'       => $row['foreground_color']        ?? '#000000',
             'background_color'       => $row['background_color']        ?? '#FFFFFF',
+            'background_transparent' => (bool) ($row['background_transparent'] ?? false),
             'error_correction_level' => $row['error_correction_level']  ?? 'M',
             'logo_enabled'           => (bool) ($row['logo_enabled']    ?? false),
             'logo_path'              => $row['logo_path']               ?? null,
@@ -51,25 +53,30 @@ class QrStyleService
     }
 
     /**
-     * Upsert foreground/background colors.
-     * Sets ECL=Q for custom colors; preserves ECL=H when a logo is already active.
+     * Upsert foreground/background colors and the transparent-background flag.
+     * Sets ECL=Q for any custom style; preserves ECL=H when a logo is already active.
      */
-    public static function saveColors(int $qrId, string $foreground, string $background): void
-    {
+    public static function saveColors(
+        int    $qrId,
+        string $foreground,
+        string $background,
+        bool   $transparent = false
+    ): void {
         $pdo = Database::get();
         $now = gmdate('Y-m-d H:i:s');
 
         $pdo->prepare("
             INSERT INTO qr_code_styles
-                (qr_code_id, foreground_color, background_color, error_correction_level,
-                 logo_enabled, created_at, updated_at)
-            VALUES (?, ?, ?, 'Q', 0, ?, ?)
+                (qr_code_id, foreground_color, background_color, background_transparent,
+                 error_correction_level, logo_enabled, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'Q', 0, ?, ?)
             ON DUPLICATE KEY UPDATE
                 foreground_color       = VALUES(foreground_color),
                 background_color       = VALUES(background_color),
+                background_transparent = VALUES(background_transparent),
                 error_correction_level = IF(logo_enabled = 1, 'H', 'Q'),
                 updated_at             = VALUES(updated_at)
-        ")->execute([$qrId, $foreground, $background, $now, $now]);
+        ")->execute([$qrId, $foreground, $background, (int) $transparent, $now, $now]);
     }
 
     /**
@@ -236,9 +243,10 @@ class QrStyleService
             return;
         }
 
-        $hasCustomColors = $existing['foreground_color'] !== '#000000'
-                        || $existing['background_color']  !== '#FFFFFF';
-        $newEcl = $hasCustomColors ? 'Q' : 'M';
+        $hasCustomStyle = $existing['foreground_color'] !== '#000000'
+                       || $existing['background_color']  !== '#FFFFFF'
+                       || ($existing['background_transparent'] ?? false);
+        $newEcl = $hasCustomStyle ? 'Q' : 'M';
 
         $pdo = Database::get();
         $now = gmdate('Y-m-d H:i:s');

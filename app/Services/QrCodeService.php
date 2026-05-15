@@ -53,14 +53,19 @@ class QrCodeService
             return;
         }
 
-        $fg  = $style['foreground_color']       ?? null;
-        $bg  = $style['background_color']       ?? null;
-        $ecl = $style['error_correction_level'] ?? 'M';
+        $fg          = $style['foreground_color']       ?? null;
+        $bg          = $style['background_color']       ?? null;
+        $transparent = (bool) ($style['background_transparent'] ?? false);
+        $ecl         = $style['error_correction_level'] ?? 'M';
 
         if ($fg !== null) {
             $builder->foregroundColor(self::parseHexColor($fg));
         }
-        if ($bg !== null) {
+
+        if ($transparent) {
+            // Alpha 127 = fully transparent in GD / endroid Color scale (0=opaque, 127=transparent).
+            $builder->backgroundColor(new \Endroid\QrCode\Color\Color(255, 255, 255, 127));
+        } elseif ($bg !== null) {
             $builder->backgroundColor(self::parseHexColor($bg));
         }
         $builder->errorCorrectionLevel(self::mapEcl($ecl));
