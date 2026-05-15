@@ -384,6 +384,11 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | GET | `/qr/{id}/download/svg` | Download QR as SVG |
 | GET | `/qr/{id}/analytics` | Analytics page (date range, bot toggle, daily chart, device breakdown, referers) |
 | GET | `/qr/{id}/analytics/export` | Export analytics as CSV (requires `can_export_analytics` entitlement) |
+| GET | `/qr/{id}/style` | QR style page — color picker and logo upload |
+| POST | `/qr/{id}/style` | Save custom foreground/background colors |
+| POST | `/qr/{id}/style/reset` | Reset all style settings to default |
+| POST | `/qr/{id}/style/logo` | Upload logo image (Pro/Team) |
+| POST | `/qr/{id}/style/logo/remove` | Remove uploaded logo |
 
 ### Admin — users
 
@@ -932,7 +937,7 @@ Users on Starter and higher plans can customize the foreground (dot) and backgro
 **Error correction level policy:**
 - Default style (no custom row): ECL = M (library default)
 - Custom colors: ECL = Q (increased resilience for colored modules)
-- Future: logo overlay will use ECL = H
+- Logo overlay uses ECL = H
 
 **`QrStyleService` methods:**
 ```php
@@ -944,7 +949,38 @@ QrStyleService::normalizeHexColor(string $color): ?string      // #RRGGBB upperc
 QrStyleService::contrastRatio(string $fg, string $bg): float   // WCAG ratio
 ```
 
-**Logo fields (schema-ready, Phase 31):** `qr_code_styles` includes `logo_path`, `logo_original_filename`, `logo_mime_type`, `logo_size_bytes`, and `logo_enabled` columns. These are seeded/migrated but the upload UI is not yet implemented. Pro and Team plans expose `can_upload_qr_logo`, `qr_logo_max_size_kb`, and `qr_logo_max_percent` entitlement keys; these are enforced to `false`/`0` for Free and Starter.
+### QR logo upload
+
+Pro and Team users can upload a logo image that is composited into the center of their QR code. Logo upload is gated on `can_upload_qr_logo = true`.
+
+**Supported formats:** PNG, JPEG, WEBP. SVG upload is not permitted (potential for script injection).
+
+**Entitlement limits by plan:**
+
+| Plan | Max file size | Logo center coverage |
+|------|:------------:|:-------------------:|
+| Pro  | 250 KB       | 20%                 |
+| Team | 500 KB       | 25%                 |
+
+**Storage:** Logo files are stored at `storage/qr-logos/` (outside the public web root) with generated filenames (`qr-{id}-{random_hex}.{ext}`). Original filenames are stored in `logo_original_filename` for display and audit purposes only. Files are never served directly from a public URL.
+
+**Rendering:** `QrCodeService` reads the logo from the storage path and uses the endroid/qr-code Builder's `logoPath()` / `logoResizeToWidth()` methods to overlay the logo. Both PNG and SVG downloads include the logo when enabled.
+
+**Error correction:** Logo-enabled QR codes automatically use ECL=H (highest). When the logo is removed, ECL reverts to Q (if custom colors remain) or M (default).
+
+**File lifecycle:** When a replacement logo is uploaded, the old file is deleted. When a logo is removed or the style is fully reset, the file is deleted.
+
+**`QrStyleService` logo methods:**
+```php
+QrStyleService::saveLogo(int $qrId, array $file): array        // move file, upsert row, ECL=H
+QrStyleService::removeLogo(int $qrId): void                    // clear logo fields, revert ECL
+QrStyleService::validateLogoUpload(array $file, int $userId): array  // all validation checks
+QrStyleService::logoStorageDir(): string                        // ensure dir + return path
+QrStyleService::logoFilePath(string $filename): string          // full path without mkdir
+QrStyleService::currentErrorCorrectionForStyle(array $style): string
+```
+
+**Audit events:** `qr_logo_uploaded` (with filename, MIME, size, plan limits, old logo present) and `qr_logo_removed` (with old filename, MIME, size). Filesystem paths are not logged.
 
 ### Admin-disabling a link
 

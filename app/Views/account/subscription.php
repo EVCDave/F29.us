@@ -268,12 +268,7 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
     <tbody>
     <?php foreach ($displayFeatures as $key => $label): ?>
     <tr>
-        <td class="text-sm">
-            <?= View::e($label) ?>
-            <?php if ($key === 'can_upload_qr_logo'): ?>
-            <span class="text-2xs text-muted-2 ml-1">coming soon</span>
-            <?php endif; ?>
-        </td>
+        <td class="text-sm"><?= View::e($label) ?></td>
         <?php foreach ($plans as $p): ?>
         <td class="text-center text-88">
             <?= $fv($features[(int) $p['id']] ?? [], $key) ?>

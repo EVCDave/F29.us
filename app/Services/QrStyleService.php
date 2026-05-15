@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 class QrStyleService
 {
+    private const ALLOWED_LOGO_MIMES = ['image/png', 'image/jpeg', 'image/webp'];
+    private const ALLOWED_LOGO_EXTS  = ['png', 'jpg', 'jpeg', 'webp'];
+
     public static function defaultStyle(): array
     {
         return [
@@ -11,6 +14,9 @@ class QrStyleService
             'error_correction_level' => 'M',
             'logo_enabled'           => false,
             'logo_path'              => null,
+            'logo_original_filename' => null,
+            'logo_mime_type'         => null,
+            'logo_size_bytes'        => null,
             'is_custom'              => false,
         ];
     }
@@ -32,18 +38,21 @@ class QrStyleService
         }
 
         return [
-            'foreground_color'       => $row['foreground_color']       ?? '#000000',
-            'background_color'       => $row['background_color']       ?? '#FFFFFF',
-            'error_correction_level' => $row['error_correction_level'] ?? 'M',
-            'logo_enabled'           => (bool) ($row['logo_enabled']   ?? false),
-            'logo_path'              => $row['logo_path']              ?? null,
+            'foreground_color'       => $row['foreground_color']        ?? '#000000',
+            'background_color'       => $row['background_color']        ?? '#FFFFFF',
+            'error_correction_level' => $row['error_correction_level']  ?? 'M',
+            'logo_enabled'           => (bool) ($row['logo_enabled']    ?? false),
+            'logo_path'              => $row['logo_path']               ?? null,
+            'logo_original_filename' => $row['logo_original_filename']  ?? null,
+            'logo_mime_type'         => $row['logo_mime_type']          ?? null,
+            'logo_size_bytes'        => $row['logo_size_bytes'] !== null ? (int) $row['logo_size_bytes'] : null,
             'is_custom'              => true,
         ];
     }
 
     /**
      * Upsert foreground/background colors.
-     * Custom colors always use error_correction_level = Q for improved resilience.
+     * Sets ECL=Q for custom colors; preserves ECL=H when a logo is already active.
      */
     public static function saveColors(int $qrId, string $foreground, string $background): void
     {
@@ -58,20 +67,211 @@ class QrStyleService
             ON DUPLICATE KEY UPDATE
                 foreground_color       = VALUES(foreground_color),
                 background_color       = VALUES(background_color),
-                error_correction_level = 'Q',
+                error_correction_level = IF(logo_enabled = 1, 'H', 'Q'),
                 updated_at             = VALUES(updated_at)
         ")->execute([$qrId, $foreground, $background, $now, $now]);
     }
 
     /**
-     * Remove the custom style row, reverting the QR to black-on-white defaults.
+     * Delete the custom style row entirely, including any uploaded logo file.
      */
     public static function reset(int $qrId): void
     {
+        $existing = self::getForQr($qrId);
+
         Database::get()->prepare(
             "DELETE FROM qr_code_styles WHERE qr_code_id = ?"
         )->execute([$qrId]);
+
+        if ($existing['logo_path'] !== null) {
+            $filePath = self::logoFilePath($existing['logo_path']);
+            if (file_exists($filePath)) {
+                @unlink($filePath);
+            }
+        }
     }
+
+    // ── Logo ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns the logo storage directory, creating it if necessary.
+     */
+    public static function logoStorageDir(): string
+    {
+        $dir = STORAGE_PATH . '/qr-logos';
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new RuntimeException('Cannot create logo storage directory.');
+        }
+        return $dir;
+    }
+
+    /**
+     * Returns the full filesystem path for a stored logo filename.
+     * Does not create the directory.
+     */
+    public static function logoFilePath(string $filename): string
+    {
+        return STORAGE_PATH . '/qr-logos/' . basename($filename);
+    }
+
+    /**
+     * Validate a logo upload against entitlement limits and allowed file types.
+     * Returns an array of error strings; empty means valid.
+     */
+    public static function validateLogoUpload(array $file, int $userId): array
+    {
+        $maxKb = (int) EntitlementService::getValue($userId, 'qr_logo_max_size_kb', 0);
+        if ($maxKb <= 0) {
+            return ['Logo upload is not available on your current plan.'];
+        }
+
+        $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+
+        if ($errCode === UPLOAD_ERR_NO_FILE || ($file['size'] ?? 0) === 0) {
+            return ['Please choose a logo image to upload.'];
+        }
+
+        if ($errCode !== UPLOAD_ERR_OK) {
+            return ['Upload failed. Please try again.'];
+        }
+
+        if ((int) $file['size'] > $maxKb * 1024) {
+            return ['Logo image is too large for your current plan.'];
+        }
+
+        $ext = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+        if (!in_array($ext, self::ALLOWED_LOGO_EXTS, true)) {
+            return ['Logo must be a PNG, JPG, or WEBP image.'];
+        }
+
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime  = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+
+        if (!in_array($mime, self::ALLOWED_LOGO_MIMES, true)) {
+            return ['Logo must be a PNG, JPG, or WEBP image.'];
+        }
+
+        if (@getimagesize($file['tmp_name']) === false) {
+            return ['The uploaded file does not appear to be a valid image.'];
+        }
+
+        return [];
+    }
+
+    /**
+     * Move the uploaded logo into storage and upsert the style row.
+     * Deletes the previous logo file if one existed. Sets ECL=H.
+     * Returns metadata for audit logging.
+     */
+    public static function saveLogo(int $qrId, array $file): array
+    {
+        $finfo    = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+
+        $ext      = strtolower(pathinfo($file['name'] ?? '', PATHINFO_EXTENSION));
+        $dir      = self::logoStorageDir();
+        $filename = 'qr-' . $qrId . '-' . bin2hex(random_bytes(8)) . '.' . $ext;
+        $destPath = $dir . '/' . $filename;
+
+        $existing    = self::getForQr($qrId);
+        $oldLogoPath = ($existing['logo_path'] !== null)
+            ? self::logoFilePath($existing['logo_path'])
+            : null;
+
+        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+            throw new RuntimeException('Failed to save uploaded logo file.');
+        }
+
+        $pdo = Database::get();
+        $now = gmdate('Y-m-d H:i:s');
+
+        $pdo->prepare("
+            INSERT INTO qr_code_styles
+                (qr_code_id, foreground_color, background_color, error_correction_level,
+                 logo_path, logo_original_filename, logo_mime_type, logo_size_bytes,
+                 logo_enabled, created_at, updated_at)
+            VALUES (?, ?, ?, 'H', ?, ?, ?, ?, 1, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                logo_path              = VALUES(logo_path),
+                logo_original_filename = VALUES(logo_original_filename),
+                logo_mime_type         = VALUES(logo_mime_type),
+                logo_size_bytes        = VALUES(logo_size_bytes),
+                logo_enabled           = 1,
+                error_correction_level = 'H',
+                updated_at             = VALUES(updated_at)
+        ")->execute([
+            $qrId,
+            $existing['foreground_color'] ?? '#000000',
+            $existing['background_color'] ?? '#FFFFFF',
+            $filename,
+            $file['name'],
+            $mimeType,
+            (int) $file['size'],
+            $now,
+            $now,
+        ]);
+
+        if ($oldLogoPath !== null && file_exists($oldLogoPath)) {
+            @unlink($oldLogoPath);
+        }
+
+        return [
+            'original_filename' => $file['name'],
+            'mime_type'         => $mimeType,
+            'size_bytes'        => (int) $file['size'],
+        ];
+    }
+
+    /**
+     * Remove the logo from a QR style row and delete the logo file.
+     * Adjusts ECL to Q (custom colors remain) or M (no custom colors).
+     */
+    public static function removeLogo(int $qrId): void
+    {
+        $existing = self::getForQr($qrId);
+
+        if (!$existing['is_custom'] || !$existing['logo_enabled']) {
+            return;
+        }
+
+        $hasCustomColors = $existing['foreground_color'] !== '#000000'
+                        || $existing['background_color']  !== '#FFFFFF';
+        $newEcl = $hasCustomColors ? 'Q' : 'M';
+
+        $pdo = Database::get();
+        $now = gmdate('Y-m-d H:i:s');
+
+        $pdo->prepare("
+            UPDATE qr_code_styles
+            SET logo_path              = NULL,
+                logo_original_filename = NULL,
+                logo_mime_type         = NULL,
+                logo_size_bytes        = NULL,
+                logo_enabled           = 0,
+                error_correction_level = ?,
+                updated_at             = ?
+            WHERE qr_code_id = ?
+        ")->execute([$newEcl, $now, $qrId]);
+
+        if ($existing['logo_path'] !== null) {
+            $filePath = self::logoFilePath($existing['logo_path']);
+            if (file_exists($filePath)) {
+                @unlink($filePath);
+            }
+        }
+    }
+
+    /**
+     * Returns the active ECL string from a style array: 'H', 'Q', or 'M'.
+     */
+    public static function currentErrorCorrectionForStyle(array $style): string
+    {
+        return $style['error_correction_level'] ?? 'M';
+    }
+
+    // ── Color validation ──────────────────────────────────────────────────────
 
     /**
      * Validate foreground and background colors.

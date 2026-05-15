@@ -27,7 +27,7 @@ class QrCodeService
             ->size($size)
             ->margin(10);
 
-        self::applyStyle($builder, $style);
+        self::applyStyle($builder, $style, $size);
 
         return $builder->build()->getString();
     }
@@ -42,12 +42,12 @@ class QrCodeService
             ->size($size)
             ->margin(10);
 
-        self::applyStyle($builder, $style);
+        self::applyStyle($builder, $style, $size);
 
         return $builder->build()->getString();
     }
 
-    private static function applyStyle(object $builder, ?array $style): void
+    private static function applyStyle(object $builder, ?array $style, int $size): void
     {
         if ($style === null) {
             return;
@@ -64,6 +64,15 @@ class QrCodeService
             $builder->backgroundColor(self::parseHexColor($bg));
         }
         $builder->errorCorrectionLevel(self::mapEcl($ecl));
+
+        if (($style['logo_enabled'] ?? false) && isset($style['logo_path'])) {
+            $logoPath = QrStyleService::logoFilePath($style['logo_path']);
+            if (file_exists($logoPath)) {
+                $logoPercent = max(1.0, (float) ($style['logo_max_percent'] ?? 20));
+                $logoWidth   = max(1, (int) round($size * $logoPercent / 100));
+                $builder->logoPath($logoPath)->logoResizeToWidth($logoWidth);
+            }
+        }
     }
 
     private static function parseHexColor(string $hex): \Endroid\QrCode\Color\Color
