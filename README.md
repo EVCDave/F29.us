@@ -918,6 +918,34 @@ The `max_qr_codes` entitlement is enforced against **countable** QR codes only. 
 
 **No hard deletion.** QR codes, slugs, analytics, audit history, and destination history are never permanently deleted. Archive is the only retire action.
 
+### QR color customization
+
+Users on Starter and higher plans can customize the foreground (dot) and background colors of their QR codes via `/qr/{id}/style`. The style is stored in `qr_code_styles` (one row per QR, CASCADE DELETE from `qr_codes`). QR codes with no style row use black-on-white defaults.
+
+**Entitlement key:** `can_customize_qr_colors` (bool). The style page is accessible to all users but shows an upgrade card and a disabled form for users without the entitlement. POST to `/qr/{id}/style` and `/qr/{id}/style/reset` enforce the entitlement server-side with a 403.
+
+**Color validation** (`QrStyleService::validateColors`):
+- Both colors must be valid 6-digit hex strings (`#RRGGBB`)
+- Foreground and background must differ
+- WCAG contrast ratio must be ≥ 3.0 — computed as `(L1 + 0.05) / (L2 + 0.05)` using the linearized sRGB relative luminance formula
+
+**Error correction level policy:**
+- Default style (no custom row): ECL = M (library default)
+- Custom colors: ECL = Q (increased resilience for colored modules)
+- Future: logo overlay will use ECL = H
+
+**`QrStyleService` methods:**
+```php
+QrStyleService::getForQr(int $qrId): array        // load style or default
+QrStyleService::saveColors(int $qrId, string $fg, string $bg): void  // upsert, sets ECL=Q
+QrStyleService::reset(int $qrId): void             // DELETE row → reverts to default
+QrStyleService::validateColors(string $fg, string $bg): array  // returns error strings
+QrStyleService::normalizeHexColor(string $color): ?string      // #RRGGBB uppercase or null
+QrStyleService::contrastRatio(string $fg, string $bg): float   // WCAG ratio
+```
+
+**Logo fields (schema-ready, Phase 31):** `qr_code_styles` includes `logo_path`, `logo_original_filename`, `logo_mime_type`, `logo_size_bytes`, and `logo_enabled` columns. These are seeded/migrated but the upload UI is not yet implemented. Pro and Team plans expose `can_upload_qr_logo`, `qr_logo_max_size_kb`, and `qr_logo_max_percent` entitlement keys; these are enforced to `false`/`0` for Free and Starter.
+
 ### Admin-disabling a link
 
 When an admin disables a short link:

@@ -81,6 +81,7 @@ require APP_PATH . '/Services/NotificationService.php';
 require APP_PATH . '/Services/EmailVerificationService.php';
 require APP_PATH . '/Services/PasswordResetService.php';
 require APP_PATH . '/Services/QrQuotaService.php';
+require APP_PATH . '/Services/QrStyleService.php';
 
 // Establish database connection
 $dbConfig = require CONFIG_PATH . '/database.php';

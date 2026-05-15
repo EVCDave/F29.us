@@ -90,6 +90,12 @@
 
     <a href="/qr/<?= (int) $qr['id'] ?>/analytics" class="btn btn-secondary">Analytics</a>
 
+    <?php if ($canCustomizeQr): ?>
+    <a href="/qr/<?= (int) $qr['id'] ?>/style" class="btn btn-secondary">Customize QR</a>
+    <?php else: ?>
+    <a href="/qr/<?= (int) $qr['id'] ?>/style" class="btn btn-secondary opacity-55" title="Upgrade to customize QR colors">Customize QR</a>
+    <?php endif; ?>
+
     <?php if ($qr['status'] !== 'archived' && $qr['status'] !== 'disabled'): ?>
     <a href="/qr/<?= (int) $qr['id'] ?>/edit" class="btn btn-secondary">Edit</a>
     <?php endif; ?>

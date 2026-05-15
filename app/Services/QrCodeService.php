@@ -11,35 +11,78 @@ declare(strict_types=1);
  *   https://f29.us/{slug}
  * not the destination URL. This keeps the QR code static even when
  * the destination changes.
+ *
+ * An optional $style array controls colors and error correction level.
+ * Pass the return value of QrStyleService::getForQr() or null for defaults.
  */
 class QrCodeService
 {
-    public static function generatePng(string $content, int $size = 300): string
+    public static function generatePng(string $content, int $size = 300, ?array $style = null): string
     {
         self::requireLibrary();
 
-        $result = \Endroid\QrCode\Builder\Builder::create()
+        $builder = \Endroid\QrCode\Builder\Builder::create()
             ->writer(new \Endroid\QrCode\Writer\PngWriter())
             ->data($content)
             ->size($size)
-            ->margin(10)
-            ->build();
+            ->margin(10);
 
-        return $result->getString();
+        self::applyStyle($builder, $style);
+
+        return $builder->build()->getString();
     }
 
-    public static function generateSvg(string $content, int $size = 300): string
+    public static function generateSvg(string $content, int $size = 300, ?array $style = null): string
     {
         self::requireLibrary();
 
-        $result = \Endroid\QrCode\Builder\Builder::create()
+        $builder = \Endroid\QrCode\Builder\Builder::create()
             ->writer(new \Endroid\QrCode\Writer\SvgWriter())
             ->data($content)
             ->size($size)
-            ->margin(10)
-            ->build();
+            ->margin(10);
 
-        return $result->getString();
+        self::applyStyle($builder, $style);
+
+        return $builder->build()->getString();
+    }
+
+    private static function applyStyle(object $builder, ?array $style): void
+    {
+        if ($style === null) {
+            return;
+        }
+
+        $fg  = $style['foreground_color']       ?? null;
+        $bg  = $style['background_color']       ?? null;
+        $ecl = $style['error_correction_level'] ?? 'M';
+
+        if ($fg !== null) {
+            $builder->foregroundColor(self::parseHexColor($fg));
+        }
+        if ($bg !== null) {
+            $builder->backgroundColor(self::parseHexColor($bg));
+        }
+        $builder->errorCorrectionLevel(self::mapEcl($ecl));
+    }
+
+    private static function parseHexColor(string $hex): \Endroid\QrCode\Color\Color
+    {
+        return new \Endroid\QrCode\Color\Color(
+            (int) hexdec(substr($hex, 1, 2)),
+            (int) hexdec(substr($hex, 3, 2)),
+            (int) hexdec(substr($hex, 5, 2))
+        );
+    }
+
+    private static function mapEcl(string $level): \Endroid\QrCode\ErrorCorrectionLevel
+    {
+        return match ($level) {
+            'L'     => \Endroid\QrCode\ErrorCorrectionLevel::Low,
+            'Q'     => \Endroid\QrCode\ErrorCorrectionLevel::Quartile,
+            'H'     => \Endroid\QrCode\ErrorCorrectionLevel::High,
+            default => \Endroid\QrCode\ErrorCorrectionLevel::Medium,
+        };
     }
 
     private static function requireLibrary(): void

@@ -105,6 +105,9 @@ $router->get('/qr/{id}/download/png',   [QrController::class, 'downloadPng']);
 $router->get('/qr/{id}/download/svg',   [QrController::class, 'downloadSvg']);
 $router->get('/qr/{id}/analytics/export', [QrController::class, 'exportAnalytics']);
 $router->get('/qr/{id}/analytics',        [QrController::class, 'analytics']);
+$router->get('/qr/{id}/style',            [QrController::class, 'stylePage']);
+$router->post('/qr/{id}/style',           [QrController::class, 'styleSubmit']);
+$router->post('/qr/{id}/style/reset',     [QrController::class, 'styleReset']);
 
 // ── Email verification ────────────────────────────────────────────────────────
 $router->get('/account/verify-email',         [EmailVerificationController::class, 'verifyPage']);
