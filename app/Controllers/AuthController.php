@@ -64,6 +64,7 @@ class AuthController
             'pageTitle' => 'Create an Account — f29.us Dynamic QR',
             'errors'    => [],
             'oldEmail'  => '',
+            'oldProfile' => [],
         ]);
     }
 
@@ -75,13 +76,44 @@ class AuthController
         $password = $_POST['password'] ?? '';
         $confirm  = $_POST['confirm']  ?? '';
 
-        $result = AuthService::register($email, $password, $confirm);
+        $raw = [
+            'first_name'   => trim($_POST['first_name']   ?? ''),
+            'last_name'    => trim($_POST['last_name']    ?? ''),
+            'display_name' => trim($_POST['display_name'] ?? ''),
+            'company_name' => trim($_POST['company_name'] ?? ''),
+            'phone'        => trim($_POST['phone']        ?? ''),
+            'timezone'     => trim($_POST['timezone']     ?? ''),
+        ];
+
+        $profileErrors = [];
+        if (mb_strlen($raw['first_name'])   > 100) $profileErrors[] = 'First name must be 100 characters or fewer.';
+        if (mb_strlen($raw['last_name'])    > 100) $profileErrors[] = 'Last name must be 100 characters or fewer.';
+        if (mb_strlen($raw['display_name']) > 150) $profileErrors[] = 'Display name must be 150 characters or fewer.';
+        if (mb_strlen($raw['company_name']) > 150) $profileErrors[] = 'Company must be 150 characters or fewer.';
+        if (mb_strlen($raw['phone'])        >  50) $profileErrors[] = 'Phone must be 50 characters or fewer.';
+        if (mb_strlen($raw['timezone'])     > 100) $profileErrors[] = 'Timezone must be 100 characters or fewer.';
+
+        // Normalize: empty string → null
+        $profile = array_map(fn($v) => $v !== '' ? $v : null, $raw);
+
+        if (!empty($profileErrors)) {
+            View::render('auth/register', [
+                'pageTitle'  => 'Create an Account — f29.us Dynamic QR',
+                'errors'     => $profileErrors,
+                'oldEmail'   => strtolower(trim($email)),
+                'oldProfile' => $raw,
+            ]);
+            return;
+        }
+
+        $result = AuthService::register($email, $password, $confirm, $profile);
 
         if (!$result['ok']) {
             View::render('auth/register', [
-                'pageTitle' => 'Create an Account — f29.us Dynamic QR',
-                'errors'    => $result['errors'],
-                'oldEmail'  => strtolower(trim($email)),
+                'pageTitle'  => 'Create an Account — f29.us Dynamic QR',
+                'errors'     => $result['errors'],
+                'oldEmail'   => strtolower(trim($email)),
+                'oldProfile' => $raw,
             ]);
             return;
         }

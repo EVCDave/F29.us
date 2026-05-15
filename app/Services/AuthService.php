@@ -93,8 +93,11 @@ class AuthService
     /**
      * Validate, create user + default Free subscription, log the user in.
      * Returns ['ok' => true] or ['ok' => false, 'errors' => string[]].
+     *
+     * $profile keys: first_name, last_name, display_name, company_name, phone, timezone.
+     * All values must already be trimmed and normalized (empty string → null).
      */
-    public static function register(string $email, string $password, string $confirm): array
+    public static function register(string $email, string $password, string $confirm, array $profile = []): array
     {
         $email = strtolower(trim($email));
 
@@ -130,9 +133,21 @@ class AuthService
             $hash = password_hash($password, PASSWORD_BCRYPT);
 
             $pdo->prepare("
-                INSERT INTO users (email, password_hash, status, email_verification_required, created_at, updated_at)
-                VALUES (?, ?, 'active', 1, ?, ?)
-            ")->execute([$email, $hash, $now, $now]);
+                INSERT INTO users
+                    (email, password_hash, status, email_verification_required,
+                     first_name, last_name, display_name, company_name, phone, timezone,
+                     created_at, updated_at)
+                VALUES (?, ?, 'active', 1, ?, ?, ?, ?, ?, ?, ?, ?)
+            ")->execute([
+                $email, $hash,
+                $profile['first_name']   ?? null,
+                $profile['last_name']    ?? null,
+                $profile['display_name'] ?? null,
+                $profile['company_name'] ?? null,
+                $profile['phone']        ?? null,
+                $profile['timezone']     ?? null,
+                $now, $now,
+            ]);
 
             $userId = (int) $pdo->lastInsertId();
 

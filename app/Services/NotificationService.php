@@ -21,7 +21,7 @@ class NotificationService
             $planName    = $row['requested_plan_name'];
             $appUrl      = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
 
-            $subject  = 'Plan change request received — f29.us Dynamic QR';
+            $subject  = 'Plan change request received - f29.us Dynamic QR';
             $bodyHtml = self::wrap(
                 "We received your request to switch to the <strong>" . htmlspecialchars($planName, ENT_QUOTES) . "</strong> plan.<br><br>"
                 . "Our team will review it shortly. You will receive an email once a decision has been made.<br><br>"
@@ -65,9 +65,9 @@ class NotificationService
             $planName  = $row['requested_plan_name'];
             $appUrl    = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
 
-            $subject  = 'Your plan request has been approved — f29.us Dynamic QR';
+            $subject  = 'Your plan request has been approved - f29.us Dynamic QR';
             $bodyHtml = self::wrap(
-                "Good news — your request to switch to the <strong>" . htmlspecialchars($planName, ENT_QUOTES) . "</strong> plan has been approved.<br><br>"
+                "Good news - your request to switch to the <strong>" . htmlspecialchars($planName, ENT_QUOTES) . "</strong> plan has been approved.<br><br>"
                 . "Your account has been updated and you can start using your new plan features immediately.<br><br>"
                 . "<a href=\"{$appUrl}/account/subscription\">View your subscription</a>"
             );
@@ -97,7 +97,7 @@ class NotificationService
             $appUrl    = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
 
             $support  = self::supportEmail();
-            $subject  = 'Your plan request was not approved — f29.us Dynamic QR';
+            $subject  = 'Your plan request was not approved - f29.us Dynamic QR';
             $bodyHtml = self::wrap(
                 "Unfortunately, your request to switch to the <strong>" . htmlspecialchars($planName, ENT_QUOTES) . "</strong> plan was not approved at this time.<br><br>"
                 . "Your current plan and subscription remain unchanged.<br><br>"
@@ -131,7 +131,7 @@ class NotificationService
 
             $support = self::supportEmail();
             if ($byAdmin) {
-                $subject  = 'Your plan request has been canceled — f29.us Dynamic QR';
+                $subject  = 'Your plan request has been canceled - f29.us Dynamic QR';
                 $bodyHtml = self::wrap(
                     "Your request to switch to the <strong>" . htmlspecialchars($planName, ENT_QUOTES) . "</strong> plan has been canceled by our team.<br><br>"
                     . "Your current plan and subscription remain unchanged.<br><br>"
@@ -139,7 +139,7 @@ class NotificationService
                     . "<a href=\"mailto:{$support}\">{$support}</a>."
                 );
             } else {
-                $subject  = 'Plan change request canceled — f29.us Dynamic QR';
+                $subject  = 'Plan change request canceled - f29.us Dynamic QR';
                 $bodyHtml = self::wrap(
                     "You have canceled your request to switch to the <strong>" . htmlspecialchars($planName, ENT_QUOTES) . "</strong> plan.<br><br>"
                     . "Your current plan and subscription remain unchanged.<br><br>"
@@ -163,7 +163,7 @@ class NotificationService
 
         try {
             $support = self::supportEmail();
-            $subject = 'Your email address was changed — f29.us Dynamic QR';
+            $subject = 'Your email address was changed - f29.us Dynamic QR';
 
             $bodyOld = self::wrap(
                 "The email address on your f29.us Dynamic QR account has been changed.<br><br>"
@@ -205,7 +205,7 @@ class NotificationService
             $email   = $row['email'];
             $support = self::supportEmail();
 
-            $subject  = 'Your password was changed — f29.us Dynamic QR';
+            $subject  = 'Your password was changed - f29.us Dynamic QR';
             $bodyHtml = self::wrap(
                 "The password for your f29.us Dynamic QR account has been changed.<br><br>"
                 . "If you did not make this change, contact us immediately at "
@@ -238,7 +238,7 @@ class NotificationService
             $appUrl  = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
             $support = self::supportEmail();
 
-            $subject  = 'A link on your account has been disabled — f29.us Dynamic QR';
+            $subject  = 'A link on your account has been disabled - f29.us Dynamic QR';
             $bodyHtml = self::wrap(
                 "The following link on your f29.us Dynamic QR account has been disabled by our team:<br><br>"
                 . "<strong>Short link:</strong> {$appUrl}/" . htmlspecialchars($slug, ENT_QUOTES) . "<br>"
@@ -272,7 +272,7 @@ class NotificationService
             $slug   = $row['slug'];
             $appUrl = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
 
-            $subject  = 'Your link has been restored — f29.us Dynamic QR';
+            $subject  = 'Your link has been restored - f29.us Dynamic QR';
             $bodyHtml = self::wrap(
                 "The following link on your f29.us Dynamic QR account has been restored to active:<br><br>"
                 . "<strong>Short link:</strong> {$appUrl}/" . htmlspecialchars($slug, ENT_QUOTES) . "<br><br>"
@@ -298,7 +298,7 @@ class NotificationService
             $appUrl  = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
             $link    = $appUrl . '/verify-email?token=' . urlencode($rawToken);
             $linkE   = self::e($link);
-            $subject = 'Please verify your email address — f29.us Dynamic QR';
+            $subject = 'Please verify your email address - f29.us Dynamic QR';
 
             $bodyHtml = self::wrap(
                 "Thanks for creating an account. Please verify your email address by clicking the link below.<br><br>"
@@ -326,7 +326,7 @@ class NotificationService
             $appUrl  = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
             $link    = $appUrl . '/verify-email?token=' . urlencode($rawToken);
             $linkE   = self::e($link);
-            $subject = 'Confirm your new email address — f29.us Dynamic QR';
+            $subject = 'Confirm your new email address - f29.us Dynamic QR';
 
             $bodyHtml = self::wrap(
                 "We received a request to change your f29.us Dynamic QR account email address to this address.<br><br>"
@@ -352,7 +352,7 @@ class NotificationService
         try {
             $support  = self::supportEmail();
             $supportE = self::e($support);
-            $subject  = 'Email change requested on your account — f29.us Dynamic QR';
+            $subject  = 'Email change requested on your account - f29.us Dynamic QR';
 
             $bodyHtml = self::wrap(
                 "A request was made to change the email address on your f29.us Dynamic QR account.<br><br>"
@@ -377,7 +377,7 @@ class NotificationService
         try {
             $support  = self::supportEmail();
             $supportE = self::e($support);
-            $subject  = 'Your email address has been updated — f29.us Dynamic QR';
+            $subject  = 'Your email address has been updated - f29.us Dynamic QR';
 
             $bodyOld = self::wrap(
                 "The email address on your f29.us Dynamic QR account has been changed.<br><br>"
@@ -423,14 +423,14 @@ class NotificationService
             $support  = self::supportEmail();
             $supportE = self::e($support);
 
-            $subject  = 'Reset your password — f29.us Dynamic QR';
+            $subject  = 'Reset your password - f29.us Dynamic QR';
             $bodyHtml = self::wrap(
                 "We received a request to reset the password for your f29.us Dynamic QR account.<br><br>"
                 . "Click the link below to set a new password. This link expires in 60 minutes.<br><br>"
                 . "<a href=\"{$linkE}\" style=\"display:inline-block;padding:0.5rem 1.2rem;background:#1a1a2e;color:#fff;text-decoration:none;border-radius:4px\">Reset Password</a><br><br>"
                 . "Or copy and paste this URL into your browser:<br>"
                 . "<a href=\"{$linkE}\">{$linkE}</a><br><br>"
-                . "If you did not request a password reset, you can safely ignore this email — your password has not been changed.<br><br>"
+                . "If you did not request a password reset, you can safely ignore this email - your password has not been changed.<br><br>"
                 . "If you have concerns, contact us at <a href=\"mailto:{$supportE}\">{$supportE}</a>."
             );
 
@@ -460,7 +460,7 @@ class NotificationService
             $support  = self::supportEmail();
             $supportE = self::e($support);
 
-            $subject  = 'Your password was reset — f29.us Dynamic QR';
+            $subject  = 'Your password was reset - f29.us Dynamic QR';
             $bodyHtml = self::wrap(
                 "The password for your f29.us Dynamic QR account has been reset.<br><br>"
                 . "If you made this change, no further action is needed.<br><br>"
