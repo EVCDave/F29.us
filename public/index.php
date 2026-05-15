@@ -59,6 +59,7 @@ require APP_PATH . '/Controllers/SubscriptionHistoryController.php';
 require APP_PATH . '/Controllers/OpsController.php';
 require APP_PATH . '/Controllers/ModerationController.php';
 require APP_PATH . '/Controllers/PolicyController.php';
+require APP_PATH . '/Controllers/StripeWebhookController.php';
 require APP_PATH . '/Controllers/EmailVerificationController.php';
 require APP_PATH . '/Controllers/PasswordResetController.php';
 require APP_PATH . '/Controllers/AccountSecurityController.php';
@@ -187,6 +188,9 @@ $router->post('/admin/moderation/links/{id}/restore',          [ModerationContro
 $router->get('/admin/moderation/domains',                      [ModerationController::class, 'domains']);
 $router->post('/admin/moderation/domains',                     [ModerationController::class, 'addDomain']);
 $router->post('/admin/moderation/domains/{id}/toggle',         [ModerationController::class, 'toggleDomain']);
+
+// ── Stripe webhooks (no CSRF — signature-verified by Stripe) ─────────────────
+$router->post('/stripe/webhook', [StripeWebhookController::class, 'handle']);
 
 // ── Public slug catch-all (must be last) ─────────────────────────────────────
 // All named routes above take precedence via exact-match and ordered pattern

@@ -271,10 +271,18 @@ $fail = static function (string $msg): string {
             <?php endif; ?>
         </td>
     </tr>
-    <?php if ($checks['stripe_latest_webhook'] !== null): ?>
+    <?php if ($checks['stripe_webhook_total'] !== null): ?>
     <tr>
-        <th>Latest webhook processed</th>
-        <td class="monospace text-sm"><?= View::e((string) $checks['stripe_latest_webhook']) ?></td>
+        <th>Webhook events (total)</th>
+        <td><?= (int) $checks['stripe_webhook_total'] ?></td>
+    </tr>
+    <tr>
+        <th>Latest processed</th>
+        <td class="monospace text-sm">
+            <?= $checks['stripe_latest_webhook'] !== null
+                ? View::e((string) $checks['stripe_latest_webhook'])
+                : '<span class="text-muted">none yet</span>' ?>
+        </td>
     </tr>
     <tr>
         <th>Failed webhooks (24 h)</th>
@@ -285,10 +293,14 @@ $fail = static function (string $msg): string {
                 : '<span class="ops-ok">&#10003; 0</span>' ?>
         </td>
     </tr>
+    <tr>
+        <th>Ignored webhooks (24 h)</th>
+        <td><?= (int) ($checks['stripe_ignored_webhooks_24h'] ?? 0) ?></td>
+    </tr>
     <?php else: ?>
     <tr>
         <th>Webhook events table</th>
-        <td><span class="text-muted">not yet created (Phase 37)</span></td>
+        <td><?= $fail('table not found — run migration 029') ?></td>
     </tr>
     <?php endif; ?>
     <?php endif; ?>

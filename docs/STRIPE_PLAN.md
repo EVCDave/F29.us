@@ -2,9 +2,10 @@
 
 This document defines the Stripe checkout and subscription billing architecture for f29.us.
 
-**Current state:** Stripe SDK, configuration, `StripeService`, `users.stripe_customer_id`, and Checkout
-Session creation (Phase 35–36) are implemented. Webhook-based subscription activation and
-lifecycle synchronization (Phase 37–38) are not implemented yet.
+**Current state:** Stripe SDK, configuration, `StripeService`, `users.stripe_customer_id`, Checkout
+Session creation (Phase 35–36), and webhook endpoint with `checkout.session.completed` activation
+(Phase 37) are implemented. Subscription lifecycle synchronization and billing-status gating
+(Phase 38) are not implemented yet.
 
 ---
 
@@ -38,6 +39,14 @@ The following schema, services, and features are already in place:
 | `POST /account/subscription/checkout` | `AccountController` | 36 |
 | Subscribe/Request Review button logic | subscription + pricing views | 36 |
 | Checkout return messaging (`?checkout=success/canceled`) | `AccountController` + subscription view | 36 |
+| `stripe_webhook_events` table | migration 029 | 37 |
+| `StripeService::constructWebhookEvent()` | `app/Services/StripeService.php` | 37 |
+| `StripeService::retrieveSubscription()` | `app/Services/StripeService.php` | 37 |
+| `StripeWebhookService` (idempotent recording + event routing) | `app/Services/StripeWebhookService.php` | 37 |
+| `checkout.session.completed` handler (subscription activation) | `StripeWebhookService` | 37 |
+| `checkout.session.expired` handler | `StripeWebhookService` | 37 |
+| `POST /stripe/webhook` route + controller | `StripeWebhookController`, `public/index.php` | 37 |
+| Webhook stats expanded in Admin Ops | `OpsController`, `ops.php` | 37 |
 
 The `billing_status` ENUM values are:
 `not_applicable`, `manual`, `trialing`, `active`, `past_due`, `canceled`, `unpaid`, `incomplete`
@@ -125,7 +134,8 @@ CREATE TABLE stripe_webhook_events (
 
     UNIQUE KEY uq_stripe_event_id (stripe_event_id),
     INDEX idx_swe_event_type (event_type),
-    INDEX idx_swe_status (processing_status)
+    INDEX idx_swe_status (processing_status),
+    INDEX idx_swe_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
@@ -333,13 +343,16 @@ Add a Stripe section to `/admin/ops`:
 - Return URL handling: `?checkout=success` and `?checkout=canceled` show informational banners only
 - No entitlements granted or subscription activated from browser return — webhook phase handles that
 
-### Phase 37 — Webhook Endpoint
-- Add migration 029: `stripe_webhook_events`
-- Create `POST /stripe/webhook` route and controller
-- Implement signature verification (raw body → verify → then parse)
-- Handle `checkout.session.completed`: mark session, activate subscription
-- Handle `checkout.session.expired`: mark session expired
-- Return HTTP 200 for all valid events; HTTP 400 for signature failure
+### Phase 37 — Webhook Endpoint ✓ COMPLETE
+- Migration 029 added — `stripe_webhook_events` table (idempotent event recording)
+- `StripeService::constructWebhookEvent()` — verifies `Stripe-Signature` header via Stripe SDK
+- `StripeService::retrieveSubscription()` — retrieves live Stripe subscription object
+- `StripeWebhookService` created — idempotent event recording (UNIQUE on `stripe_event_id`), event routing, mark processed/failed/ignored
+- `checkout.session.completed` handler — validates mode=subscription, retrieves Stripe subscription, activates local `user_subscriptions` (transaction: cancel old, insert new with billing_status mapped), audit-logs, clears entitlement cache
+- `checkout.session.expired` handler — marks local `stripe_checkout_sessions` row as expired
+- `StripeWebhookController` created — reads raw body from `php://input`, verifies signature (400 on failure), calls `StripeWebhookService::handleEvent()`, returns 200
+- `POST /stripe/webhook` route registered in `public/index.php` (before slug catch-all; no CSRF)
+- Admin Ops webhook section expanded: total event count, latest processed timestamp, failed/ignored counts (24 h)
 
 ### Phase 38 — Subscription Lifecycle
 - Handle `customer.subscription.updated` and `customer.subscription.deleted`
@@ -396,13 +409,16 @@ Add a Stripe section to `/admin/ops`:
 | `database/migrations/019_*.php` | `plan_billing_prices` table |
 | `database/migrations/027_*.php` | `users.stripe_customer_id` (Phase 35) |
 | `database/migrations/028_*.php` | `stripe_checkout_sessions` table (Phase 36) |
-| `app/Services/StripeService.php` | Customer + checkout session creation (Phase 35–36) |
+| `database/migrations/029_*.php` | `stripe_webhook_events` table (Phase 37) |
+| `app/Services/StripeService.php` | Customer + checkout session creation + webhook helpers (Phase 35–37) |
+| `app/Services/StripeWebhookService.php` | Webhook event recording, routing, checkout activation (Phase 37) |
 | `app/Services/EntitlementService.php` | Access gating (billing_status gating added in Phase 38) |
 | `app/Services/NotificationService.php` | Transactional email |
 | `app/Services/MailerService.php` | SMTP delivery |
 | `app/Controllers/AccountController.php` | Subscription page, change flow, checkout (Phase 36) |
 | `app/Controllers/PricingController.php` | Pricing page with Stripe-aware buttons (Phase 36) |
-| `app/Controllers/OpsController.php` | Ops page (Stripe section in Phase 35) |
+| `app/Controllers/StripeWebhookController.php` | Webhook endpoint — signature verify, delegate to service (Phase 37) |
+| `app/Controllers/OpsController.php` | Ops page (Stripe section in Phase 35; webhook stats expanded Phase 37) |
 | `app/Controllers/PlanController.php` | Admin billing price mapping |
 | `app/Views/account/subscription.php` | Subscription UI — Subscribe/Request Review buttons (Phase 36) |
 | `app/Views/pricing/index.php` | Pricing page — Subscribe/Request Review buttons (Phase 36) |
