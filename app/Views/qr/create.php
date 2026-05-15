@@ -1,11 +1,15 @@
 <h1>Create a QR Code</h1>
 
 <?php if ($limitReached): ?>
-    <p class="notice">
-        You have reached the <?= (int) $maxQr ?> QR code limit for your plan.
-        Upgrade your plan to create more.
+<div class="card-warn mw-520">
+    <p class="fw-medium mb-2">Active QR code limit reached</p>
+    <p class="text-88">You have reached your plan limit of <?= (int) $maxQr ?> active QR
+    code<?= $maxQr !== 1 ? 's' : '' ?>. Archive an existing QR code to free up capacity, or upgrade your plan to create more.</p>
+    <p class="text-88 mt-3">
+        <a href="/qr?status=active">View active QR codes</a> &bull;
+        <a href="/account/subscription">Subscription</a>
     </p>
-    <p><a href="/qr">&larr; Back to My QR Codes</a></p>
+</div>
 <?php else: ?>
 
 <?php if (!empty($errors)): ?>

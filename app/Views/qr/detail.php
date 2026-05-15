@@ -13,6 +13,18 @@
 </div>
 <?php endif; ?>
 
+<?php if ($qr['status'] === 'archived'): ?>
+<div class="card-note">
+    <strong>Archived</strong> — this QR code is not redirecting and does not count against your active QR code limit.
+    <?php if ($atQuotaLimit): ?>
+    <strong>Restore is unavailable</strong> — you have reached your active QR code limit.
+    Archive another QR code to free up capacity.
+    <?php else: ?>
+    You can restore it to make it active again.
+    <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <div class="qr-layout">
 
     <?php if ($qrPreviewSvg): ?>
@@ -103,10 +115,14 @@
         <button type="submit" class="btn btn-secondary text-muted">Archive</button>
     </form>
     <?php elseif ($qr['status'] === 'archived'): ?>
-    <form method="post" action="/qr/<?= (int) $qr['id'] ?>/restore" class="form-inline">
-        <?= CsrfService::field() ?>
-        <button type="submit" class="btn">Restore</button>
-    </form>
+        <?php if ($atQuotaLimit): ?>
+        <span class="btn-disabled" title="Active QR code limit reached — archive another to restore this one">Restore</span>
+        <?php else: ?>
+        <form method="post" action="/qr/<?= (int) $qr['id'] ?>/restore" class="form-inline">
+            <?= CsrfService::field() ?>
+            <button type="submit" class="btn">Restore</button>
+        </form>
+        <?php endif; ?>
     <?php endif; ?>
 
 </div>

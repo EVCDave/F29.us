@@ -60,9 +60,16 @@ class AccountController
         $stmt->execute([$userId]);
         $requestHistory = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM qr_codes WHERE user_id = ?");
+        $activeQrCount = QrQuotaService::countCountableForUser($userId);
+
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*)
+            FROM   qr_codes    AS qr
+            JOIN   short_links AS sl ON sl.id = qr.short_link_id
+            WHERE  qr.user_id = ? AND sl.status = 'archived'
+        ");
         $stmt->execute([$userId]);
-        $currentQrCount = (int) $stmt->fetchColumn();
+        $archivedQrCount = (int) $stmt->fetchColumn();
 
         EntitlementService::clearCache($userId);
         $entitlements = EntitlementService::getAllForUser($userId);
@@ -79,7 +86,8 @@ class AccountController
             'pendingRequests' => $pendingRequests,
             'pendingPlanIds'  => $pendingPlanIds,
             'requestHistory'  => $requestHistory,
-            'currentQrCount'  => $currentQrCount,
+            'activeQrCount'   => $activeQrCount,
+            'archivedQrCount' => $archivedQrCount,
             'entitlements'    => $entitlements,
             'flash'           => $flash,
         ]);

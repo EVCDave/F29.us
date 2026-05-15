@@ -70,8 +70,8 @@ class QrController
             $this->forbidden('Your plan does not allow QR code creation.');
         }
 
-        $maxQr        = (int) EntitlementService::getValue($userId, 'max_qr_codes', 0);
-        $limitReached = $this->countUserQrCodes($userId) >= $maxQr;
+        $maxQr        = QrQuotaService::maxForUser($userId);
+        $limitReached = !QrQuotaService::canCreateForUser($userId);
 
         View::render('qr/create', [
             'pageTitle'     => 'Create QR Code — f29.us Dynamic QR',
@@ -97,9 +97,9 @@ class QrController
             $this->forbidden('Your plan does not allow QR code creation.');
         }
 
-        $maxQr = (int) EntitlementService::getValue($userId, 'max_qr_codes', 0);
-        if ($this->countUserQrCodes($userId) >= $maxQr) {
-            $this->forbidden("You have reached the {$maxQr} QR code limit for your plan.");
+        $maxQr = QrQuotaService::maxForUser($userId);
+        if (!QrQuotaService::canCreateForUser($userId)) {
+            $this->forbidden('You have reached your plan limit for active QR codes. Archive an existing QR code or upgrade your plan to create more.');
         }
 
         $name       = trim($_POST['name']            ?? '');
@@ -231,6 +231,8 @@ class QrController
         $pdo = Database::get();
         $destinationHistory = DestinationHistoryService::fetchForShortLink($pdo, (int) $qr['short_link_id']);
 
+        $atQuotaLimit = $qr['status'] === 'archived' && !QrQuotaService::canRestoreForUser($userId);
+
         View::render('qr/detail', [
             'pageTitle'          => View::e($qr['name']) . ' — f29.us Dynamic QR',
             'qr'                 => $qr,
@@ -242,6 +244,7 @@ class QrController
             'qrPreviewSvg'       => $qrPreviewSvg,
             'flash'              => $flash,
             'destinationHistory' => $destinationHistory,
+            'atQuotaLimit'       => $atQuotaLimit,
         ]);
     }
 
@@ -514,6 +517,12 @@ class QrController
         $qr = $this->loadOwnedQrCode($qrId, $userId);
 
         if ($qr['status'] !== 'archived') {
+            redirect('/qr/' . $qrId);
+        }
+
+        if (!QrQuotaService::canRestoreForUser($userId)) {
+            $_SESSION['flash'] = ['type' => 'error',
+                'text' => 'This QR code cannot be restored because your active QR code limit has been reached. Archive another QR code to free up capacity.'];
             redirect('/qr/' . $qrId);
         }
 
@@ -816,15 +825,6 @@ class QrController
         }
 
         return $row;
-    }
-
-    private function countUserQrCodes(int $userId): int
-    {
-        $stmt = Database::get()->prepare(
-            "SELECT COUNT(*) FROM qr_codes WHERE user_id = ?"
-        );
-        $stmt->execute([$userId]);
-        return (int) $stmt->fetchColumn();
     }
 
     private function isValidUrl(string $url): bool

@@ -109,14 +109,23 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
 <table class="mw-380 mb-8 text-base">
     <?php if ($maxQr !== null): ?>
     <tr>
-        <th class="col-200 fw-medium">QR Codes</th>
+        <th class="col-200 fw-medium">Active QR usage</th>
         <td>
-            <?= (int) $currentQrCount ?> / <?= View::e((string) $maxQr) ?>
-            <?php if ((int) $currentQrCount >= (int) $maxQr): ?>
+            <?= (int) $activeQrCount ?> / <?= View::e((string) $maxQr) ?>
+            <?php if ((int) $activeQrCount >= (int) $maxQr): ?>
             <span class="text-danger text-82 ml-2">limit reached</span>
             <?php endif; ?>
         </td>
     </tr>
+    <?php if ($archivedQrCount > 0): ?>
+    <tr>
+        <th class="fw-medium">Archived QR codes</th>
+        <td>
+            <?= (int) $archivedQrCount ?>
+            <span class="text-muted-2 text-82 ml-2">do not count toward limit</span>
+        </td>
+    </tr>
+    <?php endif; ?>
     <?php endif; ?>
     <?php if ($analyticsRetain !== null): ?>
     <tr>
