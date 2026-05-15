@@ -11,6 +11,11 @@ $fail = static function (string $msg): string {
     <h1>Operations</h1>
     <a href="/admin" class="back-link">&larr; Admin</a>
 </div>
+
+<?php if ($flash): ?>
+<div class="flash flash-<?= View::e($flash['type']) ?> mb-6"><?= View::e($flash['text']) ?></div>
+<?php endif; ?>
+
 <p class="text-muted-3 mb-8">System health snapshot. Refresh the page to recheck.</p>
 
 <!-- ── Environment ────────────────────────────────────────────────────────── -->
@@ -51,16 +56,22 @@ $fail = static function (string $msg): string {
 
 <!-- ── Mail ───────────────────────────────────────────────────────────────── -->
 <h2 class="mb-3">Mail Configuration</h2>
-<table class="mw-560 mb-8 text-base">
+<p class="text-sm text-muted mb-3">
+    <em>Configured</em> means the app has enough settings to attempt delivery.
+    Use Send Test Email below to confirm SMTP delivery.
+</p>
+<table class="mw-560 mb-4 text-base">
     <tr>
         <th class="col-200">MAIL_ENABLED</th>
         <td><?= $checks['mail_enabled']
-            ? $ok
+            ? '<span class="ops-ok">&#10003; configured</span>'
             : $warn('disabled — transactional emails will not be sent') ?></td>
     </tr>
     <tr>
         <th>PHPMailer present</th>
-        <td><?= $checks['phpmailer_ok'] ? $ok : $fail('missing — vendor/PHPMailer/PHPMailer.php not found') ?></td>
+        <td><?= $checks['phpmailer_ok']
+            ? '<span class="ops-ok">&#10003; present</span>'
+            : $fail('missing — vendor/PHPMailer/PHPMailer.php not found') ?></td>
     </tr>
     <?php if ($checks['mail_enabled']): ?>
     <tr>
@@ -87,6 +98,30 @@ $fail = static function (string $msg): string {
     </tr>
     <?php endif; ?>
 </table>
+
+<!-- ── Send Test Email ─────────────────────────────────────────────────────── -->
+<div class="card-note mw-520 mb-8">
+    <p class="fw-medium mb-3">Send Test Email</p>
+    <form method="post" action="/admin/ops/send-test-email">
+        <?= CsrfService::field() ?>
+        <div class="form-group mb-3">
+            <label for="recipient_email">Recipient</label>
+            <input
+                type="email"
+                id="recipient_email"
+                name="recipient_email"
+                value="<?= View::e($adminEmail) ?>"
+                required
+                autocomplete="off"
+            >
+        </div>
+        <button type="submit" class="btn">Send Test Email</button>
+    </form>
+    <p class="text-2xs text-muted-2 mt-3">
+        This sends a real email using the current SMTP configuration.
+        Delivery failures are logged server-side.
+    </p>
+</div>
 
 <!-- ── Filesystem ─────────────────────────────────────────────────────────── -->
 <h2 class="mb-3">Filesystem</h2>

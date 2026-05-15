@@ -438,6 +438,7 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | GET | `/admin/audit-logs/{id}` | Audit log entry detail with metadata JSON |
 | GET | `/admin/subscriptions` | Subscription history — cross-user, filterable, capped at 100 |
 | GET | `/admin/ops` | System health — PHP version, extensions, DB counters, mail config, login activity |
+| POST | `/admin/ops/send-test-email` | Send a test email to verify SMTP delivery (admin only, CSRF-protected) |
 
 ### Admin — moderation
 
@@ -738,7 +739,7 @@ Admins have access to an internal-only area at `/admin` (yellow **Admin** link i
 | Subscription history | `/admin/subscriptions` | All user subscriptions with filters: user email, plan, status, billing cycle, date range. Capped at 100. Links to user and plan detail. |
 | Audit log list | `/admin/audit-logs` | Browse all audit log entries. Filterable by action, entity type, user email, and date range. Capped at 100. |
 | Audit log detail | `/admin/audit-logs/{id}` | Full audit entry: acting user, entity, action, pretty-printed metadata JSON. Related links to user, plan, or subscription request where applicable. |
-| Operations | `/admin/ops` | System health snapshot: environment, PHP version, extensions (GD, mbstring), filesystem checks, migration count, database counters, login activity (24 h). |
+| Operations | `/admin/ops` | System health snapshot: environment, PHP version, extensions (GD, mbstring), filesystem checks, migration count, database counters, login activity (24 h). Send Test Email form to verify SMTP delivery. |
 
 All admin POST endpoints are CSRF-protected and require the admin role. Non-admins receive a 403. All subscription changes, override operations, and plan catalog changes are written to `audit_logs`.
 
@@ -1114,11 +1115,17 @@ Set `MAIL_ENABLED=true` in `.env` and configure the SMTP variables. When `MAIL_E
 
 ### Ops page
 
-The `/admin/ops` page includes a **Mail Configuration** section showing whether mail is enabled, whether PHPMailer files are present, and the configured SMTP host, from-address, and admin notify address.
+The `/admin/ops` page includes a **Mail Configuration** section showing whether mail is enabled, whether PHPMailer files are present, and the configured SMTP host, from-address, and admin notify address. The section label reads "configured" rather than "ready" to distinguish configuration presence from proven delivery.
+
+A **Send Test Email** form (`POST /admin/ops/send-test-email`) sends a real email through the current SMTP configuration to confirm delivery before enabling payment flows. The form pre-fills the recipient with the current admin user's email. Failure is caught, logged to `storage/logs/error.log`, and reported via flash — no stack trace or SMTP credentials are exposed in the browser. Transactional email is synchronous (no queue).
 
 ---
 
 ## Billing State Model
+
+> **Stripe integration plan:** See [`docs/STRIPE_PLAN.md`](docs/STRIPE_PLAN.md) for the complete
+> Stripe architecture decisions, phased implementation order, required migrations, env vars,
+> webhook events, and entitlement gating behavior.
 
 ### Schema
 

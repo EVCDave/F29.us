@@ -173,7 +173,8 @@ $router->get('/admin/audit-logs/{id}',   [AuditLogController::class, 'detail']);
 $router->get('/admin/subscriptions', [SubscriptionHistoryController::class, 'index']);
 
 // ── Admin: operations ─────────────────────────────────────────────────────────
-$router->get('/admin/ops', [OpsController::class, 'index']);
+$router->get('/admin/ops',                    [OpsController::class, 'index']);
+$router->post('/admin/ops/send-test-email',   [OpsController::class, 'sendTestEmail']);
 
 // ── Admin: moderation ─────────────────────────────────────────────────────────
 // Exact routes before patterns to prevent /admin/moderation/links from
