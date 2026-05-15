@@ -21,6 +21,10 @@ class FeatureKeys
         'can_use_branded_qr_styles' => 'bool',
         'can_export_analytics'      => 'bool',
         'max_team_members'          => 'int',
+        'can_customize_qr_colors'   => 'bool',
+        'can_upload_qr_logo'        => 'bool',
+        'qr_logo_max_size_kb'       => 'int',
+        'qr_logo_max_percent'       => 'int',
     ];
 
     public static function isBuiltin(string $key): bool

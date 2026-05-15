@@ -64,6 +64,7 @@ input[type="datetime-local"] {
     font-size: 0.95rem;
 }
 input:focus { outline: 2px solid #0066cc; border-color: #0066cc; }
+input[type="color"].color-swatch { width: 48px; height: 34px; padding: 2px 3px; cursor: pointer; vertical-align: middle; }
 
 select {
     display: block;

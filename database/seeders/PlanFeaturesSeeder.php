@@ -28,6 +28,10 @@ return [
             ['free_v1', 'can_export_svg',            'false', 'bool'],
             ['free_v1', 'can_pause_links',           'true',  'bool'],
             ['free_v1', 'can_use_custom_slug',       'false', 'bool'],
+            ['free_v1', 'can_customize_qr_colors',   'false', 'bool'],
+            ['free_v1', 'can_upload_qr_logo',        'false', 'bool'],
+            ['free_v1', 'qr_logo_max_size_kb',       '0',     'int'],
+            ['free_v1', 'qr_logo_max_percent',       '0',     'int'],
 
             // ── Starter ──────────────────────────────────────────────────────
             ['starter_v1', 'max_qr_codes',             '50',   'int'],
@@ -40,6 +44,10 @@ return [
             ['starter_v1', 'can_use_custom_slug',      'true', 'bool'],
             ['starter_v1', 'custom_slug_min_length',   '4',   'int'],
             ['starter_v1', 'custom_slug_max_length',   '32',  'int'],
+            ['starter_v1', 'can_customize_qr_colors',  'true',  'bool'],
+            ['starter_v1', 'can_upload_qr_logo',       'false', 'bool'],
+            ['starter_v1', 'qr_logo_max_size_kb',      '0',     'int'],
+            ['starter_v1', 'qr_logo_max_percent',      '0',     'int'],
 
             // ── Pro ──────────────────────────────────────────────────────────
             ['pro_v1', 'max_qr_codes',              '250',  'int'],
@@ -54,6 +62,10 @@ return [
             ['pro_v1', 'custom_slug_max_length',    '32',  'int'],
             ['pro_v1', 'can_use_branded_qr_styles', 'true', 'bool'],
             ['pro_v1', 'can_export_analytics',      'true', 'bool'],
+            ['pro_v1', 'can_customize_qr_colors',   'true',  'bool'],
+            ['pro_v1', 'can_upload_qr_logo',        'true',  'bool'],
+            ['pro_v1', 'qr_logo_max_size_kb',       '250',   'int'],
+            ['pro_v1', 'qr_logo_max_percent',       '20',    'int'],
 
             // ── Team ─────────────────────────────────────────────────────────
             ['team_v1', 'max_qr_codes',              '1000', 'int'],
@@ -69,6 +81,10 @@ return [
             ['team_v1', 'can_use_branded_qr_styles', 'true', 'bool'],
             ['team_v1', 'can_export_analytics',      'true', 'bool'],
             ['team_v1', 'max_team_members',          '10',  'int'],
+            ['team_v1', 'can_customize_qr_colors',   'true',  'bool'],
+            ['team_v1', 'can_upload_qr_logo',        'true',  'bool'],
+            ['team_v1', 'qr_logo_max_size_kb',       '500',   'int'],
+            ['team_v1', 'qr_logo_max_percent',       '25',    'int'],
         ];
 
         $sql = "

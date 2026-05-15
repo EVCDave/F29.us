@@ -137,6 +137,33 @@ All checklist items are manual unless noted otherwise.
 - [ ] SVG download works (no GD required)
 - [ ] Users without `can_export_png = true` receive an entitlement error for PNG
 - [ ] Users without `can_export_svg = true` receive an entitlement error for SVG
+- [ ] PNG and SVG downloads apply the saved custom style (custom foreground/background colors match the in-app preview)
+- [ ] PNG and SVG downloads for QR codes with no custom style use default black-on-white
+
+### QR color customization
+
+**Entitlement gating:**
+- [ ] Free plan user: "Customize QR" button on detail page links to `/qr/{id}/style`; style page shows upgrade warning card
+- [ ] Free plan user: submitting the color form at `/qr/{id}/style` returns 403 (entitlement block)
+- [ ] Starter+ user: style page loads with color picker inputs enabled
+
+**Save colors:**
+- [ ] Saving valid high-contrast colors (e.g. `#0000FF` foreground on `#FFFFFF` background) succeeds; flash "QR style saved"
+- [ ] Detail page preview updates to reflect the new custom colors after save
+- [ ] PNG and SVG downloads reflect the new custom colors after save
+- [ ] Saving identical foreground and background colors shows validation error: "colors must be different"
+- [ ] Saving low-contrast color pair shows validation error about contrast
+- [ ] Saving an invalid hex value (e.g. `#ZZZZZZ`) shows validation error
+- [ ] After a validation error, page re-renders with submitted values pre-filled in the color inputs
+
+**Reset to default:**
+- [ ] "Reset to Default" button appears only when a custom style is saved (`is_custom = true`)
+- [ ] Clicking Reset to Default removes the custom style; preview reverts to black-on-white
+- [ ] "Reset to Default" button is absent on a QR with no custom style
+
+**Audit log:**
+- [ ] `style_updated` audit entry created when colors are saved (includes foreground and background)
+- [ ] `style_reset` audit entry created when reset to default
 
 ---
 

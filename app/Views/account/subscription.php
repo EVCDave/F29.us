@@ -10,6 +10,10 @@ $displayFeatures = [
     'can_use_custom_slug'      => 'Custom Short Links',
     'can_pause_links'          => 'Pause Links',
     'can_export_analytics'     => 'Export Analytics',
+    'can_customize_qr_colors'  => 'Custom QR Colors',
+    'can_upload_qr_logo'       => 'QR Logo Upload',
+    'qr_logo_max_size_kb'      => 'Logo Max Size',
+    'qr_logo_max_percent'      => 'Logo Coverage',
 ];
 
 $fv = static function (array $planFeatures, string $key): string {
@@ -21,6 +25,13 @@ $fv = static function (array $planFeatures, string $key): string {
         return $f['feature_value'] === 'true'
             ? '<span class="text-success">&#10003;</span>'
             : '<span class="text-faint">—</span>';
+    }
+    $v = (int) $f['feature_value'];
+    if ($key === 'qr_logo_max_size_kb') {
+        return $v > 0 ? View::e((string) $v) . ' KB' : '<span class="text-faint">—</span>';
+    }
+    if ($key === 'qr_logo_max_percent') {
+        return $v > 0 ? View::e((string) $v) . '%' : '<span class="text-faint">—</span>';
     }
     return View::e($f['feature_value']);
 };
@@ -257,7 +268,12 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
     <tbody>
     <?php foreach ($displayFeatures as $key => $label): ?>
     <tr>
-        <td class="text-sm"><?= View::e($label) ?></td>
+        <td class="text-sm">
+            <?= View::e($label) ?>
+            <?php if ($key === 'can_upload_qr_logo'): ?>
+            <span class="text-2xs text-muted-2 ml-1">coming soon</span>
+            <?php endif; ?>
+        </td>
         <?php foreach ($plans as $p): ?>
         <td class="text-center text-88">
             <?= $fv($features[(int) $p['id']] ?? [], $key) ?>

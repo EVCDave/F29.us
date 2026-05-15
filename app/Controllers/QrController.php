@@ -218,11 +218,13 @@ class QrController
         $flash = $_SESSION['flash'] ?? null;
         unset($_SESSION['flash']);
 
+        $style = QrStyleService::getForQr((int) $qr['id']);
+
         // SVG preview is always generated for in-app display (not an export)
         $qrPreviewSvg = null;
         try {
             $qrPreviewSvg = base64_encode(
-                QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'])
+                QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'], 300, $style)
             );
         } catch (Throwable) {
             // Preview is best-effort; missing preview does not fail the page
@@ -241,6 +243,7 @@ class QrController
             'canPauseLinks'      => EntitlementService::isEnabled($userId, 'can_pause_links'),
             'canExportPng'       => EntitlementService::isEnabled($userId, 'can_export_png'),
             'canExportSvg'       => EntitlementService::isEnabled($userId, 'can_export_svg'),
+            'canCustomizeQr'     => EntitlementService::isEnabled($userId, 'can_customize_qr_colors'),
             'qrPreviewSvg'       => $qrPreviewSvg,
             'flash'              => $flash,
             'destinationHistory' => $destinationHistory,
@@ -647,7 +650,8 @@ class QrController
         }
 
         try {
-            $data = QrCodeService::generatePng($this->qrBaseUrl() . '/' . $qr['slug']);
+            $style = QrStyleService::getForQr((int) $qr['id']);
+            $data  = QrCodeService::generatePng($this->qrBaseUrl() . '/' . $qr['slug'], 300, $style);
         } catch (Throwable $e) {
             error_log('QR PNG generation failed: ' . $e->getMessage());
             $this->forbidden('PNG download is temporarily unavailable. Please try again later.');
@@ -675,7 +679,8 @@ class QrController
         }
 
         try {
-            $data = QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug']);
+            $style = QrStyleService::getForQr((int) $qr['id']);
+            $data  = QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'], 300, $style);
         } catch (Throwable $e) {
             error_log('QR SVG generation failed: ' . $e->getMessage());
             $this->forbidden('SVG download is temporarily unavailable. Please try again later.');
@@ -791,6 +796,132 @@ class QrController
 
         fclose($out);
         exit;
+    }
+
+    // ── Style ─────────────────────────────────────────────────────────────────
+
+    public function stylePage(array $params = []): void
+    {
+        AuthService::requireAuth();
+        $userId = (int) AuthService::userId();
+        $qrId   = (int) ($params['id'] ?? 0);
+
+        $qr           = $this->loadOwnedQrCode($qrId, $userId);
+        $canCustomize = EntitlementService::isEnabled($userId, 'can_customize_qr_colors');
+        $style        = QrStyleService::getForQr($qrId);
+
+        $flash = $_SESSION['flash'] ?? null;
+        unset($_SESSION['flash']);
+
+        $qrPreviewSvg = null;
+        try {
+            $qrPreviewSvg = base64_encode(
+                QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'], 200, $style)
+            );
+        } catch (Throwable) {}
+
+        View::render('qr/style', [
+            'pageTitle'    => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
+            'qr'           => $qr,
+            'style'        => $style,
+            'canCustomize' => $canCustomize,
+            'qrPreviewSvg' => $qrPreviewSvg,
+            'flash'        => $flash,
+            'errors'       => [],
+        ]);
+    }
+
+    public function styleSubmit(array $params = []): void
+    {
+        CsrfService::requireValid();
+        AuthService::requireAuth();
+        $userId = (int) AuthService::userId();
+        $qrId   = (int) ($params['id'] ?? 0);
+
+        $qr = $this->loadOwnedQrCode($qrId, $userId);
+
+        if (!EntitlementService::isEnabled($userId, 'can_customize_qr_colors')) {
+            $this->forbidden('QR color customization is not available on your plan.');
+        }
+
+        $foreground = trim($_POST['foreground_color'] ?? '');
+        $background = trim($_POST['background_color'] ?? '');
+
+        $errors = QrStyleService::validateColors($foreground, $background);
+
+        if (!empty($errors)) {
+            $style = QrStyleService::getForQr($qrId);
+
+            $qrPreviewSvg = null;
+            try {
+                $qrPreviewSvg = base64_encode(
+                    QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'], 200, $style)
+                );
+            } catch (Throwable) {}
+
+            View::render('qr/style', [
+                'pageTitle'    => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
+                'qr'           => $qr,
+                'style'        => array_merge($style, [
+                    'foreground_color' => $foreground,
+                    'background_color' => $background,
+                ]),
+                'canCustomize' => true,
+                'qrPreviewSvg' => $qrPreviewSvg,
+                'flash'        => null,
+                'errors'       => $errors,
+            ]);
+            return;
+        }
+
+        $fg = QrStyleService::normalizeHexColor($foreground);
+        $bg = QrStyleService::normalizeHexColor($background);
+
+        $oldStyle = QrStyleService::getForQr($qrId);
+
+        QrStyleService::saveColors($qrId, $fg, $bg);
+
+        AuditLogService::log($userId, 'qr_code', $qrId, 'style_updated', [
+            'old_foreground_color'       => $oldStyle['foreground_color'],
+            'new_foreground_color'       => $fg,
+            'old_background_color'       => $oldStyle['background_color'],
+            'new_background_color'       => $bg,
+            'old_error_correction_level' => $oldStyle['error_correction_level'],
+            'new_error_correction_level' => 'Q',
+        ]);
+
+        $_SESSION['flash'] = ['type' => 'success', 'text' => 'QR style saved.'];
+        redirect('/qr/' . $qrId . '/style');
+    }
+
+    public function styleReset(array $params = []): void
+    {
+        CsrfService::requireValid();
+        AuthService::requireAuth();
+        $userId = (int) AuthService::userId();
+        $qrId   = (int) ($params['id'] ?? 0);
+
+        $this->loadOwnedQrCode($qrId, $userId);
+
+        if (!EntitlementService::isEnabled($userId, 'can_customize_qr_colors')) {
+            $this->forbidden('QR color customization is not available on your plan.');
+        }
+
+        $oldStyle = QrStyleService::getForQr($qrId);
+
+        QrStyleService::reset($qrId);
+
+        AuditLogService::log($userId, 'qr_code', $qrId, 'style_reset', [
+            'old_foreground_color'       => $oldStyle['foreground_color'],
+            'new_foreground_color'       => '#000000',
+            'old_background_color'       => $oldStyle['background_color'],
+            'new_background_color'       => '#FFFFFF',
+            'old_error_correction_level' => $oldStyle['error_correction_level'],
+            'new_error_correction_level' => 'M',
+        ]);
+
+        $_SESSION['flash'] = ['type' => 'info', 'text' => 'QR style reset to default.'];
+        redirect('/qr/' . $qrId . '/style');
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
