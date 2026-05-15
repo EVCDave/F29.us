@@ -1,3 +1,4 @@
+<?php $lastUpdated = 'May 15, 2026'; ?>
 <div class="mw-720">
 
 <h1>Acceptable Use Policy</h1>
@@ -7,7 +8,7 @@
     It should be reviewed and updated before wider public launch.
 </div>
 
-<p class="text-sm text-muted mb-7">Last updated: <?= date('F j, Y') ?></p>
+<p class="text-sm text-muted mb-7">Last updated: <?= View::e($lastUpdated) ?></p>
 
 <h2>1. Overview</h2>
 <p>This Acceptable Use Policy ("AUP") describes what you may and may not do with the f29.us Dynamic QR
@@ -15,7 +16,7 @@ Service. It applies to all users. Violations may result in link disabling, accou
 permanent termination.</p>
 
 <h2>2. Prohibited Destinations and Content</h2>
-<p>You must not use f29.us short links or QR codes to direct users to content or services that:</p>
+<p>You must not use f29.us short links, QR codes, or uploaded branding assets (including QR logo images) to direct users to, or to represent, content or services that:</p>
 
 <ul class="ul-content">
     <li><strong>Phishing</strong> — impersonate websites, services, or individuals to steal credentials or personal information</li>
@@ -28,6 +29,7 @@ permanent termination.</p>
     <li><strong>Illegal content</strong> — link to content that violates applicable laws, including but not limited to child sexual abuse material, content that facilitates violence, or content that infringes copyright or other intellectual property rights</li>
     <li><strong>Fraud</strong> — facilitate financial fraud, scams, or deceptive commercial practices</li>
     <li><strong>Sanctions evasion</strong> — circumvent legal sanctions or export controls</li>
+    <li><strong>Infringing branding</strong> — upload logo or image assets that infringe intellectual property rights, impersonate another organization or brand, contain illegal or abusive content, or are used deceptively</li>
 </ul>
 
 <h2>3. Prohibited Platform Behavior</h2>
