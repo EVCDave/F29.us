@@ -1,19 +1,19 @@
-<div style="max-width:480px;margin:3rem auto;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:2rem 2.5rem;text-align:center">
+<div class="verify-card">
 
 <?php if ($success): ?>
-    <div style="font-size:2.5rem;margin-bottom:1rem">&#10003;</div>
-    <h1 style="font-size:1.5rem;margin-bottom:0.75rem">Email verified</h1>
+    <div class="verify-icon">&#10003;</div>
+    <h1 class="verify-h1">Email verified</h1>
     <?php if ($purpose === 'email_change'): ?>
-        <p style="color:#444;margin-bottom:1.5rem">Your email address has been updated successfully.</p>
+        <p class="verify-p">Your email address has been updated successfully.</p>
     <?php else: ?>
-        <p style="color:#444;margin-bottom:1.5rem">Your email address has been verified. Thank you!</p>
+        <p class="verify-p">Your email address has been verified. Thank you!</p>
     <?php endif; ?>
     <a href="/dashboard" class="btn">Go to Dashboard</a>
 
 <?php else: ?>
-    <div style="font-size:2.5rem;margin-bottom:1rem;color:#991b1b">&#10007;</div>
-    <h1 style="font-size:1.5rem;margin-bottom:0.75rem">Verification failed</h1>
-    <p style="color:#444;margin-bottom:1.5rem"><?= View::e($message) ?></p>
+    <div class="verify-icon verify-icon--fail">&#10007;</div>
+    <h1 class="verify-h1">Verification failed</h1>
+    <p class="verify-p"><?= View::e($message) ?></p>
 
     <?php if (AuthService::isLoggedIn()): ?>
         <a href="/account/verify-email" class="btn">Request new link</a>

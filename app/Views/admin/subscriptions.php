@@ -1,23 +1,19 @@
-<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1rem">
+<div class="page-header">
     <h1>Subscription History</h1>
-    <a href="/admin" style="color:#666;font-size:0.9rem">&larr; Admin</a>
+    <a href="/admin" class="back-link">&larr; Admin</a>
 </div>
 
 <!-- ── Filters ─────────────────────────────────────────────────────────────── -->
-<form method="get" action="/admin/subscriptions"
-      style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:1rem;
-             max-width:900px;margin-bottom:1.5rem">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.75rem;margin-bottom:0.75rem">
+<form method="get" action="/admin/subscriptions" class="filter-panel mw-860">
+    <div class="filter-panel-grid">
         <div>
-            <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.2rem">User Email</label>
+            <label class="filter-label">User Email</label>
             <input type="text" name="user_email" value="<?= View::e($userEmail) ?>"
-                   placeholder="partial match"
-                   style="width:100%;padding:0.3rem 0.5rem;border:1px solid #ccc;border-radius:4px;font-size:0.85rem">
+                   placeholder="partial match" class="filter-input">
         </div>
         <div>
-            <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.2rem">Plan</label>
-            <select name="plan_id"
-                    style="width:100%;padding:0.3rem 0.5rem;border:1px solid #ccc;border-radius:4px;font-size:0.85rem">
+            <label class="filter-label">Plan</label>
+            <select name="plan_id" class="filter-input">
                 <option value="0">All plans</option>
                 <?php foreach ($plans as $p): ?>
                 <option value="<?= (int) $p['id'] ?>"<?= $planId === (int) $p['id'] ? ' selected' : '' ?>>
@@ -27,9 +23,8 @@
             </select>
         </div>
         <div>
-            <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.2rem">Status</label>
-            <select name="status"
-                    style="width:100%;padding:0.3rem 0.5rem;border:1px solid #ccc;border-radius:4px;font-size:0.85rem">
+            <label class="filter-label">Status</label>
+            <select name="status" class="filter-input">
                 <option value="">Any</option>
                 <?php foreach (['active', 'canceled', 'expired'] as $s): ?>
                 <option value="<?= $s ?>"<?= $status === $s ? ' selected' : '' ?>><?= $s ?></option>
@@ -37,9 +32,8 @@
             </select>
         </div>
         <div>
-            <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.2rem">Billing Cycle</label>
-            <select name="billing_cycle"
-                    style="width:100%;padding:0.3rem 0.5rem;border:1px solid #ccc;border-radius:4px;font-size:0.85rem">
+            <label class="filter-label">Billing Cycle</label>
+            <select name="billing_cycle" class="filter-input">
                 <option value="">Any</option>
                 <?php foreach (['monthly', 'yearly', 'manual', 'free'] as $cy): ?>
                 <option value="<?= $cy ?>"<?= $billingCycle === $cy ? ' selected' : '' ?>><?= $cy ?></option>
@@ -47,80 +41,70 @@
             </select>
         </div>
         <div>
-            <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.2rem">Started From</label>
-            <input type="date" name="date_from" value="<?= View::e($dateFrom) ?>"
-                   style="width:100%;padding:0.3rem 0.5rem;border:1px solid #ccc;border-radius:4px;font-size:0.85rem">
+            <label class="filter-label">Started From</label>
+            <input type="date" name="date_from" value="<?= View::e($dateFrom) ?>" class="filter-input">
         </div>
         <div>
-            <label style="display:block;font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.2rem">Started To</label>
-            <input type="date" name="date_to" value="<?= View::e($dateTo) ?>"
-                   style="width:100%;padding:0.3rem 0.5rem;border:1px solid #ccc;border-radius:4px;font-size:0.85rem">
+            <label class="filter-label">Started To</label>
+            <input type="date" name="date_to" value="<?= View::e($dateTo) ?>" class="filter-input">
         </div>
     </div>
-    <div style="display:flex;gap:0.5rem">
-        <button type="submit" class="btn" style="padding:0.3rem 0.9rem;font-size:0.85rem">Filter</button>
-        <a href="/admin/subscriptions" class="btn btn-secondary" style="padding:0.3rem 0.9rem;font-size:0.85rem">Clear</a>
+    <div class="filter-actions">
+        <button type="submit" class="btn btn-sm">Filter</button>
+        <a href="/admin/subscriptions" class="btn btn-secondary btn-sm">Clear</a>
     </div>
 </form>
 
 <!-- ── Results ─────────────────────────────────────────────────────────────── -->
 <?php if (empty($subscriptions)): ?>
-<p style="color:#888">No subscriptions found.</p>
+<p class="text-muted-2">No subscriptions found.</p>
 <?php else: ?>
-<p style="color:#888;font-size:0.85rem;margin-bottom:0.75rem">
+<p class="text-muted-2 text-sm mb-3">
     Showing <?= count($subscriptions) ?> subscription<?= count($subscriptions) === 1 ? '' : 's' ?><?= count($subscriptions) >= 100 ? ' (capped at 100)' : '' ?>.
 </p>
-<div style="overflow-x:auto">
-<table style="min-width:820px">
+<div class="scroll-x">
+<table class="min-w-820">
     <thead>
         <tr>
-            <th style="width:55px">ID</th>
+            <th class="col-55">ID</th>
             <th>User</th>
             <th>Plan</th>
-            <th style="width:80px">Status</th>
-            <th style="width:100px">Billing State</th>
-            <th style="width:75px">Cycle</th>
-            <th style="width:100px">Started</th>
-            <th style="width:100px">Canceled</th>
-            <th style="width:100px">Ends At</th>
-            <th style="width:70px">GF'd</th>
+            <th class="col-80">Status</th>
+            <th class="col-100">Billing State</th>
+            <th class="col-75">Cycle</th>
+            <th class="col-100">Started</th>
+            <th class="col-100">Canceled</th>
+            <th class="col-100">Ends At</th>
+            <th class="col-70">GF'd</th>
         </tr>
     </thead>
     <tbody>
     <?php foreach ($subscriptions as $s): ?>
-    <?php
-    $statusColors = [
-        'active'   => 'color:#166534;font-weight:500',
-        'canceled' => 'color:#6b7280',
-        'expired'  => 'color:#991b1b',
-    ];
-    $statusStyle = $statusColors[$s['status']] ?? '';
-    ?>
     <tr>
-        <td style="color:#6b7280;font-size:0.83rem"><?= (int) $s['id'] ?></td>
-        <td style="font-size:0.85rem">
+        <td class="text-muted text-83"><?= (int) $s['id'] ?></td>
+        <td class="text-sm">
             <a href="/admin/users/<?= (int) $s['user_id'] ?>"><?= View::e($s['user_email']) ?></a>
         </td>
-        <td style="font-size:0.85rem">
+        <td class="text-sm">
             <a href="/admin/plans/<?= (int) $s['plan_id'] ?>"><?= View::e($s['plan_display_name']) ?></a>
-            <span style="color:#9ca3af;font-size:0.78rem">(<?= View::e($s['plan_internal_name']) ?>)</span>
+            <span class="text-faint text-xs">(<?= View::e($s['plan_internal_name']) ?>)</span>
         </td>
-        <td style="font-size:0.83rem;<?= $statusStyle ?>"><?= View::e($s['status']) ?></td>
-        <td style="font-size:0.83rem;color:#6b7280">
+        <td class="text-83 status-<?= View::e($s['status']) ?>"><?= View::e($s['status']) ?></td>
+        <td class="text-83 text-muted">
             <?= ($s['billing_status'] ?? 'not_applicable') !== 'not_applicable'
                 ? View::e($s['billing_status'])
-                : '<span style="color:#d1d5db">—</span>' ?>
+                : '<span class="text-dim">—</span>' ?>
         </td>
-        <td style="font-size:0.83rem;color:#6b7280"><?= View::e($s['billing_cycle']) ?></td>
-        <td style="font-size:0.83rem;color:#6b7280;white-space:nowrap"><?= View::e(substr($s['started_at'], 0, 10)) ?></td>
-        <td style="font-size:0.83rem;color:#6b7280;white-space:nowrap">
-            <?= $s['canceled_at'] ? View::e(substr($s['canceled_at'], 0, 10)) : '<span style="color:#d1d5db">—</span>' ?>
+        <td class="text-83 text-muted"><?= View::e($s['billing_cycle']) ?></td>
+        <td class="text-83 text-muted nowrap"><?= View::e(substr($s['started_at'], 0, 10)) ?></td>
+        <td class="text-83 text-muted nowrap">
+            <?= $s['canceled_at'] ? View::e(substr($s['canceled_at'], 0, 10)) : '<span class="text-dim">—</span>' ?>
         </td>
-        <td style="font-size:0.83rem;color:#6b7280;white-space:nowrap">
-            <?= $s['ends_at'] ? View::e(substr($s['ends_at'], 0, 10)) : '<span style="color:#d1d5db">—</span>' ?>
+        <td class="text-83 text-muted nowrap">
+            <?= $s['ends_at'] ? View::e(substr($s['ends_at'], 0, 10)) : '<span class="text-dim">—</span>' ?>
         </td>
-        <td style="font-size:0.83rem;color:#6b7280;text-align:center">
-            <?= $s['grandfathered_at'] ? '<span style="color:#166534">&#10003;</span>' : '<span style="color:#d1d5db">—</span>' ?>
+        <td class="text-83 text-muted text-center">
+            <?= $s['grandfathered_at'] ? '<span class="text-success">&#10003;</span>' : '<span class="text-dim">—</span>' ?>
         </td>
     </tr>
     <?php endforeach; ?>

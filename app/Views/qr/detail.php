@@ -1,58 +1,50 @@
-<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:1rem">
+<div class="page-header page-header-lg">
     <h1><?= View::e($qr['name']) ?></h1>
-    <a href="/qr" style="color:#666;font-size:0.9rem">&larr; My QR Codes</a>
+    <a href="/qr" class="back-link">&larr; My QR Codes</a>
 </div>
 
 <?php if ($flash): ?>
-<div class="notice" style="display:block;margin-bottom:1.25rem;
-    <?= $flash['type'] === 'error'   ? 'background:#fef2f2;border-color:#fca5a5;color:#991b1b;' : '' ?>
-    <?= $flash['type'] === 'success' ? 'background:#f0fdf4;border-color:#86efac;color:#166534;' : '' ?>
-    <?= $flash['type'] === 'info'    ? 'background:#eff6ff;border-color:#93c5fd;color:#1e40af;' : '' ?>">
-    <?= View::e($flash['text']) ?>
-</div>
+<div class="flash flash-<?= View::e($flash['type']) ?>"><?= View::e($flash['text']) ?></div>
 <?php endif; ?>
 
 <?php if ($qr['status'] === 'disabled'): ?>
-<div style="background:#fef2f2;border:1px solid #fca5a5;color:#991b1b;border-radius:4px;padding:0.7rem 1rem;margin-bottom:1.5rem;font-size:0.9rem">
+<div class="flash flash-error">
     This QR code has been disabled by an administrator and will not redirect. Contact support if you believe this is an error.
 </div>
 <?php endif; ?>
 
-<div style="display:flex;gap:2rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:2rem">
+<div class="qr-layout">
 
-    <!-- QR preview -->
     <?php if ($qrPreviewSvg): ?>
-    <div style="flex-shrink:0">
+    <div class="qr-preview">
         <img
             src="data:image/svg+xml;base64,<?= $qrPreviewSvg ?>"
             alt="QR code for <?= View::e($qr['name']) ?>"
-            style="width:160px;height:160px;border:1px solid #e5e7eb;border-radius:6px;padding:8px;background:#fff;display:block"
+            class="qr-img"
         >
     </div>
     <?php endif; ?>
 
-    <!-- Details table -->
-    <div style="flex:1;min-width:280px">
-        <table style="margin-bottom:0">
+    <div class="qr-info">
+        <table class="mb-0">
             <tr>
-                <th style="width:140px">Short URL</th>
+                <th class="col-140">Short URL</th>
                 <td>
                     <span id="short-url-text"><?= View::e($shortUrl) ?></span>
                     <button
                         type="button"
-                        onclick="navigator.clipboard.writeText(document.getElementById('short-url-text').textContent).then(function(){var b=document.getElementById('copy-btn');b.textContent='Copied!';setTimeout(function(){b.textContent='Copy';},1800);})"
+                        data-copy-target="short-url-text"
                         id="copy-btn"
-                        style="margin-left:0.5rem;font-size:0.78rem;padding:0.15rem 0.5rem;border:1px solid #c0c0cc;border-radius:3px;background:#f9fafb;color:#374151;cursor:pointer"
+                        class="copy-btn"
                     >Copy</button>
-                    <a href="<?= View::e($shortUrl) ?>" target="_blank" style="margin-left:0.5rem;font-size:0.82rem;color:#0066cc">&nearr;</a>
-                    <small style="display:block;color:#888;margin-top:0.15rem">slug: <?= View::e($qr['slug']) ?></small>
+                    <a href="<?= View::e($shortUrl) ?>" target="_blank" class="ml-2 text-82">&nearr;</a>
+                    <small class="d-block text-muted-2 mt-1">slug: <?= View::e($qr['slug']) ?></small>
                 </td>
             </tr>
             <tr>
                 <th>Destination</th>
                 <td>
-                    <a href="<?= View::e($qr['current_target_url']) ?>" target="_blank"
-                       style="word-break:break-all">
+                    <a href="<?= View::e($qr['current_target_url']) ?>" target="_blank" class="word-break">
                         <?= View::e($qr['current_target_url']) ?>
                     </a>
                 </td>
@@ -61,12 +53,10 @@
                 <th>Status</th>
                 <td>
                     <span class="status-<?= View::e($qr['status']) ?>"><?= View::e(ucfirst($qr['status'])) ?></span>
-                    <?php if ($qr['status'] === 'paused'): ?>
-                    <span style="font-size:0.8rem;color:#888;margin-left:0.5rem">— scans show an unavailable page</span>
-                    <?php elseif ($qr['status'] === 'archived'): ?>
-                    <span style="font-size:0.8rem;color:#888;margin-left:0.5rem">— scans show an unavailable page</span>
+                    <?php if (in_array($qr['status'], ['paused', 'archived'], true)): ?>
+                    <span class="text-2xs text-muted-2 ml-2">— scans show an unavailable page</span>
                     <?php elseif ($qr['status'] === 'disabled'): ?>
-                    <span style="font-size:0.8rem;color:#888;margin-left:0.5rem">— contact support</span>
+                    <span class="text-2xs text-muted-2 ml-2">— contact support</span>
                     <?php endif; ?>
                 </td>
             </tr>
@@ -83,7 +73,7 @@
 
 </div>
 
-<h2 style="margin-bottom:0.75rem">Actions</h2>
+<h2 class="mb-3">Actions</h2>
 <div class="actions-group">
 
     <a href="/qr/<?= (int) $qr['id'] ?>/analytics" class="btn btn-secondary">Analytics</a>
@@ -93,12 +83,12 @@
     <?php endif; ?>
 
     <?php if ($canPauseLinks && $qr['status'] === 'active'): ?>
-    <form method="post" action="/qr/<?= (int) $qr['id'] ?>/pause" style="display:inline">
+    <form method="post" action="/qr/<?= (int) $qr['id'] ?>/pause" class="form-inline">
         <?= CsrfService::field() ?>
         <button type="submit" class="btn btn-secondary">Pause</button>
     </form>
     <?php elseif ($canPauseLinks && $qr['status'] === 'paused'): ?>
-    <form method="post" action="/qr/<?= (int) $qr['id'] ?>/resume" style="display:inline">
+    <form method="post" action="/qr/<?= (int) $qr['id'] ?>/resume" class="form-inline">
         <?= CsrfService::field() ?>
         <button type="submit" class="btn">Resume</button>
     </form>
@@ -107,13 +97,13 @@
     <?php endif; ?>
 
     <?php if (in_array($qr['status'], ['active', 'paused'], true)): ?>
-    <form method="post" action="/qr/<?= (int) $qr['id'] ?>/archive" style="display:inline"
-          onsubmit="return confirm('Archive this QR code? It will stop redirecting until restored.')">
+    <form method="post" action="/qr/<?= (int) $qr['id'] ?>/archive" class="form-inline"
+          data-confirm="Archive this QR code? It will stop redirecting until restored.">
         <?= CsrfService::field() ?>
-        <button type="submit" class="btn btn-secondary" style="color:#6b7280">Archive</button>
+        <button type="submit" class="btn btn-secondary text-muted">Archive</button>
     </form>
     <?php elseif ($qr['status'] === 'archived'): ?>
-    <form method="post" action="/qr/<?= (int) $qr['id'] ?>/restore" style="display:inline">
+    <form method="post" action="/qr/<?= (int) $qr['id'] ?>/restore" class="form-inline">
         <?= CsrfService::field() ?>
         <button type="submit" class="btn">Restore</button>
     </form>
@@ -121,7 +111,7 @@
 
 </div>
 
-<h2 style="margin-bottom:0.75rem">Downloads</h2>
+<h2 class="mb-3">Downloads</h2>
 <div class="actions-group">
 
     <?php if ($canExportPng): ?>
@@ -137,12 +127,12 @@
     <?php endif; ?>
 
 </div>
-<p style="font-size:0.8rem;color:#888;margin-top:0.5rem">
+<p class="text-2xs text-muted-2 mt-2">
     QR code encodes: <code><?= View::e($shortUrl) ?></code>
 </p>
 
 <!-- ── Destination history ─────────────────────────────────────────────────── -->
-<h2 style="margin-top:2rem;margin-bottom:0.75rem">Destination History</h2>
+<h2 class="mt-8 mb-3">Destination History</h2>
 <?php
 $canRestore = !in_array($qr['status'], ['archived', 'disabled'], true);
 $sourceLabels = [
@@ -152,35 +142,35 @@ $sourceLabels = [
 ];
 ?>
 <?php if (empty($destinationHistory)): ?>
-<p style="color:#888;font-size:0.9rem">No destination history recorded yet.</p>
+<p class="text-muted-2 text-base">No destination history recorded yet.</p>
 <?php else: ?>
-<table style="font-size:0.85rem">
+<table class="text-85">
     <thead>
         <tr>
-            <th style="width:140px">When</th>
-            <th style="width:90px">Source</th>
-            <th style="width:160px">Changed by</th>
+            <th class="col-140">When</th>
+            <th class="col-90">Source</th>
+            <th class="col-160">Changed by</th>
             <th>Previous destination</th>
             <th>New destination</th>
-            <?php if ($canRestore): ?><th style="width:80px"></th><?php endif; ?>
+            <?php if ($canRestore): ?><th class="col-80"></th><?php endif; ?>
         </tr>
     </thead>
     <tbody>
     <?php foreach ($destinationHistory as $h): ?>
         <tr>
-            <td style="white-space:nowrap;color:#6b7280"><?= View::e($h['created_at']) ?></td>
+            <td class="nowrap text-muted"><?= View::e($h['created_at']) ?></td>
             <td><?= View::e($sourceLabels[$h['change_source']] ?? $h['change_source']) ?></td>
-            <td style="color:#6b7280">
+            <td class="text-muted">
                 <?= $h['changed_by_email'] !== null
                     ? View::e($h['changed_by_email'])
-                    : '<span style="color:#9ca3af">system</span>' ?>
+                    : '<span class="text-faint">system</span>' ?>
             </td>
-            <td style="word-break:break-all;color:#9ca3af">
+            <td class="word-break text-faint">
                 <?= $h['old_target_url'] !== null
-                    ? '<a href="' . View::e($h['old_target_url']) . '" target="_blank" style="color:#9ca3af">' . View::e($h['old_target_url']) . '</a>'
+                    ? '<a href="' . View::e($h['old_target_url']) . '" target="_blank" class="text-faint">' . View::e($h['old_target_url']) . '</a>'
                     : '—' ?>
             </td>
-            <td style="word-break:break-all">
+            <td class="word-break">
                 <a href="<?= View::e($h['new_target_url']) ?>" target="_blank">
                     <?= View::e($h['new_target_url']) ?>
                 </a>
@@ -190,17 +180,13 @@ $sourceLabels = [
                 <?php if ($h['new_target_url'] !== $qr['current_target_url']): ?>
                 <form method="post"
                       action="/qr/<?= (int) $qr['id'] ?>/destination-history/<?= (int) $h['id'] ?>/restore"
-                      style="display:inline">
+                      class="form-inline"
+                      data-confirm="Restore this destination? The current one will be replaced.">
                     <?= CsrfService::field() ?>
-                    <button type="submit"
-                            class="btn btn-secondary"
-                            style="font-size:0.78rem;padding:0.2rem 0.6rem"
-                            onclick="return confirm('Restore this destination? The current one will be replaced.')">
-                        Restore
-                    </button>
+                    <button type="submit" class="btn btn-secondary btn-xs">Restore</button>
                 </form>
                 <?php else: ?>
-                <span style="font-size:0.78rem;color:#9ca3af">Current</span>
+                <span class="text-xs text-faint">Current</span>
                 <?php endif; ?>
             </td>
             <?php endif; ?>

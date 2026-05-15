@@ -12,36 +12,36 @@ $displayFeatures = [
 
 $fv = static function (array $planFeatures, string $key): string {
     if (!isset($planFeatures[$key])) {
-        return '<span style="color:#9ca3af">—</span>';
+        return '<span class="text-faint">—</span>';
     }
     $f = $planFeatures[$key];
     if ($f['value_type'] === 'bool') {
         return $f['feature_value'] === 'true'
-            ? '<span style="color:#166534">&#10003;</span>'
-            : '<span style="color:#9ca3af">—</span>';
+            ? '<span class="text-success">&#10003;</span>'
+            : '<span class="text-faint">—</span>';
     }
     return View::e($f['feature_value']);
 };
 ?>
-<h1 style="margin-bottom:0.4rem">Pricing</h1>
-<p style="margin-bottom:0.5rem">Simple, transparent plans for every use case.</p>
-<p style="font-size:0.85rem;color:#6b7280;margin-bottom:2rem">
+<h1 class="mb-2">Pricing</h1>
+<p class="mb-2">Simple, transparent plans for every use case.</p>
+<p class="text-sm text-muted mb-8">
     Paid plan requests are reviewed manually. Online billing is not yet enabled.
 </p>
 
 <?php if (empty($plans)): ?>
-<p style="color:#888">No plans are currently available. Check back soon.</p>
+<p class="text-muted-2">No plans are currently available. Check back soon.</p>
 <?php else: ?>
 
-<div style="overflow-x:auto">
-<table style="min-width:560px;margin-bottom:1rem">
+<div class="scroll-x">
+<table class="min-w-560 mb-4">
     <thead>
         <tr>
-            <th style="width:180px;font-size:0.85rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.04em">Feature</th>
+            <th class="col-180 text-85 text-muted">Feature</th>
             <?php foreach ($plans as $p): ?>
-            <th style="text-align:center;min-width:130px">
-                <div style="font-size:1.05rem;font-weight:700"><?= View::e($p['display_name']) ?></div>
-                <div style="font-size:0.8rem;color:#6b7280;margin-top:0.1rem;font-weight:400">
+            <th class="text-center">
+                <div class="text-105 fw-bold"><?= View::e($p['display_name']) ?></div>
+                <div class="text-82 text-muted fw-normal">
                     <?php
                     $hasMonthly = $p['monthly_price_cents'] !== null && (int) $p['monthly_price_cents'] > 0;
                     $hasYearly  = $p['yearly_price_cents']  !== null && (int) $p['yearly_price_cents']  > 0;
@@ -57,12 +57,12 @@ $fv = static function (array $planFeatures, string $key): string {
                     ?>
                 </div>
                 <?php if ($currentPlanId === (int) $p['id']): ?>
-                <div style="margin-top:0.3rem">
-                    <span style="font-size:0.72rem;background:#1a1a2e;color:#fff;padding:0.15rem 0.5rem;border-radius:3px">Current</span>
+                <div class="mt-1">
+                    <span class="badge badge-current">Current</span>
                 </div>
                 <?php elseif (in_array((int) $p['id'], $pendingPlanIds, true)): ?>
-                <div style="margin-top:0.3rem">
-                    <span style="font-size:0.72rem;background:#fef3c7;color:#92400e;border:1px solid #f59e0b;padding:0.15rem 0.5rem;border-radius:3px">Requested</span>
+                <div class="mt-1">
+                    <span class="badge badge-pending">Requested</span>
                 </div>
                 <?php endif; ?>
             </th>
@@ -72,9 +72,9 @@ $fv = static function (array $planFeatures, string $key): string {
     <tbody>
     <?php foreach ($displayFeatures as $key => $label): ?>
         <tr>
-            <td style="font-size:0.88rem;color:#374151"><?= View::e($label) ?></td>
+            <td class="text-88"><?= View::e($label) ?></td>
             <?php foreach ($plans as $p): ?>
-            <td style="text-align:center;font-size:0.9rem">
+            <td class="text-center text-base">
                 <?= $fv($features[(int) $p['id']] ?? [], $key) ?>
             </td>
             <?php endforeach; ?>
@@ -83,7 +83,7 @@ $fv = static function (array $planFeatures, string $key): string {
     <tr>
         <td></td>
         <?php foreach ($plans as $p): ?>
-        <td style="text-align:center;padding-top:1rem;padding-bottom:0.5rem">
+        <td class="text-center pt-4 pb-2">
             <?php
             $pid       = (int) $p['id'];
             $isCurrent = $currentPlanId === $pid;
@@ -91,16 +91,16 @@ $fv = static function (array $planFeatures, string $key): string {
             $isFree    = $p['internal_name'] === 'free_v1';
             ?>
             <?php if (!$currentUser): ?>
-                <a href="/register" class="btn" style="font-size:0.82rem;padding:0.35rem 1rem">Create Account</a>
+                <a href="/register" class="btn btn-sm">Create Account</a>
             <?php elseif ($isCurrent): ?>
-                <span class="btn-disabled" style="font-size:0.82rem;padding:0.35rem 1rem">Current Plan</span>
+                <span class="btn-disabled btn-disabled-sm">Current Plan</span>
             <?php elseif ($isPending): ?>
-                <span class="btn-disabled" style="font-size:0.82rem;padding:0.35rem 1rem">Request Pending</span>
+                <span class="btn-disabled btn-disabled-sm">Request Pending</span>
             <?php else: ?>
                 <form method="post" action="/account/subscription/change">
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
-                    <button type="submit" class="btn" style="font-size:0.82rem;padding:0.35rem 1rem">
+                    <button type="submit" class="btn btn-sm">
                         <?= $isFree ? 'Switch to Free' : 'Request Review' ?>
                     </button>
                 </form>
@@ -112,7 +112,7 @@ $fv = static function (array $planFeatures, string $key): string {
 </table>
 </div>
 
-<p style="font-size:0.82rem;color:#6b7280;margin-top:0.5rem">
+<p class="text-82 text-muted mt-2">
     Switching to Free takes effect immediately. All other plan requests are reviewed manually.
     No charges apply — billing is not yet automated.
 </p>

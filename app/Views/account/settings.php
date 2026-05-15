@@ -1,71 +1,63 @@
 <h1>Account Settings</h1>
-<p style="margin-top:-0.5rem;margin-bottom:1.25rem;font-size:0.9rem">
+<p class="text-base text-muted-3 mt-neg-2 mb-5">
     <a href="/account/security">View account security &rarr;</a>
 </p>
 
 <?php if ($flash): ?>
-<div style="
-    background: <?= $flash['type'] === 'success' ? '#f0fdf4' : ($flash['type'] === 'error' ? '#fef2f2' : '#eff6ff') ?>;
-    border: 1px solid <?= $flash['type'] === 'success' ? '#86efac' : ($flash['type'] === 'error' ? '#fca5a5' : '#93c5fd') ?>;
-    color: <?= $flash['type'] === 'success' ? '#166534' : ($flash['type'] === 'error' ? '#991b1b' : '#1e40af') ?>;
-    border-radius: 4px;
-    padding: 0.7rem 1rem;
-    margin-bottom: 1.5rem;
-    font-size: 0.9rem;
-"><?= View::e($flash['text']) ?></div>
+<div class="flash flash-<?= View::e($flash['type']) ?>"><?= View::e($flash['text']) ?></div>
 <?php endif; ?>
 
 <!-- ── Account info ────────────────────────────────────────────────────────── -->
-<div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:1.25rem 1.5rem;margin-bottom:2rem;max-width:520px">
-    <h2 style="margin-bottom:0.75rem">Account Info</h2>
-    <table style="margin:0;font-size:0.9rem">
+<div class="card mw-520">
+    <h2 class="mb-3">Account Info</h2>
+    <table class="info-table mb-0">
         <tbody>
             <tr>
-                <td style="color:#6b7280;padding:0.3rem 1rem 0.3rem 0;border:none;width:130px">Email</td>
-                <td style="border:none;font-weight:500"><?= View::e($user['email']) ?></td>
+                <td>Email</td>
+                <td class="fw-medium"><?= View::e($user['email']) ?></td>
             </tr>
             <?php $fullName = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '')); ?>
             <?php if ($fullName !== ''): ?>
             <tr>
-                <td style="color:#6b7280;padding:0.3rem 1rem 0.3rem 0;border:none">Name</td>
-                <td style="border:none"><?= View::e($fullName) ?></td>
+                <td>Name</td>
+                <td><?= View::e($fullName) ?></td>
             </tr>
             <?php endif; ?>
             <?php if (!empty($user['display_name'])): ?>
             <tr>
-                <td style="color:#6b7280;padding:0.3rem 1rem 0.3rem 0;border:none">Display name</td>
-                <td style="border:none"><?= View::e($user['display_name']) ?></td>
+                <td>Display name</td>
+                <td><?= View::e($user['display_name']) ?></td>
             </tr>
             <?php endif; ?>
             <?php if (!empty($user['company_name'])): ?>
             <tr>
-                <td style="color:#6b7280;padding:0.3rem 1rem 0.3rem 0;border:none">Company</td>
-                <td style="border:none"><?= View::e($user['company_name']) ?></td>
+                <td>Company</td>
+                <td><?= View::e($user['company_name']) ?></td>
             </tr>
             <?php endif; ?>
             <tr>
-                <td style="color:#6b7280;padding:0.3rem 1rem 0.3rem 0;border:none">Role</td>
-                <td style="border:none"><?= View::e(ucfirst($user['role'] ?? 'user')) ?></td>
+                <td>Role</td>
+                <td><?= View::e(ucfirst($user['role'] ?? 'user')) ?></td>
             </tr>
             <tr>
-                <td style="color:#6b7280;padding:0.3rem 1rem 0.3rem 0;border:none">Member since</td>
-                <td style="border:none"><?= View::e(substr($user['created_at'] ?? '', 0, 10)) ?></td>
+                <td>Member since</td>
+                <td><?= View::e(substr($user['created_at'] ?? '', 0, 10)) ?></td>
             </tr>
             <?php if ($user['last_login_at']): ?>
             <tr>
-                <td style="color:#6b7280;padding:0.3rem 1rem 0.3rem 0;border:none">Last login</td>
-                <td style="border:none"><?= View::e(substr($user['last_login_at'], 0, 16)) ?> UTC</td>
+                <td>Last login</td>
+                <td><?= View::e(substr($user['last_login_at'], 0, 16)) ?> UTC</td>
             </tr>
             <?php endif; ?>
             <tr>
-                <td style="color:#6b7280;padding:0.3rem 1rem 0.3rem 0;border:none">Email verified</td>
-                <td style="border:none">
+                <td>Email verified</td>
+                <td>
                     <?php if (!empty($user['email_verified_at'])): ?>
-                        <span style="color:#166534;font-weight:500">Verified</span>
+                        <span class="text-success fw-medium">Verified</span>
                     <?php else: ?>
-                        <span style="color:#991b1b">Not verified</span>
+                        <span class="text-danger">Not verified</span>
                         &mdash;
-                        <a href="/account/verify-email" style="font-size:0.88rem">Resend verification email</a>
+                        <a href="/account/verify-email" class="text-88">Resend verification email</a>
                     <?php endif; ?>
                 </td>
             </tr>
@@ -78,14 +70,14 @@
 $pv = $flash['profile'] ?? null;
 $fv = static fn(string $key): string => View::e($pv ? ($pv[$key] ?? '') : ($user[$key] ?? ''));
 ?>
-<div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:1.25rem 1.5rem;margin-bottom:2rem;max-width:520px">
-    <h2 style="margin-bottom:0.1rem">Profile</h2>
-    <p style="font-size:0.85rem;color:#6b7280;margin-bottom:1rem">All fields are optional.</p>
+<div class="card mw-520">
+    <h2 class="mb-0">Profile</h2>
+    <p class="text-sm text-muted mb-4">All fields are optional.</p>
 
     <form method="post" action="/account/settings/profile">
         <?= CsrfService::field() ?>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+        <div class="form-grid-2">
             <div class="form-group">
                 <label for="first_name">First name</label>
                 <input type="text" id="first_name" name="first_name"
@@ -102,7 +94,7 @@ $fv = static fn(string $key): string => View::e($pv ? ($pv[$key] ?? '') : ($user
 
         <div class="form-group">
             <label for="display_name">Display name
-                <small style="color:#6b7280;font-weight:400"> — shown in the app; falls back to first + last or email</small>
+                <small class="text-muted fw-normal"> — shown in the app; falls back to first + last or email</small>
             </label>
             <input type="text" id="display_name" name="display_name"
                    value="<?= $fv('display_name') ?>"
@@ -116,7 +108,7 @@ $fv = static fn(string $key): string => View::e($pv ? ($pv[$key] ?? '') : ($user
                    maxlength="150" autocomplete="organization">
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
+        <div class="form-grid-2">
             <div class="form-group">
                 <label for="phone">Phone</label>
                 <input type="tel" id="phone" name="phone"
@@ -125,7 +117,7 @@ $fv = static fn(string $key): string => View::e($pv ? ($pv[$key] ?? '') : ($user
             </div>
             <div class="form-group">
                 <label for="timezone">Timezone
-                    <small style="color:#6b7280;font-weight:400"> — e.g. America/Chicago</small>
+                    <small class="text-muted fw-normal"> — e.g. America/Chicago</small>
                 </label>
                 <input type="text" id="timezone" name="timezone"
                        value="<?= $fv('timezone') ?>"
@@ -138,9 +130,9 @@ $fv = static fn(string $key): string => View::e($pv ? ($pv[$key] ?? '') : ($user
 </div>
 
 <!-- ── Update email ───────────────────────────────────────────────────────── -->
-<div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:1.25rem 1.5rem;margin-bottom:2rem;max-width:520px">
-    <h2 style="margin-bottom:0.1rem">Update Email Address</h2>
-    <p style="font-size:0.85rem;color:#6b7280;margin-bottom:1rem">Enter your current password to confirm. A verification link will be sent to the new address — your email will not change until you click it.</p>
+<div class="card mw-520">
+    <h2 class="mb-0">Update Email Address</h2>
+    <p class="text-sm text-muted mb-4">Enter your current password to confirm. A verification link will be sent to the new address — your email will not change until you click it.</p>
 
     <form method="post" action="/account/settings/email">
         <?= CsrfService::field() ?>
@@ -163,9 +155,9 @@ $fv = static fn(string $key): string => View::e($pv ? ($pv[$key] ?? '') : ($user
 </div>
 
 <!-- ── Change password ────────────────────────────────────────────────────── -->
-<div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:1.25rem 1.5rem;max-width:520px">
-    <h2 style="margin-bottom:0.1rem">Change Password</h2>
-    <p style="font-size:0.85rem;color:#6b7280;margin-bottom:1rem">Minimum 8 characters. Must differ from your current password.</p>
+<div class="card card-last mw-520">
+    <h2 class="mb-0">Change Password</h2>
+    <p class="text-sm text-muted mb-4">Minimum 8 characters. Must differ from your current password.</p>
 
     <form method="post" action="/account/settings/password">
         <?= CsrfService::field() ?>

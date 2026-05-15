@@ -325,46 +325,126 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 
 ## Routes
 
+### Public
+
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/` | Homepage |
-| GET | `/pricing` | Public pricing page — shows public active plans with features and selection |
+| GET | `/pricing` | Public plan comparison — features, prices, plan selection |
+| GET | `/terms` | Terms of Service |
+| GET | `/privacy` | Privacy Policy |
+| GET | `/acceptable-use` | Acceptable Use Policy |
+| GET | `/abuse` | Report Abuse page |
+| GET | `/contact` | Contact page |
+| GET | `/verify-email` | Email verification link handler (token from email) |
+| GET | `/forgot-password` | Forgot password form |
+| POST | `/forgot-password` | Send password reset email |
+| GET | `/reset-password` | Reset password form (token from email) |
+| POST | `/reset-password` | Submit new password |
 | GET | `/login` | Login form |
 | POST | `/login` | Login submit |
 | GET | `/register` | Register form |
 | POST | `/register` | Register submit |
 | POST | `/logout` | Logout |
+| GET | `/{slug}` | **Public redirect** — resolves slug, logs scan, 302s to destination (catch-all, last priority) |
+
+### Account
+
+| Method | Path | Description |
+|--------|------|-------------|
 | GET | `/dashboard` | User dashboard |
-| GET | `/account/subscription` | Current plan, lifecycle status, usage summary, pending/resolved request history, plan comparison |
-| POST | `/account/subscription/change` | Self-service plan change (free = immediate; paid = creates request) |
-| POST | `/account/subscription/request-cancel` | Cancel a pending subscription change request |
-| GET | `/qr` | QR code list |
+| GET | `/account` | Redirects to `/account/settings` |
+| GET | `/account/settings` | Account settings (profile, email, password) |
+| POST | `/account/settings/profile` | Update profile fields (name, display name, company, phone, timezone) |
+| POST | `/account/settings/email` | Request email address change |
+| POST | `/account/settings/password` | Change password |
+| GET | `/account/security` | Security page (sessions, login history) |
+| GET | `/account/verify-email` | Email verification status / resend page |
+| POST | `/account/verify-email/resend` | Resend verification email (60 s cooldown) |
+| GET | `/account/subscription` | Current plan, usage summary, pending requests, request history, plan comparison |
+| POST | `/account/subscription/change` | Plan change — free plan is immediate; paid plan creates a pending request |
+| POST | `/account/subscription/request-cancel` | Cancel a pending plan-change request |
+
+### QR codes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/qr` | QR code list (search, status filter) |
 | GET | `/qr/create` | Create QR form |
 | POST | `/qr` | Create QR submit |
-| GET | `/qr/{id}` | QR detail — info table, preview, copy URL, action buttons |
-| GET | `/qr/{id}/edit` | Edit QR code (name always; destination if plan allows) |
+| GET | `/qr/{id}` | QR detail — info, SVG preview, copy URL, action buttons |
+| GET | `/qr/{id}/edit` | Edit QR name and/or destination |
 | POST | `/qr/{id}/update` | Save name and/or destination |
 | POST | `/qr/{id}/pause` | Pause short link |
 | POST | `/qr/{id}/resume` | Resume short link |
 | POST | `/qr/{id}/archive` | Archive short link (stops redirecting) |
 | POST | `/qr/{id}/restore` | Restore an archived link to active |
 | POST | `/qr/{id}/destination-history/{historyId}/restore` | Restore a previous destination URL from history |
-| GET | `/qr/{id}/download/png` | Download QR as PNG |
+| GET | `/qr/{id}/download/png` | Download QR as PNG (requires GD extension) |
 | GET | `/qr/{id}/download/svg` | Download QR as SVG |
-| GET | `/qr/{id}/analytics` | QR analytics page (date range filter, bot toggle, summary cards) |
+| GET | `/qr/{id}/analytics` | Analytics page (date range, bot toggle, daily chart, device breakdown, referers) |
 | GET | `/qr/{id}/analytics/export` | Export analytics as CSV (requires `can_export_analytics` entitlement) |
-| GET | `/{slug}` | **Public redirect** (catch-all, last priority) |
+
+### Admin — users
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/admin` | Admin home — overview stats |
+| GET | `/admin/users` | User list (email search, capped at 100) |
+| GET | `/admin/users/{id}` | User detail — info, subscription history, entitlements, overrides |
+| POST | `/admin/users/{id}/subscription` | Manually assign a plan and billing cycle |
+| POST | `/admin/users/{id}/overrides` | Add or update a per-user feature override |
+| POST | `/admin/users/{id}/overrides/{overrideId}/delete` | Delete a per-user feature override |
+
+### Admin — plans
+
+| Method | Path | Description |
+|--------|------|-------------|
 | GET | `/admin/plans` | Plan catalog list |
 | GET | `/admin/plans/create` | Create plan form |
 | POST | `/admin/plans` | Create plan submit |
-| GET | `/admin/plans/{id}` | Plan detail (features, subscription counts) |
+| GET | `/admin/plans/{id}` | Plan detail — info, features, billing prices, subscription counts |
 | GET | `/admin/plans/{id}/edit` | Edit plan metadata |
 | POST | `/admin/plans/{id}/update` | Save plan metadata |
-| POST | `/admin/plans/{id}/features` | Add feature |
-| POST | `/admin/plans/{id}/features/{featureId}/update` | Update feature value |
-| POST | `/admin/plans/{id}/features/{featureId}/delete` | Delete feature |
-| POST | `/admin/plans/{id}/billing-prices` | Add billing price mapping (provider, price ID, cycle) |
+| GET | `/admin/plans/{id}/clone` | Clone plan form |
+| POST | `/admin/plans/{id}/clone` | Clone plan submit — copies all features into a new plan |
+| POST | `/admin/plans/{id}/retire` | Retire plan — sets `is_public=0`, `is_legacy=1` |
+| POST | `/admin/plans/{id}/features` | Add feature to plan |
+| POST | `/admin/plans/{id}/features/{featureId}/update` | Update feature value/type |
+| POST | `/admin/plans/{id}/features/{featureId}/delete` | Delete feature from plan |
+| POST | `/admin/plans/{id}/billing-prices` | Add billing price mapping |
 | POST | `/admin/plans/{id}/billing-prices/{priceId}/toggle` | Activate or deactivate a billing price mapping |
+
+### Admin — subscription requests
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/admin/subscription-requests` | Subscription change request list (status filter) |
+| GET | `/admin/subscription-requests/{id}` | Request detail — user, current plan, requested plan, action buttons |
+| POST | `/admin/subscription-requests/{id}/approve` | Approve — closes current subscription, creates new one |
+| POST | `/admin/subscription-requests/{id}/deny` | Deny — marks request denied, subscription unchanged |
+| POST | `/admin/subscription-requests/{id}/cancel` | Cancel — marks stale request canceled, subscription unchanged |
+
+### Admin — audit logs, subscriptions, ops
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/admin/audit-logs` | Audit log list (action, entity, user, date filters) |
+| GET | `/admin/audit-logs/{id}` | Audit log entry detail with metadata JSON |
+| GET | `/admin/subscriptions` | Subscription history — cross-user, filterable, capped at 100 |
+| GET | `/admin/ops` | System health — PHP version, extensions, DB counters, mail config, login activity |
+
+### Admin — moderation
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/admin/moderation/links` | Moderated links — filter by status, owner, slug, destination |
+| GET | `/admin/moderation/links/{id}` | Link detail — owner, destination, moderation metadata, scan count |
+| POST | `/admin/moderation/links/{id}/disable` | Disable a link — stops redirects immediately |
+| POST | `/admin/moderation/links/{id}/restore` | Restore a disabled link to active |
+| GET | `/admin/moderation/domains` | Blocked domain list with add form |
+| POST | `/admin/moderation/domains` | Add a domain to the blocklist |
+| POST | `/admin/moderation/domains/{id}/toggle` | Activate or deactivate a blocked domain entry |
 
 ---
 
@@ -416,17 +496,20 @@ RedirectService::handleSlug('my-slug');  // never returns; redirects or renders
 Scan events include: SHA-256 IP hash, user agent (truncated to 1000 chars), referer (truncated to 2000 chars), device type heuristic (mobile/tablet/desktop/unknown), and bot flag heuristic. Geolocation fields (`country_code`, `region`, `city`) are stored as NULL in this version.
 
 ### AnalyticsService
-Aggregates scan event data for the analytics page. All queries are scoped to a `short_link_id` and a retention window in days.
+Aggregates scan event data for the analytics page. All queries are scoped to a `short_link_id` and an explicit date range.
 
 ```php
-AnalyticsService::getTotalScans($shortLinkId, $retentionDays);     // int (bots excluded)
-AnalyticsService::getBotCount($shortLinkId, $retentionDays);        // int
-AnalyticsService::getDailyCounts($shortLinkId, $retentionDays);     // [['scan_date', 'total'], ...]
-AnalyticsService::getDeviceBreakdown($shortLinkId, $retentionDays); // [['device_type', 'total'], ...]
-AnalyticsService::getTopReferers($shortLinkId, $retentionDays);     // top 10 referers
+AnalyticsService::getTotalScans($shortLinkId, $fromDate, $toDate, $includeBots = false);      // int
+AnalyticsService::getBotCount($shortLinkId, $fromDate, $toDate);                              // int
+AnalyticsService::getDailyCounts($shortLinkId, $fromDate, $toDate, $includeBots = false);     // [['scan_date', 'total'], ...]
+AnalyticsService::getDeviceBreakdown($shortLinkId, $fromDate, $toDate, $includeBots = false); // [['device_type', 'total'], ...]
+AnalyticsService::getTopReferers($shortLinkId, $fromDate, $toDate, $includeBots = false);     // top 10 referers
+AnalyticsService::getExportRows($shortLinkId, $fromDate, $toDate, $includeBots = false);      // raw rows for CSV export
 ```
 
-**Retention note:** `analytics_retention_days` is currently a query visibility rule, not a data purge. Older rows remain in `scan_events`; they simply fall outside the `DATE_SUB(NOW(), INTERVAL ? DAY)` filter.
+`$fromDate` and `$toDate` are `'Y-m-d'` strings. The controller resolves the `analytics_retention_days` plan feature into clamped date strings before calling the service; the service has no knowledge of retention days.
+
+**Retention note:** `analytics_retention_days` is a query visibility rule, not a data purge. Older rows remain in `scan_events`; they fall outside the date range the controller passes in.
 
 ### CsrfService
 Generates and validates synchronizer tokens for all state-changing forms.
@@ -501,8 +584,21 @@ All destination URLs are validated for `http`/`https` scheme and the absence of 
 X-Frame-Options: SAMEORIGIN
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'
 ```
-CSP is not yet applied — the current inline-style-heavy layout requires style refactoring before a useful policy can be written.
+
+**CSP notes:**
+- `script-src 'self'` — no inline JS in any view; all JS lives in `public/assets/js/app.js`; DOM-API style mutation (`el.style.width`) in app.js is not controlled by `style-src`
+- `style-src 'self'` — no `'unsafe-inline'`; no `style=` attributes or `<style>` blocks anywhere in views or the layout; all styling uses utility classes from `public/assets/css/app.css`
+- `img-src 'self' data:` — QR code SVG previews are rendered as `data:image/svg+xml;base64,…` in `<img src>`; no external image CDNs
+- `frame-ancestors 'self'` — permits same-origin framing only; stricter than `X-Frame-Options: SAMEORIGIN` which is also sent for older browser compatibility
+- `base-uri 'self'` — prevents `<base>` tag injection attacks
+- `form-action 'self'` — all form submissions must target the same origin
+- `object-src 'none'` — disallows Flash and legacy plugin content
+
+**Static assets:**
+- `public/assets/css/app.css` — all application CSS; no external CSS CDNs
+- `public/assets/js/app.js` — all application JavaScript; handles `data-confirm` form confirmations, `data-copy-target` clipboard copy, `data-bar-pct` bar chart widths, and `data-submit-form` link-to-form submission
 
 ### Download error handling
 QR library failures (e.g. `composer install` not yet run) are caught, logged server-side, and return a safe 403 message rather than leaking stack traces.
@@ -704,7 +800,7 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **Login throttle (5 attempts → 15 min lockout, database-backed)** | ✓ |
 | **Input length limits (name 200, URL 2048)** | ✓ |
 | **URL header-injection defense** | ✓ |
-| **Security response headers (X-Frame-Options, nosniff, Referrer-Policy)** | ✓ |
+| **Security response headers (X-Frame-Options, nosniff, Referrer-Policy, CSP)** | ✓ |
 | **Download failure safe error page** | ✓ |
 | **Startup config validation (required env vars checked on boot)** | ✓ |
 | **Global exception handler (500 page in production, stack trace in debug)** | ✓ |
@@ -1052,8 +1148,7 @@ Run through it before every production deployment.
 
 The following are intentionally absent:
 
-- Content-Security-Policy (requires inline style refactoring first)
-- Analytics retention data purge (retention is a query filter only)
+- Analytics retention data purge (retention is a query filter only — old rows are not deleted)
 - Geolocation in scan events (country/region/city stored as NULL)
 - Payment processing and checkout (Stripe integration — schema groundwork is in place; see Billing State Model)
 - Automated billing webhooks and access gating based on billing state
@@ -1062,6 +1157,3 @@ The following are intentionally absent:
 - Team / workspace / multi-user account features
 - API endpoints (REST or otherwise)
 - External malware / phishing scanning (Google Safe Browsing, VirusTotal, etc.)
-- Geolocation in scan events (country/region/city stored as NULL)
-- Content-Security-Policy (requires inline style refactoring first)
-- Analytics data purge (retention window is a query filter only — old rows are not deleted)
