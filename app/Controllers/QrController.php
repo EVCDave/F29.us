@@ -851,8 +851,9 @@ class QrController
             $this->forbidden('QR color customization is not available on your plan.');
         }
 
-        $foreground = trim($_POST['foreground_color'] ?? '');
-        $background = trim($_POST['background_color'] ?? '');
+        $foreground  = trim($_POST['foreground_color'] ?? '');
+        $background  = trim($_POST['background_color'] ?? '');
+        $transparent = isset($_POST['background_transparent']);
 
         $errors = QrStyleService::validateColors($foreground, $background);
 
@@ -871,8 +872,9 @@ class QrController
                 'pageTitle'      => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
                 'qr'             => $qr,
                 'style'          => array_merge($style, [
-                    'foreground_color' => $foreground,
-                    'background_color' => $background,
+                    'foreground_color'       => $foreground,
+                    'background_color'       => $background,
+                    'background_transparent' => $transparent,
                 ]),
                 'canCustomize'   => true,
                 'canUploadLogo'  => EntitlementService::isEnabled($userId, 'can_upload_qr_logo'),
@@ -890,15 +892,19 @@ class QrController
 
         $oldStyle = QrStyleService::getForQr($qrId);
 
-        QrStyleService::saveColors($qrId, $fg, $bg);
+        QrStyleService::saveColors($qrId, $fg, $bg, $transparent);
+
+        $newEcl = $oldStyle['logo_enabled'] ? 'H' : 'Q';
 
         AuditLogService::log($userId, 'qr_code', $qrId, 'style_updated', [
             'old_foreground_color'       => $oldStyle['foreground_color'],
             'new_foreground_color'       => $fg,
             'old_background_color'       => $oldStyle['background_color'],
             'new_background_color'       => $bg,
+            'old_background_transparent' => $oldStyle['background_transparent'],
+            'new_background_transparent' => $transparent,
             'old_error_correction_level' => $oldStyle['error_correction_level'],
-            'new_error_correction_level' => 'Q',
+            'new_error_correction_level' => $newEcl,
         ]);
 
         $_SESSION['flash'] = ['type' => 'success', 'text' => 'QR style saved.'];
@@ -927,6 +933,8 @@ class QrController
             'new_foreground_color'       => '#000000',
             'old_background_color'       => $oldStyle['background_color'],
             'new_background_color'       => '#FFFFFF',
+            'old_background_transparent' => $oldStyle['background_transparent'],
+            'new_background_transparent' => false,
             'old_error_correction_level' => $oldStyle['error_correction_level'],
             'new_error_correction_level' => 'M',
         ]);
@@ -1047,9 +1055,10 @@ class QrController
             $style['logo_enabled']    = false;
             $style['logo_max_percent'] = 0;
 
-            $hasCustomColors = $style['foreground_color'] !== '#000000'
-                            || $style['background_color']  !== '#FFFFFF';
-            $style['error_correction_level'] = $hasCustomColors ? 'Q' : 'M';
+            $hasCustomStyle = $style['foreground_color'] !== '#000000'
+                           || $style['background_color']  !== '#FFFFFF'
+                           || ($style['background_transparent'] ?? false);
+            $style['error_correction_level'] = $hasCustomStyle ? 'Q' : 'M';
         } else {
             $style['logo_max_percent']       = $logoMaxPercent;
             $style['error_correction_level'] = 'H';

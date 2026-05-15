@@ -27,7 +27,7 @@
 <div class="qr-layout mb-6">
 
     <?php if ($qrPreviewSvg): ?>
-    <div class="qr-preview">
+    <div class="qr-preview<?= ($style['background_transparent'] ?? false) ? ' qr-preview-transparent' : '' ?>">
         <img
             src="data:image/svg+xml;base64,<?= $qrPreviewSvg ?>"
             alt="QR code preview for <?= View::e($qr['name']) ?>"
@@ -58,7 +58,7 @@
                         <span class="text-sm text-muted-2"><?= View::e($style['foreground_color'] ?? '#000000') ?></span>
                     </div>
                 </div>
-                <div class="mb-5">
+                <div class="mb-4">
                     <label for="background_color">Background</label>
                     <div class="d-flex align-center gap-2">
                         <input
@@ -70,6 +70,20 @@
                         >
                         <span class="text-sm text-muted-2"><?= View::e($style['background_color'] ?? '#FFFFFF') ?></span>
                     </div>
+                </div>
+                <div class="mb-5">
+                    <label class="checkbox-label">
+                        <input
+                            type="checkbox"
+                            name="background_transparent"
+                            <?= ($style['background_transparent'] ?? false) ? 'checked' : '' ?>
+                        >
+                        Use transparent background
+                    </label>
+                    <p class="text-2xs text-muted-2 mt-1">
+                        Transparent QR codes must be placed on a light, high-contrast background.
+                        Always test before printing.
+                    </p>
                 </div>
                 <button type="submit" class="btn">Save Colors</button>
             </fieldset>

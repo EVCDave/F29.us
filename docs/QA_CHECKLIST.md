@@ -161,9 +161,21 @@ All checklist items are manual unless noted otherwise.
 - [ ] Clicking Reset to Default removes the custom style; preview reverts to black-on-white
 - [ ] "Reset to Default" button is absent on a QR with no custom style
 
+**Transparent background:**
+- [ ] Free plan user: transparent checkbox is disabled (fieldset disabled); POST with background_transparent returns 403
+- [ ] Starter+ user: transparent checkbox is visible and submittable
+- [ ] Enabling transparent background and saving → flash "QR style saved"; preview shows checkerboard pattern
+- [ ] PNG download has a transparent background (open in image editor to confirm alpha channel)
+- [ ] SVG download has a transparent/no-fill background
+- [ ] Foreground color still applies on transparent QR
+- [ ] Logo renders correctly on a transparent-background QR
+- [ ] Contrast validation still runs against the stored background color even when transparent is checked
+- [ ] Reset to Default clears transparency; preview reverts to opaque black-on-white
+- [ ] `background_transparent` in `qr_code_styles` table matches enabled/disabled state after save
+
 **Audit log:**
-- [ ] `style_updated` audit entry created when colors are saved (includes foreground and background)
-- [ ] `style_reset` audit entry created when reset to default
+- [ ] `style_updated` audit entry includes `old_background_transparent` and `new_background_transparent`
+- [ ] `style_reset` audit entry includes `old_background_transparent` and `new_background_transparent: false`
 
 ### QR logo upload
 

@@ -65,6 +65,7 @@ input[type="datetime-local"] {
 }
 input:focus { outline: 2px solid #0066cc; border-color: #0066cc; }
 input[type="color"].color-swatch { width: 48px; height: 34px; padding: 2px 3px; cursor: pointer; vertical-align: middle; }
+.checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem; color: #444; }
 
 select {
     display: block;
@@ -198,7 +199,9 @@ footer p { color: #999; font-size: 0.8rem; margin: 0; }
 /* ── QR detail layout ─────────────────────────────────────────────────────── */
 .qr-layout { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 2rem; }
 .qr-preview { flex-shrink: 0; }
+.qr-preview-transparent { background-image: linear-gradient(45deg,#d0d0d0 25%,transparent 25%), linear-gradient(-45deg,#d0d0d0 25%,transparent 25%), linear-gradient(45deg,transparent 75%,#d0d0d0 75%), linear-gradient(-45deg,transparent 75%,#d0d0d0 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; background-color: #fff; border-radius: 6px; padding: 4px; }
 .qr-img { width: 160px; height: 160px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; background: #fff; display: block; }
+.qr-preview-transparent .qr-img { background: transparent; border-color: transparent; }
 .qr-info { flex: 1; min-width: 280px; }
 
 /* ── Copy-URL button ──────────────────────────────────────────────────────── */

@@ -925,25 +925,28 @@ The `max_qr_codes` entitlement is enforced against **countable** QR codes only. 
 
 ### QR color customization
 
-Users on Starter and higher plans can customize the foreground (dot) and background colors of their QR codes via `/qr/{id}/style`. The style is stored in `qr_code_styles` (one row per QR, CASCADE DELETE from `qr_codes`). QR codes with no style row use black-on-white defaults.
+Users on Starter and higher plans can customize the foreground (dot) color, background color, and background transparency of their QR codes via `/qr/{id}/style`. The style is stored in `qr_code_styles` (one row per QR, CASCADE DELETE from `qr_codes`). QR codes with no style row use black-on-white defaults.
 
 **Entitlement key:** `can_customize_qr_colors` (bool). The style page is accessible to all users but shows an upgrade card and a disabled form for users without the entitlement. POST to `/qr/{id}/style` and `/qr/{id}/style/reset` enforce the entitlement server-side with a 403.
+
+**Transparent background:** When `background_transparent` is enabled, both PNG and SVG outputs render the background as fully transparent. The stored background color is still validated against the foreground for contrast (it serves as a contrast reference for physical print). Transparent QR codes should be placed on a high-contrast, light-colored background.
 
 **Color validation** (`QrStyleService::validateColors`):
 - Both colors must be valid 6-digit hex strings (`#RRGGBB`)
 - Foreground and background must differ
 - WCAG contrast ratio must be ≥ 3.0 — computed as `(L1 + 0.05) / (L2 + 0.05)` using the linearized sRGB relative luminance formula
+- Validation runs regardless of whether transparent background is enabled
 
 **Error correction level policy:**
 - Default style (no custom row): ECL = M (library default)
-- Custom colors: ECL = Q (increased resilience for colored modules)
+- Custom colors or transparent background: ECL = Q (increased resilience for colored/transparent modules)
 - Logo overlay uses ECL = H
 
 **`QrStyleService` methods:**
 ```php
-QrStyleService::getForQr(int $qrId): array        // load style or default
-QrStyleService::saveColors(int $qrId, string $fg, string $bg): void  // upsert, sets ECL=Q
-QrStyleService::reset(int $qrId): void             // DELETE row → reverts to default
+QrStyleService::getForQr(int $qrId): array                                         // load style or default
+QrStyleService::saveColors(int $qrId, string $fg, string $bg, bool $transparent = false): void  // upsert, sets ECL=Q
+QrStyleService::reset(int $qrId): void                                             // DELETE row → reverts to default
 QrStyleService::validateColors(string $fg, string $bg): array  // returns error strings
 QrStyleService::normalizeHexColor(string $color): ?string      // #RRGGBB uppercase or null
 QrStyleService::contrastRatio(string $fg, string $bg): float   // WCAG ratio
