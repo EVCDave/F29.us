@@ -83,12 +83,7 @@ $fv = static function (array $planFeatures, string $key): string {
     <tbody>
     <?php foreach ($displayFeatures as $key => $label): ?>
         <tr>
-            <td class="text-88">
-                <?= View::e($label) ?>
-                <?php if ($key === 'can_upload_qr_logo'): ?>
-                <span class="text-2xs text-muted-2 ml-1">coming soon</span>
-                <?php endif; ?>
-            </td>
+            <td class="text-88"><?= View::e($label) ?></td>
             <?php foreach ($plans as $p): ?>
             <td class="text-center text-base">
                 <?= $fv($features[(int) $p['id']] ?? [], $key) ?>

@@ -218,7 +218,7 @@ class QrController
         $flash = $_SESSION['flash'] ?? null;
         unset($_SESSION['flash']);
 
-        $style = QrStyleService::getForQr((int) $qr['id']);
+        $style = $this->resolveRenderStyle(QrStyleService::getForQr((int) $qr['id']), $userId);
 
         // SVG preview is always generated for in-app display (not an export)
         $qrPreviewSvg = null;
@@ -650,7 +650,7 @@ class QrController
         }
 
         try {
-            $style = QrStyleService::getForQr((int) $qr['id']);
+            $style = $this->resolveRenderStyle(QrStyleService::getForQr((int) $qr['id']), $userId);
             $data  = QrCodeService::generatePng($this->qrBaseUrl() . '/' . $qr['slug'], 300, $style);
         } catch (Throwable $e) {
             error_log('QR PNG generation failed: ' . $e->getMessage());
@@ -679,7 +679,7 @@ class QrController
         }
 
         try {
-            $style = QrStyleService::getForQr((int) $qr['id']);
+            $style = $this->resolveRenderStyle(QrStyleService::getForQr((int) $qr['id']), $userId);
             $data  = QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'], 300, $style);
         } catch (Throwable $e) {
             error_log('QR SVG generation failed: ' . $e->getMessage());
@@ -806,9 +806,12 @@ class QrController
         $userId = (int) AuthService::userId();
         $qrId   = (int) ($params['id'] ?? 0);
 
-        $qr           = $this->loadOwnedQrCode($qrId, $userId);
-        $canCustomize = EntitlementService::isEnabled($userId, 'can_customize_qr_colors');
-        $style        = QrStyleService::getForQr($qrId);
+        $qr              = $this->loadOwnedQrCode($qrId, $userId);
+        $canCustomize    = EntitlementService::isEnabled($userId, 'can_customize_qr_colors');
+        $canUploadLogo   = EntitlementService::isEnabled($userId, 'can_upload_qr_logo');
+        $logoMaxKb       = (int) EntitlementService::getValue($userId, 'qr_logo_max_size_kb', 0);
+        $logoMaxPercent  = (int) EntitlementService::getValue($userId, 'qr_logo_max_percent', 0);
+        $style           = QrStyleService::getForQr($qrId);
 
         $flash = $_SESSION['flash'] ?? null;
         unset($_SESSION['flash']);
@@ -816,18 +819,22 @@ class QrController
         $qrPreviewSvg = null;
         try {
             $qrPreviewSvg = base64_encode(
-                QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'], 200, $style)
+                QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'], 200,
+                    $this->resolveRenderStyle($style, $userId))
             );
         } catch (Throwable) {}
 
         View::render('qr/style', [
-            'pageTitle'    => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
-            'qr'           => $qr,
-            'style'        => $style,
-            'canCustomize' => $canCustomize,
-            'qrPreviewSvg' => $qrPreviewSvg,
-            'flash'        => $flash,
-            'errors'       => [],
+            'pageTitle'      => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
+            'qr'             => $qr,
+            'style'          => $style,
+            'canCustomize'   => $canCustomize,
+            'canUploadLogo'  => $canUploadLogo,
+            'logoMaxKb'      => $logoMaxKb,
+            'logoMaxPercent' => $logoMaxPercent,
+            'qrPreviewSvg'   => $qrPreviewSvg,
+            'flash'          => $flash,
+            'errors'         => [],
         ]);
     }
 
@@ -855,21 +862,25 @@ class QrController
             $qrPreviewSvg = null;
             try {
                 $qrPreviewSvg = base64_encode(
-                    QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'], 200, $style)
+                    QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'], 200,
+                        $this->resolveRenderStyle($style, $userId))
                 );
             } catch (Throwable) {}
 
             View::render('qr/style', [
-                'pageTitle'    => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
-                'qr'           => $qr,
-                'style'        => array_merge($style, [
+                'pageTitle'      => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
+                'qr'             => $qr,
+                'style'          => array_merge($style, [
                     'foreground_color' => $foreground,
                     'background_color' => $background,
                 ]),
-                'canCustomize' => true,
-                'qrPreviewSvg' => $qrPreviewSvg,
-                'flash'        => null,
-                'errors'       => $errors,
+                'canCustomize'   => true,
+                'canUploadLogo'  => EntitlementService::isEnabled($userId, 'can_upload_qr_logo'),
+                'logoMaxKb'      => (int) EntitlementService::getValue($userId, 'qr_logo_max_size_kb', 0),
+                'logoMaxPercent' => (int) EntitlementService::getValue($userId, 'qr_logo_max_percent', 0),
+                'qrPreviewSvg'   => $qrPreviewSvg,
+                'flash'          => null,
+                'errors'         => $errors,
             ]);
             return;
         }
@@ -924,7 +935,128 @@ class QrController
         redirect('/qr/' . $qrId . '/style');
     }
 
+    // ── Logo upload ───────────────────────────────────────────────────────────
+
+    public function styleLogoSubmit(array $params = []): void
+    {
+        CsrfService::requireValid();
+        AuthService::requireAuth();
+        $userId = (int) AuthService::userId();
+        $qrId   = (int) ($params['id'] ?? 0);
+
+        $qr = $this->loadOwnedQrCode($qrId, $userId);
+
+        if (!EntitlementService::isEnabled($userId, 'can_upload_qr_logo')) {
+            $this->forbidden('Logo upload is not available on your current plan.');
+        }
+
+        $file   = $_FILES['logo'] ?? [];
+        $errors = QrStyleService::validateLogoUpload($file, $userId);
+
+        if (!empty($errors)) {
+            $style          = QrStyleService::getForQr($qrId);
+            $logoMaxKb      = (int) EntitlementService::getValue($userId, 'qr_logo_max_size_kb', 0);
+            $logoMaxPercent = (int) EntitlementService::getValue($userId, 'qr_logo_max_percent', 0);
+
+            $qrPreviewSvg = null;
+            try {
+                $qrPreviewSvg = base64_encode(
+                    QrCodeService::generateSvg($this->qrBaseUrl() . '/' . $qr['slug'], 200,
+                        $this->resolveRenderStyle($style, $userId))
+                );
+            } catch (Throwable) {}
+
+            View::render('qr/style', [
+                'pageTitle'      => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
+                'qr'             => $qr,
+                'style'          => $style,
+                'canCustomize'   => EntitlementService::isEnabled($userId, 'can_customize_qr_colors'),
+                'canUploadLogo'  => true,
+                'logoMaxKb'      => $logoMaxKb,
+                'logoMaxPercent' => $logoMaxPercent,
+                'qrPreviewSvg'   => $qrPreviewSvg,
+                'flash'          => null,
+                'errors'         => $errors,
+            ]);
+            return;
+        }
+
+        $oldStyle = QrStyleService::getForQr($qrId);
+        $result   = QrStyleService::saveLogo($qrId, $file);
+
+        AuditLogService::log($userId, 'qr_code', $qrId, 'qr_logo_uploaded', [
+            'original_filename' => $result['original_filename'],
+            'mime_type'         => $result['mime_type'],
+            'size_bytes'        => $result['size_bytes'],
+            'max_size_kb'       => (int) EntitlementService::getValue($userId, 'qr_logo_max_size_kb', 0),
+            'logo_percent'      => (int) EntitlementService::getValue($userId, 'qr_logo_max_percent', 0),
+            'old_logo_present'  => $oldStyle['logo_enabled'],
+        ]);
+
+        $_SESSION['flash'] = ['type' => 'success', 'text' => 'Logo uploaded successfully.'];
+        redirect('/qr/' . $qrId . '/style');
+    }
+
+    public function styleLogoRemove(array $params = []): void
+    {
+        CsrfService::requireValid();
+        AuthService::requireAuth();
+        $userId = (int) AuthService::userId();
+        $qrId   = (int) ($params['id'] ?? 0);
+
+        $this->loadOwnedQrCode($qrId, $userId);
+
+        if (!EntitlementService::isEnabled($userId, 'can_upload_qr_logo')) {
+            $this->forbidden('Logo management is not available on your current plan.');
+        }
+
+        $oldStyle = QrStyleService::getForQr($qrId);
+
+        QrStyleService::removeLogo($qrId);
+
+        AuditLogService::log($userId, 'qr_code', $qrId, 'qr_logo_removed', [
+            'old_logo_original_filename' => $oldStyle['logo_original_filename'],
+            'old_logo_mime_type'         => $oldStyle['logo_mime_type'],
+            'old_logo_size_bytes'        => $oldStyle['logo_size_bytes'],
+        ]);
+
+        $_SESSION['flash'] = ['type' => 'info', 'text' => 'Logo removed.'];
+        redirect('/qr/' . $qrId . '/style');
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Prepares the style array for QR generation by the current user's entitlements.
+     *
+     * When logo_enabled is true, checks can_upload_qr_logo and qr_logo_max_percent.
+     * If the user no longer has logo entitlement the logo is suppressed for rendering
+     * only — the stored logo file and DB row are not touched.
+     */
+    private function resolveRenderStyle(array $style, int $userId): array
+    {
+        if (!$style['logo_enabled']) {
+            return $style;
+        }
+
+        $canRenderLogo  = EntitlementService::isEnabled($userId, 'can_upload_qr_logo');
+        $logoMaxPercent = (int) EntitlementService::getValue($userId, 'qr_logo_max_percent', 0);
+
+        if (!$canRenderLogo || $logoMaxPercent <= 0) {
+            // Suppress logo rendering without touching stored data
+            $style['logo_enabled']    = false;
+            $style['logo_max_percent'] = 0;
+
+            $hasCustomColors = $style['foreground_color'] !== '#000000'
+                            || $style['background_color']  !== '#FFFFFF';
+            $style['error_correction_level'] = $hasCustomColors ? 'Q' : 'M';
+        } else {
+            $style['logo_max_percent']       = $logoMaxPercent;
+            $style['error_correction_level'] = 'H';
+        }
+
+        return $style;
+    }
 
     private function loadOwnedQrCode(int $qrId, int $userId): array
     {

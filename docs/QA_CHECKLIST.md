@@ -165,6 +165,53 @@ All checklist items are manual unless noted otherwise.
 - [ ] `style_updated` audit entry created when colors are saved (includes foreground and background)
 - [ ] `style_reset` audit entry created when reset to default
 
+### QR logo upload
+
+**Entitlement gating:**
+- [ ] Free plan user: style page shows "Logo in QR code — Available on Pro and Team plans"; no upload form shown
+- [ ] Starter user: color picker enabled but no logo upload form; POST to `/qr/{id}/style/logo` returns 403
+- [ ] Pro user: upload form visible with "max 250 KB / 20% of QR width" note
+
+**Upload — valid files:**
+- [ ] Pro user uploads valid PNG under 250 KB → succeeds; flash "Logo uploaded successfully"
+- [ ] Pro user uploads valid JPG/JPEG → succeeds
+- [ ] Pro user uploads valid WEBP → succeeds
+- [ ] Team user uploads file up to 500 KB → succeeds
+- [ ] QR preview on style page shows logo after upload
+- [ ] PNG download includes the logo
+- [ ] SVG download includes the logo (embedded as `<image>` element)
+
+**Upload — rejected files:**
+- [ ] Pro user uploads file over 250 KB → rejected: "Logo image is too large for your current plan."
+- [ ] SVG file upload rejected: "Logo must be a PNG, JPG, or WEBP image."
+- [ ] Text file renamed `.png` rejected: "The uploaded file does not appear to be a valid image."
+- [ ] Submit with no file selected → rejected: "Please choose a logo image to upload."
+
+**Replacement:**
+- [ ] Uploading a new logo when one already exists → old file replaced; new logo visible in preview
+- [ ] Old logo file is removed from `storage/qr-logos/` when replaced
+
+**Remove logo:**
+- [ ] "Remove Logo" button visible only when a logo is currently enabled
+- [ ] Removing logo: QR reverts to color-only or default; "Logo removed" flash shown
+- [ ] After removal with custom colors still set: ECL reverts to Q (visible in audit log)
+- [ ] After removal with default colors: ECL reverts to M
+
+**Reset All:**
+- [ ] "Reset All to Default" button shown when logo is active (replaces "Reset to Default")
+- [ ] Clicking it removes logo file and resets colors; QR reverts to black-on-white default
+
+**Error correction:**
+- [ ] Logo-enabled QR uses ECL=H — visible in `error_correction_level` column in `qr_code_styles`
+
+**Audit log:**
+- [ ] `qr_logo_uploaded` audit entry: original_filename, mime_type, size_bytes, max_size_kb, logo_percent, old_logo_present — no filesystem path in metadata
+- [ ] `qr_logo_removed` audit entry: old_logo_original_filename, old_logo_mime_type, old_logo_size_bytes
+
+**Pricing/subscription display:**
+- [ ] `/pricing` — QR Logo Upload row shows ✓ for Pro and Team, — for Free and Starter; no "coming soon" label
+- [ ] `/account/subscription` — same
+
 ---
 
 ## 4. Redirect / Public Behavior
