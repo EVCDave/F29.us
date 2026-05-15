@@ -132,8 +132,8 @@ class PasswordResetService
             )->execute([$now, $userId]);
 
             $pdo->prepare(
-                "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?"
-            )->execute([password_hash($newPassword, PASSWORD_BCRYPT), $now, $userId]);
+                "UPDATE users SET password_hash = ?, password_changed_at = ?, updated_at = ? WHERE id = ?"
+            )->execute([password_hash($newPassword, PASSWORD_BCRYPT), $now, $now, $userId]);
 
             AuditLogService::log($userId, 'user', $userId, 'password_reset_completed', [
                 'email' => $token['email'],

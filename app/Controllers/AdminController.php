@@ -345,9 +345,9 @@ class AdminController
         }
 
         $stmt = Database::get()->prepare(
-            "SELECT id, email, role, status, created_at,
+            "SELECT id, email, role, status, created_at, last_login_at,
                     first_name, last_name, display_name, company_name, phone, timezone,
-                    email_verified_at, email_verification_required
+                    email_verified_at, email_verification_required, password_changed_at
              FROM users WHERE id = ? LIMIT 1"
         );
         $stmt->execute([$userId]);

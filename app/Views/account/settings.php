@@ -1,4 +1,7 @@
 <h1>Account Settings</h1>
+<p style="margin-top:-0.5rem;margin-bottom:1.25rem;font-size:0.9rem">
+    <a href="/account/security">View account security &rarr;</a>
+</p>
 
 <?php if ($flash): ?>
 <div style="

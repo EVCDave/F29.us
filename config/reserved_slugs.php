@@ -25,6 +25,7 @@ return [
     'verify-email',
     'forgot-password',
     'reset-password',
+    'security',
     'assets',
     'public',
     'static',
