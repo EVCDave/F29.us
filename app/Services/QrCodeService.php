@@ -100,8 +100,8 @@ class QrCodeService
         }
         $builder->errorCorrectionLevel(self::mapEcl($ecl));
 
-        if (($style['logo_enabled'] ?? false) && isset($style['logo_path'])) {
-            $logoPath = QrStyleService::logoFilePath($style['logo_path']);
+        if (($style['logo_enabled'] ?? false) && self::resolveLogoPath($style) !== null) {
+            $logoPath = self::resolveLogoPath($style);
             if (file_exists($logoPath)) {
                 $logoPercent = max(1.0, (float) ($style['logo_max_percent'] ?? 20));
                 $logoWidth   = max(1, (int) round($size * $logoPercent / 100));
@@ -194,8 +194,8 @@ class QrCodeService
         }
 
         // Logo overlay (after modules so it sits on top)
-        if (($style['logo_enabled'] ?? false) && isset($style['logo_path'])) {
-            $logoPath = QrStyleService::logoFilePath($style['logo_path']);
+        if (($style['logo_enabled'] ?? false) && self::resolveLogoPath($style) !== null) {
+            $logoPath = self::resolveLogoPath($style);
             if (file_exists($logoPath)) {
                 $logoPercent = max(1.0, (float) ($style['logo_max_percent'] ?? 20));
                 $logoWidth   = max(1, (int) round($outerSize * $logoPercent / 100));
@@ -308,8 +308,8 @@ class QrCodeService
         }
 
         // Logo overlay (after modules so it sits on top)
-        if (($style['logo_enabled'] ?? false) && isset($style['logo_path'])) {
-            $logoPath = QrStyleService::logoFilePath($style['logo_path']);
+        if (($style['logo_enabled'] ?? false) && self::resolveLogoPath($style) !== null) {
+            $logoPath = self::resolveLogoPath($style);
             if (file_exists($logoPath)) {
                 $logoPercent = max(1.0, (float) ($style['logo_max_percent'] ?? 20));
                 $logoWidth   = max(1, (int) round($outerSize * $logoPercent / 100));
@@ -467,6 +467,50 @@ class QrCodeService
     {
         $s = number_format($v, 3, '.', '');
         return rtrim(rtrim($s, '0'), '.');
+    }
+
+    /**
+     * Resolve a usable filesystem path for the logo image, supporting both:
+     *
+     *   - Dynamic QR codes: $style['logo_path'] is a basename relative to
+     *     STORAGE_PATH/qr-logos (the historic location, set by QrStyleService).
+     *   - Static QR codes: $style['logo_absolute_path'] is a trusted absolute
+     *     path under STORAGE_PATH/static-qr-logos, set by StaticQrLogoService
+     *     after validating a session-tracked upload.
+     *
+     * Returns null if no logo path is set, the file doesn't exist, or — for
+     * the static case — the supplied absolute path doesn't resolve under the
+     * static logo storage directory. Realpath is used so any ".." traversal
+     * collapses to a canonical path before the prefix check.
+     */
+    private static function resolveLogoPath(array $style): ?string
+    {
+        if (!empty($style['logo_absolute_path']) && is_string($style['logo_absolute_path'])) {
+            $candidate = $style['logo_absolute_path'];
+            $real      = realpath($candidate);
+            if ($real === false || !is_file($real)) {
+                return null;
+            }
+            $allowedRoots = [
+                realpath(STORAGE_PATH . '/static-qr-logos'),
+                realpath(STORAGE_PATH . '/qr-logos'),
+            ];
+            foreach ($allowedRoots as $root) {
+                if ($root === false) continue;
+                $rootSep = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+                if (str_starts_with($real, $rootSep)) {
+                    return $real;
+                }
+            }
+            return null;
+        }
+
+        if (!empty($style['logo_path']) && is_string($style['logo_path'])) {
+            $path = QrStyleService::logoFilePath($style['logo_path']);
+            return is_file($path) ? $path : null;
+        }
+
+        return null;
     }
 
     private static function parseHexColor(string $hex): \Endroid\QrCode\Color\Color

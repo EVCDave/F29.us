@@ -1107,11 +1107,28 @@ PNG download size is additionally validated against the same `[512, 1024, 2048, 
 
 **Filenames:** `f29-static-qr-{type}-{Ymd-His}-{size}px.png` and `f29-static-qr-{type}-{Ymd-His}.svg`. User-entered SSIDs / emails / names are **not** put in the filename.
 
+**Static QR logo upload.** Entitled users (`can_upload_qr_logo = true`, i.e. Pro and Team by default) can upload a logo for a static QR code. The validation, allowed formats (PNG / JPG / WEBP), per-plan max size (`qr_logo_max_size_kb`), and coverage percent (`qr_logo_max_percent`) are reused from `QrStyleService::validateLogoUpload` so static and dynamic logos behave identically. Static logos force ECL to `H` exactly like dynamic logos.
+
+The static-logo lifecycle is **stateless and session-scoped**, not database-persisted:
+
+1. User uploads the logo on the preview form (`POST /qr/static/preview`).
+2. `StaticQrLogoService::storeUploadedLogo` validates the file and copies it to `storage/static-qr-logos/static-{userId}-{randomHex}.{ext}` — outside the public web root and never with a user-controlled filename.
+3. A 32-hex-char `static_logo_token` is stored in the PHP session for the uploading user, expiring 30 minutes after upload.
+4. The preview renders with the logo; the page emits a hidden `<input name="static_logo_token">` that is forwarded into the PNG and SVG download forms.
+5. On a download request, the controller looks up the logo by token (scoped to the same user), confirms the entitlement is still active, applies it to the style, and renders the image.
+6. Expired tokens are cleaned on every static-QR request: session entries are removed and their files unlinked. The storage directory is also swept for orphan files older than 2×TTL.
+
+Security details:
+- The renderer (`QrCodeService::resolveLogoPath`) accepts either `$style['logo_path']` (a basename under `storage/qr-logos`, used by dynamic QR) or `$style['logo_absolute_path']` (a path supplied by the static service). For the absolute-path case it runs `realpath()` and rejects anything that doesn't resolve under `storage/qr-logos` or `storage/static-qr-logos` — there is no way for a user-supplied value to escape those two directories.
+- An upload from a user without `can_upload_qr_logo` returns a 403 (`Your plan does not allow QR logo upload.`) rather than silently dropping the file.
+- If the entitlement disappears between preview and download (e.g. downgrade), the cached session logo is ignored on the download path.
+- Logos are never inserted into `qr_code_styles`, `audit_logs`, or any other table. No `static_qr_logos` table exists.
+
 **What static QR does NOT do:**
 - Not editable after download — the payload is baked into the image.
 - No scan analytics, no pause / archive / restore.
-- No logo upload (deferred — temporary upload handling needs a separate design).
 - No domain moderation — static QR codes are not redirects controlled by f29.
+- Logo files are not permanent — they expire after 30 minutes. Download promptly after preview.
 
 ### QR logo upload
 
@@ -1119,12 +1136,13 @@ Pro and Team users can upload a logo image that is composited into the center of
 
 **Supported formats:** PNG, JPEG, WEBP. SVG upload is not permitted (potential for script injection).
 
-**Entitlement limits by plan:**
+**Entitlement limits by plan** (values come from `PlanFeaturesSeeder` and apply to both dynamic and static QR logo upload, since `StaticQrLogoService` reuses `QrStyleService::validateLogoUpload`):
 
-| Plan | Max file size | Logo center coverage |
-|------|:------------:|:-------------------:|
-| Pro  | 250 KB       | 20%                 |
-| Team | 500 KB       | 25%                 |
+| Plan | `qr_logo_max_size_kb` | `qr_logo_max_percent` |
+|------|:---------------------:|:----------------------:|
+| Free / Starter | 0 (no logo upload) | 0 |
+| Pro  | 512 KB | 25% |
+| Team | 1024 KB | 30% |
 
 **Storage:** Logo files are stored at `storage/qr-logos/` (outside the public web root) with generated filenames (`qr-{id}-{random_hex}.{ext}`). Original filenames are stored in `logo_original_filename` for display and audit purposes only. Files are never served directly from a public URL.
 
