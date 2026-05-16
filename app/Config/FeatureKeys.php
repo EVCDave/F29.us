@@ -22,6 +22,7 @@ class FeatureKeys
         'can_export_analytics'      => 'bool',
         'max_team_members'          => 'int',
         'can_customize_qr_colors'   => 'bool',
+        'can_customize_qr_module_style' => 'bool',
         'can_upload_qr_logo'        => 'bool',
         'qr_logo_max_size_kb'       => 'int',
         'qr_logo_max_percent'       => 'int',

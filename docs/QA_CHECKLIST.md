@@ -177,6 +177,43 @@ All checklist items are manual unless noted otherwise.
 - [ ] `style_updated` audit entry includes `old_background_transparent` and `new_background_transparent`
 - [ ] `style_reset` audit entry includes `old_background_transparent` and `new_background_transparent: false`
 
+### QR module style
+
+**Entitlement gating:**
+- [ ] Free plan user can view the style page; Module Style select is disabled and shows "Module styles are available on Starter, Pro, and Team plans."
+- [ ] Free plan user cannot save a gapped/circle module style — hidden POST tampering with `module_style=circle` is rejected with 403
+- [ ] Starter user sees the Module Style select enabled and can save `gapped_square`
+- [ ] Pro user can save `circle`; Team user can save `circle`
+- [ ] Saving an invalid module_style value (e.g. `triangle`) is rejected with a validation error
+
+**Rendering:**
+- [ ] Saving `gapped_square` updates the in-app SVG preview to show modules as smaller centered squares
+- [ ] Saving `circle` updates the preview to show modules as centered dots
+- [ ] PNG download reflects the saved module style (gapped or circle)
+- [ ] SVG download reflects the saved module style (uses `<rect>` for gapped, `<circle>` for circle)
+- [ ] The three finder-pattern eyes (top-left, top-right, bottom-left 7x7 blocks) remain classic squares for every module style — visually verifiable
+- [ ] QR codes with `module_style = 'square'` produce byte-identical output to the prior renderer (default flow uses endroid writers)
+- [ ] Custom colors + non-square module style render correctly together
+- [ ] Transparent background + non-square module style renders correctly (modules drawn over transparent background)
+- [ ] Logo overlay still renders on top of non-square modules; logo is centered
+
+**Error correction:**
+- [ ] After saving a non-square module style with no logo: `error_correction_level` in `qr_code_styles` is `Q`
+- [ ] After saving any non-square module style with a logo present: ECL stays `H` (logo wins)
+- [ ] Saving `module_style = 'square'` with default colors does NOT bump ECL to Q
+
+**Reset:**
+- [ ] Reset to Default removes the style row → next render shows classic squares (default style)
+- [ ] After reset, the Module Style select returns to "Classic squares" on next page load
+
+**Audit log:**
+- [ ] `style_updated` audit entry includes `old_module_style` and `new_module_style`
+- [ ] `style_reset` audit entry includes `old_module_style` and `new_module_style: square`
+
+**Pricing/subscription display:**
+- [ ] `/pricing` — "Custom QR module styles" row shows ✓ for Starter, Pro, Team and — for Free
+- [ ] `/account/subscription` — same
+
 ### QR logo upload
 
 **Entitlement gating:**

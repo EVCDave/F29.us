@@ -1004,12 +1004,34 @@ Users on Starter and higher plans can customize the foreground (dot) color, back
 **`QrStyleService` methods:**
 ```php
 QrStyleService::getForQr(int $qrId): array                                         // load style or default
-QrStyleService::saveColors(int $qrId, string $fg, string $bg, bool $transparent = false): void  // upsert, sets ECL=Q
+QrStyleService::saveColors(int $qrId, string $fg, string $bg, bool $transparent = false, string $moduleStyle = 'square'): void  // upsert, sets ECL=Q
 QrStyleService::reset(int $qrId): void                                             // DELETE row → reverts to default
 QrStyleService::validateColors(string $fg, string $bg): array  // returns error strings
+QrStyleService::validateModuleStyle(string $style): ?string    // null if valid, else error string
 QrStyleService::normalizeHexColor(string $color): ?string      // #RRGGBB uppercase or null
 QrStyleService::contrastRatio(string $fg, string $bg): float   // WCAG ratio
 ```
+
+### QR module style
+
+Users on Starter and higher plans can also customize the **shape** of QR data modules: classic squares, gapped squares (modern look with spacing), or circles (rounded dot style). The selection is stored in the `module_style` column on `qr_code_styles` and applies to both PNG and SVG output.
+
+**Allowed values for `module_style`:** `square` (default), `gapped_square`, `circle`.
+
+**Entitlement key:** `can_customize_qr_module_style` (bool). Free = false; Starter / Pro / Team = true. The Module Style control on the style page is disabled for users without the entitlement, and server-side POST with `module_style != square` is rejected with 403 to prevent hidden-form tampering.
+
+**Finder-pattern preservation:** For scan reliability, the three finder-pattern blocks (top-left, top-right, bottom-left 7x7 modules) are always rendered as classic full squares, regardless of the selected module style. Only normal data modules pick up the new shape.
+
+**Error correction policy with module style:**
+- Default style (no custom row, all defaults including `module_style = square`): ECL = M
+- Custom colors, transparent background, **or non-square `module_style`**: ECL = Q
+- Logo overlay: ECL = H (logo wins; non-square module style does not demote H to Q)
+
+**Renderer:**
+- `module_style = 'square'` uses the endroid writers directly so output is byte-identical to prior behavior (no regression for unstyled or color-only QR codes).
+- `module_style = 'gapped_square' | 'circle'` walks the endroid Matrix and emits per-module shapes: a centered rect at 80% of module size for gapped, a centered filled ellipse at 80% diameter for circle. Finder-pattern modules render as full squares regardless. Logo overlay (if any) is composited last.
+
+**Supported output surfaces:** in-app SVG preview, PNG download, SVG download — all reflect the saved module style.
 
 ### QR logo upload
 
