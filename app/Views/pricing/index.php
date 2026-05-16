@@ -13,6 +13,7 @@ $displayFeatures = [
     'can_upload_qr_logo'       => 'QR Logo Upload',
     'qr_logo_max_size_kb'      => 'Logo Max Size',
     'qr_logo_max_percent'      => 'Logo Coverage',
+    'max_qr_download_size_px'  => 'Max PNG download size',
 ];
 
 $fv = static function (array $planFeatures, string $key): string {
@@ -31,6 +32,9 @@ $fv = static function (array $planFeatures, string $key): string {
     }
     if ($key === 'qr_logo_max_percent') {
         return $v > 0 ? View::e((string) $v) . '%' : '<span class="text-faint">—</span>';
+    }
+    if ($key === 'max_qr_download_size_px') {
+        return $v > 0 ? View::e((string) $v) . 'px' : '<span class="text-faint">—</span>';
     }
     return View::e($f['feature_value']);
 };

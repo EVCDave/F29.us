@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 class QrController
 {
+    /** Fixed list of allowed PNG download sizes. Any other value is rejected. */
+    private const PNG_DOWNLOAD_SIZES = [512, 1024, 2048, 4096];
+
     // ── QR list ───────────────────────────────────────────────────────────────
 
     public function index(array $params = []): void
@@ -235,6 +238,8 @@ class QrController
 
         $atQuotaLimit = $qr['status'] === 'archived' && !QrQuotaService::canRestoreForUser($userId);
 
+        $pngSizes = $this->allowedPngDownloadSizesForUser($userId);
+
         View::render('qr/detail', [
             'pageTitle'          => View::e($qr['name']) . ' — f29.us Dynamic QR',
             'qr'                 => $qr,
@@ -248,6 +253,8 @@ class QrController
             'flash'              => $flash,
             'destinationHistory' => $destinationHistory,
             'atQuotaLimit'       => $atQuotaLimit,
+            'pngDownloadSizes'   => $pngSizes,
+            'pngDefaultSize'     => end($pngSizes) ?: 512,
         ]);
     }
 
@@ -649,15 +656,43 @@ class QrController
             $this->forbidden('PNG export is not available on your plan.');
         }
 
-        try {
-            $style = $this->resolveRenderStyle(QrStyleService::getForQr((int) $qr['id']), $userId);
-            $data  = QrCodeService::generatePng($this->qrBaseUrl() . '/' . $qr['slug'], 300, $style);
-        } catch (Throwable $e) {
-            error_log('QR PNG generation failed: ' . $e->getMessage());
-            $this->forbidden('PNG download is temporarily unavailable. Please try again later.');
+        $sizeParam = $_GET['size'] ?? null;
+        if ($sizeParam === null || $sizeParam === '') {
+            $size = 512;
+        } else {
+            // Reject non-integer or non-allow-listed sizes outright; never trust input.
+            if (!is_string($sizeParam) || !ctype_digit($sizeParam)) {
+                $this->forbidden('Invalid PNG download size.');
+            }
+            $size = (int) $sizeParam;
+            if (!in_array($size, self::PNG_DOWNLOAD_SIZES, true)) {
+                $this->forbidden('Invalid PNG download size.');
+            }
         }
 
-        $filename = $this->safeFilename($qr['name'], $qr['slug']) . '.png';
+        $allowed = $this->allowedPngDownloadSizesForUser($userId);
+        if (!in_array($size, $allowed, true)) {
+            $this->forbidden('Your plan does not allow that PNG download size.');
+        }
+
+        // 4096×4096 RGBA canvases run ~67 MB each and the resize step can hold a
+        // source and destination simultaneously. Default 128M memory_limit is not
+        // enough — bump it for this request only. Best-effort; some hosts disable
+        // ini_set, in which case the catch below will surface a safe error.
+        if ($size >= 2048) {
+            @ini_set('memory_limit', '256M');
+        }
+
+        try {
+            $style = $this->resolveRenderStyle(QrStyleService::getForQr((int) $qr['id']), $userId);
+            $data  = QrCodeService::generatePng($this->qrBaseUrl() . '/' . $qr['slug'], $size, $style);
+        } catch (Throwable $e) {
+            error_log('[QR PNG Download] Failed for QR ID ' . (int) $qr['id']
+                . ' at size ' . $size . 'px: ' . $e->getMessage());
+            $this->forbidden('Could not generate PNG at the requested size. Please try a smaller size or contact support.');
+        }
+
+        $filename = $this->safeFilename($qr['name'], $qr['slug']) . '-' . $size . 'px.png';
 
         header('Content-Type: image/png');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
@@ -1098,6 +1133,21 @@ class QrController
         }
 
         return $style;
+    }
+
+    /**
+     * Returns the PNG download sizes (in px) the given user may select, intersecting
+     * the fixed allow-list with their max_qr_download_size_px entitlement.
+     * Always returns at least [512].
+     */
+    private function allowedPngDownloadSizesForUser(int $userId): array
+    {
+        $max = (int) EntitlementService::getValue($userId, 'max_qr_download_size_px', 512);
+        $sizes = array_values(array_filter(
+            self::PNG_DOWNLOAD_SIZES,
+            static fn(int $size): bool => $size <= $max
+        ));
+        return $sizes === [] ? [512] : $sizes;
     }
 
     private function loadOwnedQrCode(int $qrId, int $userId): array

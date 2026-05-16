@@ -33,6 +33,7 @@ return [
             ['free_v1', 'can_upload_qr_logo',        'false', 'bool'],
             ['free_v1', 'qr_logo_max_size_kb',       '0',     'int'],
             ['free_v1', 'qr_logo_max_percent',       '0',     'int'],
+            ['free_v1', 'max_qr_download_size_px',   '512',   'int'],
 
             // ── Starter ──────────────────────────────────────────────────────
             ['starter_v1', 'max_qr_codes',             '20',   'int'],
@@ -50,6 +51,7 @@ return [
             ['starter_v1', 'can_upload_qr_logo',       'false', 'bool'],
             ['starter_v1', 'qr_logo_max_size_kb',      '0',     'int'],
             ['starter_v1', 'qr_logo_max_percent',      '0',     'int'],
+            ['starter_v1', 'max_qr_download_size_px',  '1024',  'int'],
 
             // ── Pro ──────────────────────────────────────────────────────────
             ['pro_v1', 'max_qr_codes',              '250',  'int'],
@@ -68,7 +70,8 @@ return [
             ['pro_v1', 'can_customize_qr_module_style', 'true', 'bool'],
             ['pro_v1', 'can_upload_qr_logo',        'true',  'bool'],
             ['pro_v1', 'qr_logo_max_size_kb',       '512',   'int'],
-            ['pro_v1', 'qr_logo_max_percent',       '20',    'int'],
+            ['pro_v1', 'qr_logo_max_percent',       '25',    'int'],
+            ['pro_v1', 'max_qr_download_size_px',   '2048',  'int'],
 
             // ── Team ─────────────────────────────────────────────────────────
             ['team_v1', 'max_qr_codes',              '1000', 'int'],
@@ -88,7 +91,8 @@ return [
             ['team_v1', 'can_customize_qr_module_style', 'true', 'bool'],
             ['team_v1', 'can_upload_qr_logo',        'true',  'bool'],
             ['team_v1', 'qr_logo_max_size_kb',       '1024',   'int'],
-            ['team_v1', 'qr_logo_max_percent',       '25',    'int'],
+            ['team_v1', 'qr_logo_max_percent',       '30',    'int'],
+            ['team_v1', 'max_qr_download_size_px',   '4096',  'int'],
         ];
 
         $sql = "
