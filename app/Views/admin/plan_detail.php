@@ -262,6 +262,7 @@ if ($isPaidPlan && !$hasActiveMapping && $plan['is_active'] && !$plan['is_legacy
     <thead>
         <tr>
             <th>Provider</th>
+            <th class="col-70">Mode</th>
             <th>Price ID</th>
             <th class="col-90">Cycle</th>
             <th class="col-70">Currency</th>
@@ -274,6 +275,14 @@ if ($isPaidPlan && !$hasActiveMapping && $plan['is_active'] && !$plan['is_legacy
     <?php foreach ($billingPrices as $bp): ?>
         <tr>
             <td><?= View::e($bp['provider']) ?></td>
+            <td class="text-sm">
+                <?php $bpMode = $bp['provider_mode'] ?? 'test'; ?>
+                <?php if ($bpMode === 'live'): ?>
+                <span class="text-success fw-medium">live</span>
+                <?php else: ?>
+                <span class="text-muted">test</span>
+                <?php endif; ?>
+            </td>
             <td><code class="text-82"><?= View::e($bp['provider_price_id']) ?></code></td>
             <td class="text-sm text-muted"><?= View::e($bp['billing_cycle']) ?></td>
             <td class="text-sm text-muted"><?= View::e($bp['currency_code']) ?></td>
@@ -324,10 +333,24 @@ if ($isPaidPlan && !$hasActiveMapping && $plan['is_active'] && !$plan['is_legacy
     </div>
 
     <div class="form-group">
+        <label for="bp_provider_mode">Provider Mode</label>
+        <select id="bp_provider_mode" name="provider_mode" class="mw-120">
+            <?php foreach (['test', 'live'] as $m): ?>
+            <option value="<?= $m ?>"
+                    <?= ($oldBillingPrice['provider_mode'] ?? $stripeMode) === $m ? 'selected' : '' ?>>
+                <?= $m ?>
+            </option>
+            <?php endforeach; ?>
+        </select>
+        <small class="hint">Current app mode: <strong><?= View::e($stripeMode) ?></strong>. Stripe test and live Price IDs both start with <code>price_</code> — match this to where you copied the ID from.</small>
+    </div>
+
+    <div class="form-group">
         <label for="bp_price_id">Provider Price ID</label>
         <input type="text" id="bp_price_id" name="provider_price_id"
                value="<?= View::e($oldBillingPrice['provider_price_id'] ?? '') ?>"
                placeholder="e.g. price_1ABC2defGHIjklMN" class="mw-340" autocomplete="off">
+        <small class="hint">Must start with <code>price_</code>. Product IDs (<code>prod_...</code>) are not valid.</small>
     </div>
 
     <div class="form-group">

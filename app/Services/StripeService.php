@@ -112,10 +112,11 @@ class StripeService
         // Validate billing price belongs to plan, is Stripe, is active
         $stmt = $pdo->prepare(
             "SELECT * FROM plan_billing_prices
-              WHERE id = ? AND plan_id = ? AND provider = 'stripe' AND is_active = 1
+              WHERE id = ? AND plan_id = ? AND provider = 'stripe'
+                AND provider_mode = ? AND is_active = 1
               LIMIT 1"
         );
-        $stmt->execute([$planBillingPriceId, $planId]);
+        $stmt->execute([$planBillingPriceId, $planId, self::mode()]);
         $price = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$price) {

@@ -128,11 +128,25 @@ class OpsController
             $c['login_failures_24h'] = (int) $stmt->fetchColumn();
 
             // ── Stripe DB checks ─────────────────────────────────────────────
-            $c['stripe_active_prices'] = (int) $pdo->query(
-                "SELECT COUNT(*) FROM plan_billing_prices WHERE provider = 'stripe' AND is_active = 1"
-            )->fetchColumn();
+            $stripeCurrentMode = StripeService::mode();
+            $stripeOtherMode   = $stripeCurrentMode === 'test' ? 'live' : 'test';
+            $c['stripe_other_mode'] = $stripeOtherMode;
 
-            $c['stripe_plans_missing_prices'] = $pdo->query(
+            $stmt = $pdo->prepare(
+                "SELECT COUNT(*) FROM plan_billing_prices
+                  WHERE provider = 'stripe' AND provider_mode = ? AND is_active = 1"
+            );
+            $stmt->execute([$stripeCurrentMode]);
+            $c['stripe_active_prices_current'] = (int) $stmt->fetchColumn();
+
+            $stmt = $pdo->prepare(
+                "SELECT COUNT(*) FROM plan_billing_prices
+                  WHERE provider = 'stripe' AND provider_mode = ? AND is_active = 1"
+            );
+            $stmt->execute([$stripeOtherMode]);
+            $c['stripe_active_prices_other'] = (int) $stmt->fetchColumn();
+
+            $stmt = $pdo->prepare(
                 "SELECT p.display_name FROM plans p
                   WHERE p.is_active = 1
                     AND (p.monthly_price_cents > 0 OR p.yearly_price_cents > 0)
@@ -140,10 +154,13 @@ class OpsController
                         SELECT 1 FROM plan_billing_prices pbp
                          WHERE pbp.plan_id = p.id
                            AND pbp.provider = 'stripe'
+                           AND pbp.provider_mode = ?
                            AND pbp.is_active = 1
                     )
                   ORDER BY p.sort_order, p.display_name"
-            )->fetchAll(PDO::FETCH_COLUMN);
+            );
+            $stmt->execute([$stripeCurrentMode]);
+            $c['stripe_plans_missing_prices'] = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
             // Webhook table — tolerate absence if migration not yet run
             try {

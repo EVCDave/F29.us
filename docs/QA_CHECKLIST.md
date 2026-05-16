@@ -697,4 +697,49 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 
 ---
 
-*Last updated: 2026-05-15 — Phase 39: Stripe test-mode end-to-end QA section added*
+## 18. Stripe — Provider Mode and Billing Cycle Selection (Phase 40)
+
+**Prerequisites:** Migration 030 run. At least one paid plan exists. `STRIPE_ENABLED=true`.
+
+### Migration
+- [ ] Run migration 030 — `plan_billing_prices.provider_mode` column added (ENUM `test`/`live`, default `test`)
+- [ ] Existing rows have `provider_mode='test'` by default
+
+### Admin — adding price mappings
+- [ ] Admin visits `/admin/plans/{id}` — "Add Price Mapping" form shows "Provider Mode" select (options: test, live)
+- [ ] Default selection matches current `STRIPE_MODE` (test or live)
+- [ ] Submit with `provider_mode='test'` and a test Price ID (`price_test_...`) — row created successfully
+- [ ] Submit with `provider_mode='live'` and a live Price ID — row created successfully
+- [ ] Submit with a Product ID (`prod_...`) — validation error returned, no row created
+- [ ] Submit with an empty provider_mode — validation error returned
+
+### Admin — billing prices table
+- [ ] Billing prices table on plan detail shows "Mode" column
+- [ ] Test-mode mappings show "test" (muted style)
+- [ ] Live-mode mappings show "live" (success/green style)
+- [ ] Activate/deactivate toggle still works
+
+### Checkout mode filtering
+- [ ] `STRIPE_MODE=test`: Subscribe buttons only appear for plans with active **test**-mode price mappings
+- [ ] `STRIPE_MODE=test`: Plans with only active **live**-mode mappings show "Online checkout not configured"
+- [ ] `STRIPE_MODE=live`: Subscribe buttons only appear for plans with active **live**-mode price mappings
+- [ ] `STRIPE_MODE=live`: Plans with only active **test**-mode mappings show unavailable state
+- [ ] Inactive mappings (any mode) do not enable checkout
+
+### Monthly / yearly buttons
+- [ ] Plan with only monthly test mapping: shows "Subscribe Monthly" button only
+- [ ] Plan with only yearly test mapping: shows "Subscribe Yearly" button only
+- [ ] Plan with both monthly and yearly test mappings: shows both "Subscribe Monthly" and "Subscribe Yearly" buttons
+- [ ] Monthly button POSTs `billing_cycle=monthly`
+- [ ] Yearly button POSTs `billing_cycle=yearly`
+- [ ] Server correctly creates Stripe Checkout Session for monthly cycle
+- [ ] Server correctly creates Stripe Checkout Session for yearly cycle
+
+### Ops page
+- [ ] `/admin/ops` shows "Active prices (test mode)" and "Active prices (live mode)" as separate rows
+- [ ] "Paid plans missing active price" row title includes the current mode name
+- [ ] Counts update correctly after adding/toggling mappings
+
+---
+
+*Last updated: 2026-05-15 — Phase 40: provider mode and billing cycle selection QA section added*
