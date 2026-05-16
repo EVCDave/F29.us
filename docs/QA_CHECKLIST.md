@@ -176,6 +176,71 @@ All checklist items are manual unless noted otherwise.
 - [ ] `/pricing` — "Max PNG download size" row shows `512px`, `1024px`, `2048px`, `4096px` for Free, Starter, Pro, Team
 - [ ] `/account/subscription` — same
 
+### Static QR Generator
+
+**Access and copy:**
+- [ ] `/qr/static` requires login — unauthenticated users are redirected to `/login`
+- [ ] Page header reads "Static QR Generator" with a back link to `/qr`
+- [ ] The page includes the static-vs-dynamic explanation card and the "Static QR codes do not collect scan analytics…" note
+- [ ] A "Create Static QR" button appears next to "+ Create QR Code" on `/qr`
+- [ ] `/qr/create` includes a small "Use the static QR generator" link in the intro
+
+**Routing:**
+- [ ] `/qr/static` is reached as the static form — NOT as `/qr/{id}` for an id of "static"
+- [ ] `/qr/static/preview` (POST) renders preview; missing CSRF returns 403
+- [ ] `/qr/static/download/png` (POST) downloads PNG; missing CSRF returns 403
+- [ ] `/qr/static/download/svg` (POST) downloads SVG; missing CSRF returns 403
+- [ ] Public slug catch-all (`/{slug}`) still resolves a real short slug after these routes are registered
+
+**Payload templates (preview):**
+- [ ] Text/URL payload previews successfully with `https://example.com`
+- [ ] Wi-Fi payload previews successfully with SSID + WPA password
+- [ ] Email payload previews successfully with valid `to`
+- [ ] vCard payload previews successfully when at least one field is filled
+
+**Payload validation:**
+- [ ] Email with invalid `to` is rejected with a clear message
+- [ ] Wi-Fi with missing SSID is rejected
+- [ ] Wi-Fi with WPA/WEP but missing password is rejected
+- [ ] Wi-Fi with `nopass` and empty password is accepted (open network)
+- [ ] vCard with all fields empty is rejected
+- [ ] vCard website without `http://` / `https://` is rejected
+- [ ] Payload longer than 1200 characters is rejected with the safe message
+- [ ] Null byte / control character in any field is rejected
+
+**Entitlement gating:**
+- [ ] Free user (no `can_customize_qr_colors`): color and transparent controls disabled; submitted values silently ignored on the server (output stays default black-on-white) — **no** error shown
+- [ ] Free user (no `can_customize_qr_module_style`): module style select disabled; submitted non-square value silently coerced to `square` — **no** error shown
+- [ ] Free user: PNG size selector shows only `512px`
+- [ ] Free user (no `can_export_svg`): SVG download button shown as disabled, and POST `/qr/static/download/svg` returns 403
+- [ ] Starter user: PNG sizes `512px`, `1024px` available; SVG download works
+- [ ] Pro user: PNG sizes through `2048px` available; custom colors / module style work
+- [ ] Team user: PNG sizes through `4096px` available
+
+**Style validation (entitled users only):**
+- [ ] Entitled user submitting an invalid foreground hex (e.g. `not-a-color`) sees "Foreground color must be a valid hex color, such as #000000." and the preview is NOT rendered
+- [ ] Entitled user submitting an invalid background hex sees the analogous error
+- [ ] Entitled user submitting identical foreground and background sees "Foreground and background colors must be different." (existing `QrStyleService::validateColors`)
+- [ ] Entitled user submitting a low-contrast color pair sees the contrast error
+- [ ] Entitled user submitting an invalid `module_style` (e.g. `triangle`) sees the `validateModuleStyle` error
+- [ ] When style errors are shown, payload fields and previously-entered values remain populated
+- [ ] When style errors are shown, no preview SVG is rendered and no download button appears
+- [ ] Submitting valid colors AND valid module style renders the preview as before
+
+**Output and storage:**
+- [ ] Wi-Fi PNG download scans on a phone and prompts to join the network
+- [ ] Email PNG download scans on a phone and opens the mail client with prefilled subject/body
+- [ ] vCard PNG download scans on a phone and offers to import the contact
+- [ ] PNG filename matches `f29-static-qr-{type}-{Ymd-His}-{size}px.png`
+- [ ] SVG filename matches `f29-static-qr-{type}-{Ymd-His}.svg`
+- [ ] User-entered SSID / email / name does NOT appear in any filename
+- [ ] After download, no new row appears in `qr_codes`
+- [ ] After download, no new row appears in `short_links`
+- [ ] After download, no new row appears in `scan_events`
+- [ ] After download, no new row appears in `destination_history`
+- [ ] After download, no new row appears in `audit_logs`
+- [ ] Static QR generation does NOT consume the user's `max_qr_codes` quota
+
 ### QR color customization
 
 **Entitlement gating:**
@@ -815,4 +880,4 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 
 ---
 
-*Last updated: 2026-05-15 — Phase 40: provider mode and billing cycle selection QA section added*
+*Last updated: 2026-05-16 — Phase 34A: static QR generator QA section added; style validation surfaces visible errors for entitled users, while unentitled submitted style fields are silently coerced back to safe defaults.*

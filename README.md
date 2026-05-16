@@ -1059,6 +1059,59 @@ Users can pick the pixel size of the PNG export at download time on the QR detai
 
 **Filename:** PNG downloads are named `f29-qr-{name}-{slug}-{size}px.png` so multiple-size downloads don't collide.
 
+### Static QR generator
+
+Static QR codes encode the payload **directly into the image**. Unlike the rest of the app's QR codes (which encode the managed `https://f29.us/{slug}` short URL), static QR codes are not redirects — once printed they are permanent and cannot be edited. f29 does not track their scans and does not save them anywhere.
+
+**Routes** (all require authentication; POST routes require CSRF):
+
+| Method | Path | Purpose |
+| ------ | ---- | ------- |
+| `GET`  | `/qr/static`               | Form page |
+| `POST` | `/qr/static/preview`       | Validate + render in-page SVG preview |
+| `POST` | `/qr/static/download/png`  | Render and download as PNG |
+| `POST` | `/qr/static/download/svg`  | Render and download as SVG |
+
+Static routes are registered **before** `/qr/{id}` in [public/index.php](public/index.php) so `/qr/static` resolves to the static controller, never as a dynamic-QR id. The public `/{slug}` catch-all remains last.
+
+**No database writes.** Static generation never touches `qr_codes`, `short_links`, `scan_events`, `destination_history`, or `audit_logs`. There is no `static_qr_codes` table. The entire request lifecycle is: read POST → `StaticQrPayloadService::build()` → `QrCodeService::generateSvg/Png()` → return bytes. Nothing persists between requests, and static QR generation does not consume the user's `max_qr_codes` quota.
+
+**Supported templates** (built by [`StaticQrPayloadService`](app/Services/StaticQrPayloadService.php)):
+
+| Template     | Payload format |
+| ------------ | -------------- |
+| `text`       | Raw content (URL or plain text) |
+| `wifi`       | `WIFI:T:WPA;S:Name;P:Pass;H:false;;` with `\ ; , :` backslash-escaped |
+| `email`      | `mailto:user@example.com?subject=…&body=…` (rawurlencoded) |
+| `vcard`      | vCard 3.0 with CRLF line endings, `\ ; , \n` escaped |
+
+**Hard limits:** every built payload is rejected if it exceeds **1200 characters** (also enforced per-template). vCard rejection message is template-specific.
+
+**Entitlement behavior:**
+
+| Capability | Source feature key | Default for static QR |
+| ---------- | ------------------ | --------------------- |
+| Generation | (none — open to all logged-in users) | Allowed for Free |
+| PNG download | `can_export_png` | Free: yes; size capped by `max_qr_download_size_px` |
+| SVG download | `can_export_svg` | Free: no by default |
+| Custom colors / transparent bg | `can_customize_qr_colors` | Free: no |
+| Module style (gapped / circle) | `can_customize_qr_module_style` | Free: no |
+| PNG size selector | `max_qr_download_size_px` | Free: 512 only |
+
+Server-side rules for `buildStyleForUser`:
+- **Unentitled users**: any submitted style field (colors, transparent, module style) is silently coerced back to the safe default. Hidden-form tampering can never produce styled output, and no error is surfaced — the user just sees the default render.
+- **Entitled users**: submitted values are run through the same validators used by dynamic QR styling (`QrStyleService::normalizeHexColor`, `validateColors`, `validateModuleStyle`). If the submission fails any check (invalid hex, identical fg/bg, low contrast, unknown `module_style`, etc.) the controller re-renders the form with the error and **does not** render a preview or download.
+
+PNG download size is additionally validated against the same `[512, 1024, 2048, 4096]` allow-list as dynamic QR.
+
+**Filenames:** `f29-static-qr-{type}-{Ymd-His}-{size}px.png` and `f29-static-qr-{type}-{Ymd-His}.svg`. User-entered SSIDs / emails / names are **not** put in the filename.
+
+**What static QR does NOT do:**
+- Not editable after download — the payload is baked into the image.
+- No scan analytics, no pause / archive / restore.
+- No logo upload (deferred — temporary upload handling needs a separate design).
+- No domain moderation — static QR codes are not redirects controlled by f29.
+
 ### QR logo upload
 
 Pro and Team users can upload a logo image that is composited into the center of their QR code. Logo upload is gated on `can_upload_qr_logo = true`.

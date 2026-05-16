@@ -82,6 +82,7 @@ require APP_PATH . '/Services/EmailVerificationService.php';
 require APP_PATH . '/Services/PasswordResetService.php';
 require APP_PATH . '/Services/QrQuotaService.php';
 require APP_PATH . '/Services/QrStyleService.php';
+require APP_PATH . '/Services/StaticQrPayloadService.php';
 require APP_PATH . '/Services/StripeService.php';
 require APP_PATH . '/Services/StripeWebhookService.php';
 require APP_PATH . '/Services/BillingStatusService.php';
