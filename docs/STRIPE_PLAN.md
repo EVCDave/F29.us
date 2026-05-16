@@ -3,9 +3,9 @@
 This document defines the Stripe checkout and subscription billing architecture for f29.us.
 
 **Current state:** Stripe SDK, configuration, `StripeService`, `users.stripe_customer_id`, Checkout
-Session creation (Phase 35–36), and webhook endpoint with `checkout.session.completed` activation
-(Phase 37) are implemented. Subscription lifecycle synchronization and billing-status gating
-(Phase 38) are not implemented yet.
+Session creation (Phase 35–36), webhook endpoint with `checkout.session.completed` activation
+(Phase 37), and full subscription lifecycle synchronization with billing-status gating (Phase 38)
+are implemented.
 
 ---
 
@@ -47,6 +47,23 @@ The following schema, services, and features are already in place:
 | `checkout.session.expired` handler | `StripeWebhookService` | 37 |
 | `POST /stripe/webhook` route + controller | `StripeWebhookController`, `public/index.php` | 37 |
 | Webhook stats expanded in Admin Ops | `OpsController`, `ops.php` | 37 |
+| `StripeService::cancelSubscriptionAtPeriodEnd()` | `app/Services/StripeService.php` | 38 |
+| `StripeService::mapSubscriptionStatus()` | `app/Services/StripeService.php` | 38 |
+| `StripeService::stripeTimestampToSql()` | `app/Services/StripeService.php` | 38 |
+| `customer.subscription.updated` handler | `StripeWebhookService` | 38 |
+| `customer.subscription.deleted` handler | `StripeWebhookService` | 38 |
+| `invoice.payment_succeeded` handler | `StripeWebhookService` | 38 |
+| `invoice.payment_failed` handler | `StripeWebhookService` | 38 |
+| `POST /account/subscription/cancel-stripe` | `AccountController`, `public/index.php` | 38 |
+| `EntitlementService` billing-status gating | `app/Services/EntitlementService.php` | 38 |
+| `BillingStatusService` (banners, access checks) | `app/Services/BillingStatusService.php` | 38 |
+| Billing banners on subscription + dashboard pages | `subscription.php`, `dashboard.php` | 38 |
+| Cancel subscription button on subscription page | `subscription.php` | 38 |
+| Billing status + period-end rows in subscription table | `subscription.php` | 38 |
+| `NotificationService::paymentFailed()` | `app/Services/NotificationService.php` | 38 |
+| `NotificationService::subscriptionCancellationScheduled()` | `app/Services/NotificationService.php` | 38 |
+| `NotificationService::subscriptionCanceled()` | `app/Services/NotificationService.php` | 38 |
+| Subscription billing-state counts in Admin Ops | `OpsController`, `ops.php` | 38 |
 
 The `billing_status` ENUM values are:
 `not_applicable`, `manual`, `trialing`, `active`, `past_due`, `canceled`, `unpaid`, `incomplete`
@@ -354,13 +371,19 @@ Add a Stripe section to `/admin/ops`:
 - `POST /stripe/webhook` route registered in `public/index.php` (before slug catch-all; no CSRF)
 - Admin Ops webhook section expanded: total event count, latest processed timestamp, failed/ignored counts (24 h)
 
-### Phase 38 — Subscription Lifecycle
-- Handle `customer.subscription.updated` and `customer.subscription.deleted`
-- Handle `invoice.payment_succeeded` and `invoice.payment_failed`
-- Implement cancel-at-period-end flow (account page + Stripe API call)
-- Update `EntitlementService` to gate on `billing_status`
-- Add past_due banner to dashboard/account pages
-- Send notification emails for payment failure, cancellation, access expiry
+### Phase 38 — Subscription Lifecycle ✓ COMPLETE
+- `customer.subscription.updated` handler — syncs billing_status, period dates, cancel_at_period_end; sets status=canceled if billing_status=canceled; clears entitlement cache; audit-logged
+- `customer.subscription.deleted` handler — sets billing_status=canceled, status=canceled; clears cache; fires `NotificationService::subscriptionCanceled()`; audit-logged
+- `invoice.payment_succeeded` handler — sets billing_status=active, updates period dates; clears cache; audit-logged
+- `invoice.payment_failed` handler — sets billing_status=past_due; clears cache; fires `NotificationService::paymentFailed()`; audit-logged
+- `POST /account/subscription/cancel-stripe` — CSRF + auth + verified email + active Stripe sub lookup; calls `StripeService::cancelSubscriptionAtPeriodEnd()`; optimistic local update; fires `NotificationService::subscriptionCancellationScheduled()`; audit-logged
+- `EntitlementService` updated with billing-status gating: not_applicable/manual/active/trialing/past_due → subscribed plan; canceled+future period → subscribed plan; canceled+past period/unpaid/incomplete → Free plan; no active subscription → Free plan
+- `BillingStatusService` created — `bannerForSubscription()`, `isStripeBacked()`, `isAccessCurrentlyPaid()`
+- Billing banners displayed on subscription page and dashboard (info for cancellation scheduled/canceled+future access; error/warning for payment failure, unpaid, access ended)
+- Billing status and period-end/renews-on rows added to subscription page Current Plan table
+- Cancel subscription button (Stripe-backed only, conditional on active+not-already-canceling)
+- Notification emails: `paymentFailed()`, `subscriptionCancellationScheduled()`, `subscriptionCanceled()`
+- Admin Ops: Subscription Billing State section (active/trialing/past_due/unpaid/incomplete/cancel_soon counts)
 
 ### Phase 39 — Polish, QA, Test-Mode Launch
 - End-to-end test-mode QA checklist

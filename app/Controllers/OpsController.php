@@ -175,6 +175,37 @@ class OpsController
                 $c['stripe_failed_webhooks_24h']  = null;
                 $c['stripe_ignored_webhooks_24h'] = null;
             }
+
+            // ── Subscription billing-state counts ─────────────────────────────
+            try {
+                $row = $pdo->query("
+                    SELECT
+                        SUM(CASE WHEN billing_status = 'active'    THEN 1 ELSE 0 END) AS bs_active,
+                        SUM(CASE WHEN billing_status = 'trialing'  THEN 1 ELSE 0 END) AS bs_trialing,
+                        SUM(CASE WHEN billing_status = 'past_due'  THEN 1 ELSE 0 END) AS bs_past_due,
+                        SUM(CASE WHEN billing_status = 'unpaid'    THEN 1 ELSE 0 END) AS bs_unpaid,
+                        SUM(CASE WHEN billing_status = 'incomplete' THEN 1 ELSE 0 END) AS bs_incomplete,
+                        SUM(CASE WHEN cancel_at_period_end = 1
+                                  AND billing_status NOT IN ('canceled','unpaid','incomplete')
+                             THEN 1 ELSE 0 END)                                       AS bs_cancel_soon
+                      FROM user_subscriptions
+                     WHERE status = 'active'
+                ")->fetch(PDO::FETCH_ASSOC);
+
+                $c['sub_bs_active']      = (int) ($row['bs_active']      ?? 0);
+                $c['sub_bs_trialing']    = (int) ($row['bs_trialing']    ?? 0);
+                $c['sub_bs_past_due']    = (int) ($row['bs_past_due']    ?? 0);
+                $c['sub_bs_unpaid']      = (int) ($row['bs_unpaid']      ?? 0);
+                $c['sub_bs_incomplete']  = (int) ($row['bs_incomplete']  ?? 0);
+                $c['sub_bs_cancel_soon'] = (int) ($row['bs_cancel_soon'] ?? 0);
+            } catch (Throwable) {
+                $c['sub_bs_active']      = null;
+                $c['sub_bs_trialing']    = null;
+                $c['sub_bs_past_due']    = null;
+                $c['sub_bs_unpaid']      = null;
+                $c['sub_bs_incomplete']  = null;
+                $c['sub_bs_cancel_soon'] = null;
+            }
         } catch (Throwable) {
             // db_connected stays false; numeric checks remain absent
         }

@@ -3,6 +3,14 @@
     <span class="text-faint text-88"><?= View::e(UserService::displayName($user)) ?></span>
 </div>
 
+<?php if ($billingBanner): ?>
+<?php $bannerCls = $billingBanner['type'] === 'warning' ? 'flash-error' : 'flash-info'; ?>
+<div class="flash <?= $bannerCls ?> mb-6">
+    <?= View::e($billingBanner['message']) ?>
+    <a href="/account/subscription" class="ml-2" style="font-size:inherit">View subscription</a>
+</div>
+<?php endif; ?>
+
 <!-- ── QR code summary ────────────────────────────────────────────────────── -->
 <div class="stat-grid">
 

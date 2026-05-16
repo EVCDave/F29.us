@@ -153,6 +153,103 @@ class NotificationService
         }
     }
 
+    // ── Subscription: Stripe billing events ─────────────────────────────────
+
+    public static function paymentFailed(int $userSubscriptionId): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $row = self::loadSubscriptionUser($userSubscriptionId);
+            if (!$row) {
+                return;
+            }
+
+            $userEmail = $row['user_email'];
+            $planName  = $row['plan_display_name'];
+            $support   = self::supportEmail();
+
+            $subject  = 'Payment failed — action required - f29.us Dynamic QR';
+            $bodyHtml = self::wrap(
+                "We were unable to process your payment for the <strong>" . self::e($planName) . "</strong> plan.<br><br>"
+                . "Your paid features remain active for now, but your subscription may be suspended if payment is not resolved.<br><br>"
+                . "Please update your payment method to continue your subscription.<br><br>"
+                . "If you have questions, contact us at <a href=\"mailto:" . self::e($support) . "\">" . self::e($support) . "</a>."
+            );
+
+            MailerService::send($userEmail, $userEmail, $subject, $bodyHtml);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] paymentFailed sub #' . $userSubscriptionId . ': ' . $e->getMessage());
+        }
+    }
+
+    public static function subscriptionCancellationScheduled(int $userSubscriptionId): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $row = self::loadSubscriptionUser($userSubscriptionId);
+            if (!$row) {
+                return;
+            }
+
+            $userEmail = $row['user_email'];
+            $planName  = $row['plan_display_name'];
+            $periodEnd = $row['current_period_end'];
+            $appUrl    = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
+            $appUrlE   = self::e($appUrl);
+
+            $endFmt = $periodEnd ? date('F j, Y', strtotime($periodEnd)) : 'the end of your billing period';
+
+            $subject  = 'Your subscription has been scheduled to cancel - f29.us Dynamic QR';
+            $bodyHtml = self::wrap(
+                "Your <strong>" . self::e($planName) . "</strong> subscription has been scheduled to cancel.<br><br>"
+                . "You will retain full access to your paid features until <strong>" . self::e($endFmt) . "</strong>. "
+                . "After that, your account will revert to the Free plan.<br><br>"
+                . "If you change your mind, you can resubscribe at any time:<br>"
+                . "<a href=\"{$appUrlE}/account/subscription\">{$appUrlE}/account/subscription</a>"
+            );
+
+            MailerService::send($userEmail, $userEmail, $subject, $bodyHtml);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] subscriptionCancellationScheduled sub #' . $userSubscriptionId . ': ' . $e->getMessage());
+        }
+    }
+
+    public static function subscriptionCanceled(int $userSubscriptionId): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $row = self::loadSubscriptionUser($userSubscriptionId);
+            if (!$row) {
+                return;
+            }
+
+            $userEmail = $row['user_email'];
+            $planName  = $row['plan_display_name'];
+            $appUrl    = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
+            $appUrlE   = self::e($appUrl);
+
+            $subject  = 'Your subscription has ended - f29.us Dynamic QR';
+            $bodyHtml = self::wrap(
+                "Your <strong>" . self::e($planName) . "</strong> subscription has ended and your account has been moved to the Free plan.<br><br>"
+                . "You can resubscribe at any time:<br>"
+                . "<a href=\"{$appUrlE}/account/subscription\">{$appUrlE}/account/subscription</a>"
+            );
+
+            MailerService::send($userEmail, $userEmail, $subject, $bodyHtml);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] subscriptionCanceled sub #' . $userSubscriptionId . ': ' . $e->getMessage());
+        }
+    }
+
     // ── Account: email address changed ───────────────────────────────────────
 
     public static function accountEmailChanged(int $userId, string $oldEmail, string $newEmail): void
@@ -475,6 +572,22 @@ class NotificationService
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    private static function loadSubscriptionUser(int $userSubscriptionId): array|false
+    {
+        $stmt = Database::get()->prepare("
+            SELECT us.id, us.user_id, us.current_period_end, us.billing_status,
+                   u.email         AS user_email,
+                   p.display_name  AS plan_display_name
+              FROM user_subscriptions us
+              JOIN users u ON u.id  = us.user_id
+              JOIN plans p ON p.id  = us.plan_id
+             WHERE us.id = ?
+             LIMIT 1
+        ");
+        $stmt->execute([$userSubscriptionId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 
     private static function loadSubscriptionRequest(int $requestId): array|false
     {

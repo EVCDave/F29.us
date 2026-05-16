@@ -29,18 +29,30 @@ class DashboardController
         $countableQr   = $countActive + $countPaused + $countDisabled;
         $maxQr         = (int) EntitlementService::getValue($userId, 'max_qr_codes', 0);
 
+        $subStmt = $pdo->prepare("
+            SELECT billing_status, cancel_at_period_end, current_period_end
+              FROM user_subscriptions
+             WHERE user_id = ? AND status = 'active'
+             ORDER BY started_at DESC, id DESC
+             LIMIT 1
+        ");
+        $subStmt->execute([$userId]);
+        $dashSub       = $subStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        $billingBanner = $dashSub ? BillingStatusService::bannerForSubscription($dashSub) : null;
+
         View::render('dashboard', [
-            'pageTitle'   => 'Dashboard — f29.us Dynamic QR',
-            'user'        => AuthService::currentUser(),
-            'counts'      => [
+            'pageTitle'    => 'Dashboard — f29.us Dynamic QR',
+            'user'         => AuthService::currentUser(),
+            'counts'       => [
                 'total'    => (int) ($counts['total']    ?? 0),
                 'active'   => $countActive,
                 'paused'   => $countPaused,
                 'archived' => (int) ($counts['archived'] ?? 0),
                 'disabled' => $countDisabled,
             ],
-            'maxQr'       => $maxQr,
-            'countableQr' => $countableQr,
+            'maxQr'        => $maxQr,
+            'countableQr'  => $countableQr,
+            'billingBanner' => $billingBanner,
         ]);
     }
 }
