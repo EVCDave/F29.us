@@ -47,6 +47,7 @@ require APP_PATH . '/Controllers/HomeController.php';
 require APP_PATH . '/Controllers/DashboardController.php';
 require APP_PATH . '/Controllers/AuthController.php';
 require APP_PATH . '/Controllers/QrController.php';
+require APP_PATH . '/Controllers/StaticQrController.php';
 require APP_PATH . '/Controllers/RedirectController.php';
 require APP_PATH . '/Controllers/AdminController.php';
 require APP_PATH . '/Controllers/PlanController.php';
@@ -93,6 +94,13 @@ $router->get('/dashboard', [DashboardController::class, 'index']);
 $router->get('/qr',              [QrController::class, 'index']);
 $router->get('/qr/create',       [QrController::class, 'createPage']);
 $router->post('/qr',             [QrController::class, 'createSubmit']);
+
+// Static QR generator (stateless — no DB writes). Exact-match routes are
+// resolved before /qr/{id} so /qr/static cannot be captured as an id.
+$router->get('/qr/static',                 [StaticQrController::class, 'form']);
+$router->post('/qr/static/preview',        [StaticQrController::class, 'preview']);
+$router->post('/qr/static/download/png',   [StaticQrController::class, 'downloadPng']);
+$router->post('/qr/static/download/svg',   [StaticQrController::class, 'downloadSvg']);
 
 $router->get('/qr/{id}',                [QrController::class, 'detail']);
 $router->get('/qr/{id}/edit',           [QrController::class, 'editPage']);

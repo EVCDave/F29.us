@@ -1,6 +1,9 @@
 <div class="page-header page-header-lg">
     <h1>My QR Codes</h1>
-    <a href="/qr/create" class="btn">+ Create QR Code</a>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="/qr/create" class="btn">+ Create QR Code</a>
+        <a href="/qr/static" class="btn btn-secondary">Create Static QR</a>
+    </div>
 </div>
 
 <?php if ($flash): ?>

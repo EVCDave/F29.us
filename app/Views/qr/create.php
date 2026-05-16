@@ -1,4 +1,9 @@
 <h1>Create a QR Code</h1>
+<p class="text-2xs text-muted-2 mb-3">
+    Need a one-off QR code that doesn't need to be editable later?
+    <a href="/qr/static">Use the static QR generator</a>
+    &mdash; it doesn't count against your QR limit and isn't tracked.
+</p>
 
 <?php if ($limitReached): ?>
 <div class="card-warn mw-520">
