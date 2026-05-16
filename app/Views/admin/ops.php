@@ -214,6 +214,8 @@ $fail = static function (string $msg): string {
 <p class="text-sm text-muted mb-3">
     <em>Configured</em> means the value is set. No key values are displayed.
     Enable <code>STRIPE_ENABLED=true</code> in <code>.env</code> to activate billing.
+    Configuration checks confirm the app can attempt Stripe operations. Complete the
+    Stripe test-mode QA checklist before enabling live billing.
 </p>
 <table class="mw-560 mb-4 text-base">
     <tr>

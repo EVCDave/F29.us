@@ -4,8 +4,9 @@ This document defines the Stripe checkout and subscription billing architecture 
 
 **Current state:** Stripe SDK, configuration, `StripeService`, `users.stripe_customer_id`, Checkout
 Session creation (Phase 35–36), webhook endpoint with `checkout.session.completed` activation
-(Phase 37), and full subscription lifecycle synchronization with billing-status gating (Phase 38)
-are implemented.
+(Phase 37), full subscription lifecycle synchronization with billing-status gating (Phase 38),
+and test-mode QA documentation with a go-live launch checklist (Phase 39) are implemented.
+Switch `STRIPE_MODE` to `live` only after completing `docs/STRIPE_LAUNCH_CHECKLIST.md`.
 
 ---
 
@@ -385,14 +386,110 @@ Add a Stripe section to `/admin/ops`:
 - Notification emails: `paymentFailed()`, `subscriptionCancellationScheduled()`, `subscriptionCanceled()`
 - Admin Ops: Subscription Billing State section (active/trialing/past_due/unpaid/incomplete/cancel_soon counts)
 
-### Phase 39 — Polish, QA, Test-Mode Launch
-- End-to-end test-mode QA checklist
-- Verify all webhook event paths with Stripe CLI (`stripe listen`)
-- Verify idempotency (replay events)
-- Verify cancellation flow and period-end access expiry
-- Verify entitlement downgrade paths
-- Verify ops page shows correct Stripe status
-- Switch `STRIPE_MODE` to `live` when checklist passes
+### Phase 39 — Polish, QA, Test-Mode Launch ✓ COMPLETE
+- End-to-end Stripe test-mode QA checklist added to `docs/QA_CHECKLIST.md` section 17
+- Stripe CLI test procedure documented (see Test-Mode Validation Procedure below)
+- Go-live launch checklist created: `docs/STRIPE_LAUNCH_CHECKLIST.md`
+- Admin Ops Stripe Configuration: clarifying note added ("complete QA checklist before enabling live billing")
+- Switch `STRIPE_MODE` to `live` only after `docs/STRIPE_LAUNCH_CHECKLIST.md` passes
+
+---
+
+## Test-Mode Validation Procedure
+
+Use this procedure to validate the full Stripe integration in test mode before switching to live. Steps assume the Stripe CLI is installed and the local dev server is running at `http://localhost:8000`.
+
+### Step 1 — Start the Stripe CLI listener
+
+```sh
+stripe listen --forward-to http://localhost:8000/stripe/webhook
+```
+
+Copy the webhook signing secret printed by the CLI into `STRIPE_WEBHOOK_SECRET` in `.env`.
+
+### Step 2 — Confirm `.env` configuration
+
+```
+STRIPE_ENABLED=true
+STRIPE_MODE=test
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...  ← from stripe listen output
+STRIPE_SUCCESS_URL=http://localhost:8000/account/subscription?checkout=success
+STRIPE_CANCEL_URL=http://localhost:8000/account/subscription?checkout=canceled
+```
+
+### Step 3 — Verify /admin/ops
+
+Visit `/admin/ops`. Confirm all Stripe rows show green: enabled, test mode, all keys configured, SDK present, active prices > 0, no plans missing prices.
+
+### Step 4 — Complete a test checkout
+
+1. Log in as a user with a verified email and a Free or manual plan.
+2. Visit `/pricing` or `/account/subscription` and click Subscribe.
+3. On the Stripe Checkout page, enter test card `4242 4242 4242 4242`, future expiry, any CVC.
+4. Confirm payment succeeds and browser returns to `/account/subscription?checkout=success`.
+
+### Step 5 — Verify webhook activation
+
+- Stripe CLI terminal: `checkout.session.completed` shows `200`.
+- `user_subscriptions`: new `status='active'` row with `billing_provider='stripe'`, Stripe IDs populated, period dates set.
+- Audit log: `action='stripe_checkout_completed'`.
+- Subscription page: correct plan name, billing status = active, renewal date shown.
+
+### Step 6 — Test idempotency
+
+Run: `stripe events resend <evt_id>` (copy the event ID from the CLI terminal output).
+
+Confirm: second delivery returns `200`, no duplicate `user_subscriptions` row created.
+
+### Step 7 — Trigger invoice events
+
+```sh
+stripe trigger invoice.payment_succeeded
+stripe trigger invoice.payment_failed
+```
+
+- After `payment_succeeded`: `billing_status` remains `active`, period dates updated, audit log entry.
+- After `payment_failed`: `billing_status` = `past_due`, dashboard and subscription page show warning banner, notification email sent (if `MAIL_ENABLED=true`).
+
+### Step 8 — Test cancellation flow
+
+1. Visit `/account/subscription` as the subscribed user. Click "Cancel Subscription".
+2. Confirm: info banner shown, button hidden, notification email received.
+3. Trigger deletion: `stripe trigger customer.subscription.deleted`
+4. Confirm: `billing_status='canceled'`, `status='canceled'`.
+5. If `current_period_end` is future: user still has paid access; subscription page shows "Access Until" date.
+
+### Step 9 — Test entitlement downgrade
+
+After the subscription row has `status='canceled'`:
+
+- Update `current_period_end` to a past timestamp in the DB.
+- Reload a page that requires the paid plan — user should be gated to Free.
+- Restore `current_period_end` to future — user regains access.
+
+### Step 10 — Test notification emails
+
+Requires `MAIL_ENABLED=true` and valid SMTP config in `.env`.
+
+Confirm emails arrive for: payment failed, cancellation scheduled, subscription ended. Check that all email links use the correct `APP_URL`.
+
+### Step 11 — Check /admin/ops billing state
+
+After each test step, verify `/admin/ops` Subscription Billing State counts reflect the current state. Confirm warning indicators appear for past_due and unpaid rows when counts > 0.
+
+### Step 12 — Review audit logs
+
+Spot-check `/admin/audit-logs` for entries: `stripe_checkout_completed`, `stripe_subscription_updated`, `stripe_subscription_deleted`, `stripe_invoice_paid`, `stripe_invoice_payment_failed`, `stripe_subscription_cancel_requested`.
+
+### Step 13 — Confirm no errors in logs
+
+Check `storage/logs/error.log`. No Stripe-related exceptions should appear during normal flows.
+
+### Step 14 — Complete STRIPE_LAUNCH_CHECKLIST.md
+
+Work through `docs/STRIPE_LAUNCH_CHECKLIST.md` before changing `STRIPE_MODE=live`. The checklist covers Stripe Dashboard setup, production `.env` config, functional verification, safety checks, and business/legal requirements.
 
 ---
 
@@ -446,4 +543,5 @@ Add a Stripe section to `/admin/ops`:
 | `app/Views/account/subscription.php` | Subscription UI — Subscribe/Request Review buttons (Phase 36) |
 | `app/Views/pricing/index.php` | Pricing page — Subscribe/Request Review buttons (Phase 36) |
 | `app/Views/admin/ops.php` | Ops view — Stripe configuration section (Phase 35) |
-| `docs/QA_CHECKLIST.md` | Manual QA checklist — Stripe sections added for Phase 35 and 36 |
+| `docs/QA_CHECKLIST.md` | Manual QA checklist — Stripe sections added for Phases 35–39 |
+| `docs/STRIPE_LAUNCH_CHECKLIST.md` | Go-live checklist — complete before setting `STRIPE_MODE=live` |
