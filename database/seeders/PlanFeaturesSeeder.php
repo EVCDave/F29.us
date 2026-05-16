@@ -20,7 +20,7 @@ return [
         // [plan_internal_name, feature_key, feature_value, value_type]
         $features = [
             // ── Free ────────────────────────────────────────────────────────
-            ['free_v1', 'max_qr_codes',              '5',     'int'],
+            ['free_v1', 'max_qr_codes',              '3',     'int'],
             ['free_v1', 'analytics_retention_days',  '30',    'int'],
             ['free_v1', 'can_create_qr',             'true',  'bool'],
             ['free_v1', 'can_edit_destination',      'true',  'bool'],
@@ -35,7 +35,7 @@ return [
             ['free_v1', 'qr_logo_max_percent',       '0',     'int'],
 
             // ── Starter ──────────────────────────────────────────────────────
-            ['starter_v1', 'max_qr_codes',             '50',   'int'],
+            ['starter_v1', 'max_qr_codes',             '20',   'int'],
             ['starter_v1', 'analytics_retention_days', '90',   'int'],
             ['starter_v1', 'can_create_qr',            'true', 'bool'],
             ['starter_v1', 'can_edit_destination',     'true', 'bool'],
@@ -67,7 +67,7 @@ return [
             ['pro_v1', 'can_customize_qr_colors',   'true',  'bool'],
             ['pro_v1', 'can_customize_qr_module_style', 'true', 'bool'],
             ['pro_v1', 'can_upload_qr_logo',        'true',  'bool'],
-            ['pro_v1', 'qr_logo_max_size_kb',       '250',   'int'],
+            ['pro_v1', 'qr_logo_max_size_kb',       '512',   'int'],
             ['pro_v1', 'qr_logo_max_percent',       '20',    'int'],
 
             // ── Team ─────────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ return [
             ['team_v1', 'can_customize_qr_colors',   'true',  'bool'],
             ['team_v1', 'can_customize_qr_module_style', 'true', 'bool'],
             ['team_v1', 'can_upload_qr_logo',        'true',  'bool'],
-            ['team_v1', 'qr_logo_max_size_kb',       '500',   'int'],
+            ['team_v1', 'qr_logo_max_size_kb',       '1024',   'int'],
             ['team_v1', 'qr_logo_max_percent',       '25',    'int'],
         ];
 
