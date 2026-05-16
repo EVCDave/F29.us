@@ -907,4 +907,26 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 - [ ] No new database rows after visiting `/help` (no audit log, no analytics entry)
 - [ ] No Stripe / billing files exercised by `/help`
 
-*Last updated: 2026-05-16 — Phase 35: public Help Center added at `/help`; footer Help link added; `help` reserved as a short-link slug.*
+### Public Homepage
+
+- [ ] `/` returns HTTP 200 while logged out — no redirect to `/login`
+- [ ] `/` returns HTTP 200 while logged in
+- [ ] Hero headline reads "QR codes you can change after you print them." with the subheading describing dynamic + static
+- [ ] Logged-out hero shows: "Get started free" (→ `/register`), "Create a Dynamic QR Code" (→ `/qr/create`), "Try the Static QR Generator" (→ `/qr/static`), plus a tertiary "View Plans" link to `/pricing`
+- [ ] Logged-in hero shows: "Create a Dynamic QR Code" (→ `/qr/create`) and "Try the Static QR Generator" (→ `/qr/static`) — the "Get started free" button is hidden
+- [ ] "Why use a dynamic QR code?" section is present and lists destination edits, pause/resume/archive/restore, destination history, scan tracking, and custom slugs
+- [ ] Feature grid contains exactly six cards: Dynamic QR Management, Static QR Generator, Styling, Downloads, Analytics, Security and Abuse Controls
+- [ ] Static-vs-dynamic comparison table is present with the six rows (Destination editable later, Stored in your account, Scan analytics, Counts against QR limit, Best for, Redirect controlled by f29.us)
+- [ ] Styling section mentions colors, transparent backgrounds, module styles, logo upload, PNG sizes 512/1024/2048/4096, and SVG
+- [ ] Analytics section names total scans, daily counts, device breakdown, top referrers, bot filtering, and retention; explicitly says static QR codes are not tracked
+- [ ] No copy on the homepage promises geolocation analytics
+- [ ] No copy on the homepage implies malware scanning is performed
+- [ ] No copy on the homepage implies multi-user / team / workspace features
+- [ ] "Start free. Upgrade when you need more." pricing CTA card is present and links to `/pricing`
+- [ ] Final CTA section has "Create Dynamic QR Code" (→ `/qr/create`) and "Create Static QR Code" (→ `/qr/static`); logged-out visitors also see the "Sign up free" line linking to `/register`
+- [ ] On a viewport ≤600 px the hero font scales down and the feature grid stacks to a single column
+- [ ] Visiting `/` does not write any new rows to the database
+- [ ] Visiting `/` does not call Stripe or any external service
+- [ ] No inline JavaScript and no inline styles on the homepage view
+
+*Last updated: 2026-05-16 — Phase 36: homepage refreshed with hero, dynamic-QR value section, six feature cards, static-vs-dynamic comparison, styling/downloads/analytics sections, and pricing + final CTAs.*
