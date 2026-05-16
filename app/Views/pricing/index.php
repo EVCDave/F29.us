@@ -106,9 +106,9 @@ $fv = static function (array $planFeatures, string $key): string {
             $isCurrent = $currentPlanId === $pid;
             $isPending = in_array($pid, $pendingPlanIds, true);
             $isFree    = $p['internal_name'] === 'free_v1';
-            $planPrices    = $stripePricesByPlan[$pid] ?? [];
-            $checkoutCycle = isset($planPrices['monthly']) ? 'monthly'
-                           : (isset($planPrices['yearly']) ? 'yearly' : null);
+            $planPrices = $stripePricesByPlan[$pid] ?? [];
+            $hasMonthly = isset($planPrices['monthly']);
+            $hasYearly  = isset($planPrices['yearly']);
             ?>
             <?php if (!$currentUser): ?>
                 <a href="/register" class="btn btn-sm">Create Account</a>
@@ -117,19 +117,33 @@ $fv = static function (array $planFeatures, string $key): string {
             <?php elseif ($isPending): ?>
                 <span class="btn-disabled btn-disabled-sm">Request Pending</span>
             <?php elseif ($isFree): ?>
+                <?php if ($currentSubscriptionIsStripeBacked): ?>
+                <span class="btn-disabled btn-disabled-sm text-83">Cancel paid subscription<br>from Account</span>
+                <?php else: ?>
                 <form method="post" action="/account/subscription/change">
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
                     <button type="submit" class="btn btn-sm">Switch to Free</button>
                 </form>
+                <?php endif; ?>
             <?php elseif ($stripeEnabled): ?>
-                <?php if ($checkoutCycle): ?>
+                <?php if ($hasMonthly || $hasYearly): ?>
+                <?php if ($hasMonthly): ?>
+                <form method="post" action="/account/subscription/checkout" class="mb-1">
+                    <?= CsrfService::field() ?>
+                    <input type="hidden" name="plan_id" value="<?= $pid ?>">
+                    <input type="hidden" name="billing_cycle" value="monthly">
+                    <button type="submit" class="btn btn-sm">Subscribe Monthly</button>
+                </form>
+                <?php endif; ?>
+                <?php if ($hasYearly): ?>
                 <form method="post" action="/account/subscription/checkout">
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
-                    <input type="hidden" name="billing_cycle" value="<?= View::e($checkoutCycle) ?>">
-                    <button type="submit" class="btn btn-sm">Subscribe</button>
+                    <input type="hidden" name="billing_cycle" value="yearly">
+                    <button type="submit" class="btn btn-sm">Subscribe Yearly</button>
                 </form>
+                <?php endif; ?>
                 <?php else: ?>
                 <span class="btn-disabled btn-disabled-sm">Not available</span>
                 <?php endif; ?>

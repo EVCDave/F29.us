@@ -48,6 +48,13 @@ The following schema, services, and features are already in place:
 | `checkout.session.expired` handler | `StripeWebhookService` | 37 |
 | `POST /stripe/webhook` route + controller | `StripeWebhookController`, `public/index.php` | 37 |
 | Webhook stats expanded in Admin Ops | `OpsController`, `ops.php` | 37 |
+| `plan_billing_prices.provider_mode` ENUM | migration 030 | 40 |
+| Provider mode select in admin billing price form | `plan_detail.php` | 40 |
+| Provider mode column in admin billing prices table | `plan_detail.php` | 40 |
+| `price_` prefix validation on Stripe Price IDs | `PlanController` | 40 |
+| Checkout price lookup filtered by `provider_mode` | `AccountController`, `PricingController`, `StripeService` | 40 |
+| Monthly / yearly Subscribe buttons (one per active cycle) | subscription + pricing views | 40 |
+| Ops mode-split active price counts | `OpsController`, `ops.php` | 40 |
 | `StripeService::cancelSubscriptionAtPeriodEnd()` | `app/Services/StripeService.php` | 38 |
 | `StripeService::mapSubscriptionStatus()` | `app/Services/StripeService.php` | 38 |
 | `StripeService::stripeTimestampToSql()` | `app/Services/StripeService.php` | 38 |
@@ -385,6 +392,15 @@ Add a Stripe section to `/admin/ops`:
 - Cancel subscription button (Stripe-backed only, conditional on active+not-already-canceling)
 - Notification emails: `paymentFailed()`, `subscriptionCancellationScheduled()`, `subscriptionCanceled()`
 - Admin Ops: Subscription Billing State section (active/trialing/past_due/unpaid/incomplete/cancel_soon counts)
+
+### Phase 40 — Provider Mode Tracking and Billing Cycle Selection ✓ COMPLETE
+- Migration 030: `plan_billing_prices.provider_mode ENUM('test','live') NOT NULL DEFAULT 'test'` added; index on `(provider, provider_mode, is_active)`
+- Admin billing price form: "Provider Mode" select (default = current `STRIPE_MODE`); `price_` prefix validation on Stripe Price IDs; `prod_...` IDs rejected
+- Admin billing prices table: "Mode" column added (test/live badge)
+- Checkout price queries (`AccountController`, `PricingController`, `StripeService`) now filter by `provider_mode = StripeService::mode()` — test keys never resolve live prices and vice versa
+- Subscription and pricing pages: one "Subscribe Monthly" and/or "Subscribe Yearly" button per active current-mode mapping (instead of a single generic "Subscribe")
+- Ops page: active price counts split by current mode and other mode; missing-price check is current-mode-specific
+- **Important for admins:** Stripe test and live Price IDs both start with `price_`. After migration 030, review existing mappings and set the correct `provider_mode`. Enter live prices from the Stripe Dashboard live mode only, and test prices from test mode only.
 
 ### Phase 39 — Polish, QA, Test-Mode Launch ✓ COMPLETE
 - End-to-end Stripe test-mode QA checklist added to `docs/QA_CHECKLIST.md` section 17

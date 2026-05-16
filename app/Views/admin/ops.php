@@ -259,11 +259,15 @@ $fail = static function (string $msg): string {
     </tr>
     <?php if ($checks['db_connected']): ?>
     <tr>
-        <th>Active Stripe prices</th>
-        <td><?= (int) ($checks['stripe_active_prices'] ?? 0) ?></td>
+        <th>Active prices (<?= View::e($checks['stripe_mode']) ?> mode)</th>
+        <td><?= (int) ($checks['stripe_active_prices_current'] ?? 0) ?></td>
     </tr>
     <tr>
-        <th>Paid plans missing<br>active Stripe price</th>
+        <th>Active prices (<?= View::e($checks['stripe_other_mode'] ?? '') ?> mode)</th>
+        <td class="text-muted"><?= (int) ($checks['stripe_active_prices_other'] ?? 0) ?></td>
+    </tr>
+    <tr>
+        <th>Paid plans missing active<br>price (<?= View::e($checks['stripe_mode']) ?> mode)</th>
         <td>
             <?php $missing = $checks['stripe_plans_missing_prices'] ?? []; ?>
             <?php if (empty($missing)): ?>

@@ -607,7 +607,7 @@ All destination URLs are validated for `http`/`https` scheme and the absence of 
 X-Frame-Options: SAMEORIGIN
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
-Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; object-src 'none'
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://checkout.stripe.com; object-src 'none'
 ```
 
 **CSP notes:**
@@ -616,7 +616,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 - `img-src 'self' data:` — QR code SVG previews are rendered as `data:image/svg+xml;base64,…` in `<img src>`; no external image CDNs
 - `frame-ancestors 'self'` — permits same-origin framing only; stricter than `X-Frame-Options: SAMEORIGIN` which is also sent for older browser compatibility
 - `base-uri 'self'` — prevents `<base>` tag injection attacks
-- `form-action 'self'` — all form submissions must target the same origin
+- `form-action 'self' https://checkout.stripe.com` — form submissions target the same origin; `https://checkout.stripe.com` is added to permit browser navigation after the Stripe Checkout form-submission redirect (the checkout POST returns a 302 to Stripe's hosted page)
 - `object-src 'none'` — disallows Flash and legacy plugin content
 
 **Static assets:**
@@ -783,7 +783,7 @@ The plan detail and edit pages show a warning banner when the plan has active su
 
 ### Billing / public subscriptions
 
-Stripe Checkout and subscription lifecycle management are implemented (Phases 35–38). Set `STRIPE_ENABLED=true` and configure Stripe env vars to activate billing. Admin plan assignment remains available as a manual fallback for complimentary and grandfathered access. See [docs/STRIPE_PLAN.md](docs/STRIPE_PLAN.md) for the full Stripe architecture and test-mode validation procedure. See [docs/STRIPE_LAUNCH_CHECKLIST.md](docs/STRIPE_LAUNCH_CHECKLIST.md) before switching to live mode.
+Stripe Checkout and subscription lifecycle management are implemented (Phases 35–40). Set `STRIPE_ENABLED=true` and configure Stripe env vars to activate billing. Each billing price mapping carries a `provider_mode` (`test`/`live`) — checkout only uses mappings matching the current `STRIPE_MODE`, preventing test/live cross-contamination. Monthly and yearly Subscribe buttons are shown independently per active mapping. Admin plan assignment remains available as a manual fallback for complimentary and grandfathered access. See [docs/STRIPE_PLAN.md](docs/STRIPE_PLAN.md) for the full Stripe architecture and test-mode validation procedure. See [docs/STRIPE_LAUNCH_CHECKLIST.md](docs/STRIPE_LAUNCH_CHECKLIST.md) before switching to live mode.
 
 ---
 
@@ -947,8 +947,6 @@ Switching to a plan is handled server-side. All plan eligibility is validated se
 - **Free plan — non-Stripe subscription**: the switch is immediate. The current subscription is closed and a new active free subscription is created.
 - **Paid plan — Stripe enabled**: must use Stripe Checkout (`POST /account/subscription/checkout`). Direct POST to `/account/subscription/change` for a paid plan is rejected when `STRIPE_ENABLED=true`.
 - **Paid plan — Stripe disabled**: a `subscription_change_requests` row is created with `status='pending'` for admin review. No subscription change occurs until approved.
-
-### Admin review of change requests
 
 ### Admin review of change requests
 
@@ -1222,8 +1220,9 @@ Two additions support the billing groundwork:
 | Column | Type | Nullable | Purpose |
 |--------|------|----------|---------|
 | `plan_id` | `BIGINT UNSIGNED` | No | FK to `plans` (CASCADE DELETE) |
-| `provider` | `VARCHAR(50)` | No | Provider slug (e.g. `stripe`) |
-| `provider_price_id` | `VARCHAR(255)` | No | The provider's price object ID |
+| `provider` | `VARCHAR(50)` | No | Provider slug (`stripe`) |
+| `provider_mode` | ENUM(`'test'`/`'live'`) | No | Stripe mode for this mapping. Checkout only uses rows where `provider_mode` matches `STRIPE_MODE`. Stripe test and live Price IDs both start with `price_` — select the correct mode when creating mappings. |
+| `provider_price_id` | `VARCHAR(255)` | No | The provider's price object ID (must start with `price_`) |
 | `billing_cycle` | ENUM | No | `monthly` or `yearly` |
 | `currency_code` | `CHAR(3)` | No | ISO 4217 (e.g. `USD`) |
 | `amount_cents` | `INT UNSIGNED` | **Yes** | Amount in cents. Optional — may be left NULL while billing is not yet finalized |

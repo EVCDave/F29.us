@@ -2,6 +2,15 @@ Options -Indexes
 
 RewriteEngine On
 
+# ── Canonical host: redirect www.f29.us → f29.us ─────────────────────────────
+RewriteCond %{HTTP_HOST} ^www\.f29\.us$ [NC]
+RewriteRule ^ https://f29.us%{REQUEST_URI} [R=301,L]
+
+# ── Force HTTPS on the canonical host ────────────────────────────────────────
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://f29.us%{REQUEST_URI} [R=301,L]
+
+# ── Front controller ──────────────────────────────────────────────────────────
 # Serve real files and directories directly (CSS, images, etc.)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

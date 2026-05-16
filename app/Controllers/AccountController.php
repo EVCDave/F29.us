@@ -89,12 +89,18 @@ class AccountController
         if ($stripeEnabled && !empty($plans)) {
             $planIds      = array_column($plans, 'id');
             $placeholders = implode(',', array_fill(0, count($planIds), '?'));
+            $stripeMode = StripeService::mode();
+            $modeParams = $planIds;
+            $modeParams[] = $stripeMode;
             $stmt = $pdo->prepare(
                 "SELECT plan_id, billing_cycle
                    FROM plan_billing_prices
-                  WHERE plan_id IN ({$placeholders}) AND provider = 'stripe' AND is_active = 1"
+                  WHERE plan_id IN ({$placeholders})
+                    AND provider = 'stripe'
+                    AND provider_mode = ?
+                    AND is_active = 1"
             );
-            $stmt->execute($planIds);
+            $stmt->execute($modeParams);
             foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
                 $stripePricesByPlan[(int) $row['plan_id']][$row['billing_cycle']] = true;
             }
@@ -242,10 +248,11 @@ class AccountController
         // Server-side price lookup — never trust posted provider_price_id
         $stmt = $pdo->prepare(
             "SELECT id FROM plan_billing_prices
-              WHERE plan_id = ? AND provider = 'stripe' AND billing_cycle = ? AND is_active = 1
+              WHERE plan_id = ? AND provider = 'stripe'
+                AND provider_mode = ? AND billing_cycle = ? AND is_active = 1
               LIMIT 1"
         );
-        $stmt->execute([$planId, $billingCycle]);
+        $stmt->execute([$planId, StripeService::mode(), $billingCycle]);
         $priceId = $stmt->fetchColumn();
 
         if ($priceId === false) {

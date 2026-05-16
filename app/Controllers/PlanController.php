@@ -522,22 +522,28 @@ class PlanController
         $this->loadPlan($planId);
 
         $provider       = trim($_POST['provider']          ?? '');
+        $providerMode   = trim($_POST['provider_mode']     ?? '');
         $priceId        = trim($_POST['provider_price_id'] ?? '');
         $billingCycle   = trim($_POST['billing_cycle']     ?? '');
         $currencyCode   = strtoupper(trim($_POST['currency_code'] ?? 'USD'));
         $amountRaw      = trim($_POST['amount_cents']      ?? '');
 
         $validCycles = ['monthly', 'yearly'];
+        $validModes  = ['test', 'live'];
         $errors      = [];
 
-        if ($provider === '') {
-            $errors[] = 'Provider is required (e.g. stripe).';
-        } elseif (!preg_match('/^[a-z][a-z0-9_]*$/', $provider)) {
-            $errors[] = 'Provider must start with a lowercase letter and contain only lowercase letters, digits, and underscores.';
+        if ($provider !== 'stripe') {
+            $errors[] = 'Provider must be stripe.';
+        }
+
+        if (!in_array($providerMode, $validModes, true)) {
+            $errors[] = 'Provider mode must be test or live.';
         }
 
         if ($priceId === '') {
             $errors[] = 'Provider price ID is required.';
+        } elseif ($provider === 'stripe' && !str_starts_with($priceId, 'price_')) {
+            $errors[] = 'Stripe Provider Price ID must start with price_ (e.g. price_1ABC...). Product IDs (prod_...) are not valid here.';
         }
 
         if (!in_array($billingCycle, $validCycles, true)) {
@@ -568,11 +574,11 @@ class PlanController
         try {
             $pdo->prepare("
                 INSERT INTO plan_billing_prices
-                    (plan_id, provider, provider_price_id, billing_cycle,
+                    (plan_id, provider, provider_mode, provider_price_id, billing_cycle,
                      currency_code, amount_cents, is_active, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
             ")->execute([
-                $planId, $provider, $priceId, $billingCycle,
+                $planId, $provider, $providerMode, $priceId, $billingCycle,
                 $currencyCode, $amountCents, $now, $now,
             ]);
         } catch (PDOException $e) {
@@ -589,6 +595,7 @@ class PlanController
         AuditLogService::log($adminUserId, 'plan_billing_price', $newId, 'billing_price_added', [
             'plan_id'           => $planId,
             'provider'          => $provider,
+            'provider_mode'     => $providerMode,
             'provider_price_id' => $priceId,
             'billing_cycle'     => $billingCycle,
             'currency_code'     => $currencyCode,
@@ -819,6 +826,7 @@ class PlanController
             'billingPrices'      => $billingPrices,
             'billingPriceErrors' => $billingPriceErrors,
             'oldBillingPrice'    => $oldBillingPrice,
+            'stripeMode'         => StripeService::mode(),
         ]);
     }
 

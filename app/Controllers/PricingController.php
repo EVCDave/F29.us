@@ -24,7 +24,8 @@ class PricingController
             $userId = (int) $currentUser['id'];
 
             $stmt = $pdo->prepare("
-                SELECT plan_id FROM user_subscriptions
+                SELECT plan_id, billing_provider, provider_subscription_id
+                FROM   user_subscriptions
                 WHERE  user_id = ? AND status = 'active'
                 ORDER  BY started_at DESC, id DESC
                 LIMIT  1
@@ -32,6 +33,9 @@ class PricingController
             $stmt->execute([$userId]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             $currentPlanId = $row ? (int) $row['plan_id'] : null;
+            $currentSubscriptionIsStripeBacked = $row !== false
+                && ($row['billing_provider'] ?? '') === 'stripe'
+                && !empty($row['provider_subscription_id']);
 
             $stmt = $pdo->prepare("
                 SELECT requested_plan_id FROM subscription_change_requests
@@ -48,16 +52,24 @@ class PricingController
         if ($stripeEnabled && !empty($plans)) {
             $planIds      = array_column($plans, 'id');
             $placeholders = implode(',', array_fill(0, count($planIds), '?'));
+            $stripeMode = StripeService::mode();
+            $modeParams = $planIds;
+            $modeParams[] = $stripeMode;
             $stmt = $pdo->prepare(
                 "SELECT plan_id, billing_cycle
                    FROM plan_billing_prices
-                  WHERE plan_id IN ({$placeholders}) AND provider = 'stripe' AND is_active = 1"
+                  WHERE plan_id IN ({$placeholders})
+                    AND provider = 'stripe'
+                    AND provider_mode = ?
+                    AND is_active = 1"
             );
-            $stmt->execute($planIds);
+            $stmt->execute($modeParams);
             foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
                 $stripePricesByPlan[(int) $row['plan_id']][$row['billing_cycle']] = true;
             }
         }
+
+        $currentSubscriptionIsStripeBacked ??= false;
 
         View::render('pricing/index', [
             'pageTitle'          => 'Pricing — f29.us Dynamic QR',
@@ -68,6 +80,7 @@ class PricingController
             'pendingPlanIds'     => $pendingPlanIds,
             'stripeEnabled'      => $stripeEnabled,
             'stripePricesByPlan' => $stripePricesByPlan,
+            'currentSubscriptionIsStripeBacked' => $currentSubscriptionIsStripeBacked,
         ]);
     }
 

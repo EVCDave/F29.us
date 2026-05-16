@@ -333,9 +333,9 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
         $isPending = in_array($pid, $pendingPlanIds, true);
         $isFree    = $p['internal_name'] === 'free_v1';
         // Determine checkout cycle when Stripe is enabled
-        $planPrices    = $stripePricesByPlan[$pid] ?? [];
-        $checkoutCycle = isset($planPrices['monthly']) ? 'monthly'
-                       : (isset($planPrices['yearly']) ? 'yearly' : null);
+        $planPrices = $stripePricesByPlan[$pid] ?? [];
+        $hasMonthly = isset($planPrices['monthly']);
+        $hasYearly  = isset($planPrices['yearly']);
         ?>
         <td class="text-center pt-3 pb-2">
             <?php if ($isCurrent): ?>
@@ -353,13 +353,23 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
                 </form>
                 <?php endif; ?>
             <?php elseif ($stripeEnabled): ?>
-                <?php if ($checkoutCycle): ?>
+                <?php if ($hasMonthly || $hasYearly): ?>
+                <?php if ($hasMonthly): ?>
+                <form method="post" action="/account/subscription/checkout" class="mb-1">
+                    <?= CsrfService::field() ?>
+                    <input type="hidden" name="plan_id" value="<?= $pid ?>">
+                    <input type="hidden" name="billing_cycle" value="monthly">
+                    <button type="submit" class="btn btn-sm">Subscribe Monthly</button>
+                </form>
+                <?php endif; ?>
+                <?php if ($hasYearly): ?>
                 <form method="post" action="/account/subscription/checkout">
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
-                    <input type="hidden" name="billing_cycle" value="<?= View::e($checkoutCycle) ?>">
-                    <button type="submit" class="btn btn-sm">Subscribe</button>
+                    <input type="hidden" name="billing_cycle" value="yearly">
+                    <button type="submit" class="btn btn-sm">Subscribe Yearly</button>
                 </form>
+                <?php endif; ?>
                 <?php else: ?>
                 <span class="btn-disabled btn-disabled-sm text-83">Online checkout<br>not configured</span>
                 <?php endif; ?>
