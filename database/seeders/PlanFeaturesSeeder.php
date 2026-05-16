@@ -75,7 +75,7 @@ return [
 
             // ── Team ─────────────────────────────────────────────────────────
             ['team_v1', 'max_qr_codes',              '1000', 'int'],
-            ['team_v1', 'analytics_retention_days',  '365',  'int'],
+            ['team_v1', 'analytics_retention_days',  '730',  'int'],
             ['team_v1', 'can_create_qr',             'true', 'bool'],
             ['team_v1', 'can_edit_destination',      'true', 'bool'],
             ['team_v1', 'can_export_png',            'true', 'bool'],

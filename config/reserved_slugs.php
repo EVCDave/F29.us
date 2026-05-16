@@ -22,6 +22,7 @@ return [
     'acceptable-use',
     'abuse',
     'contact',
+    'help',
     'verify-email',
     'forgot-password',
     'reset-password',

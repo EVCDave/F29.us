@@ -880,4 +880,31 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 
 ---
 
-*Last updated: 2026-05-16 — Phase 34A: static QR generator QA section added; style validation surfaces visible errors for entitled users, while unentitled submitted style fields are silently coerced back to safe defaults.*
+### Public Help page
+
+- [ ] `/help` returns HTTP 200 while logged out — no redirect to `/login`
+- [ ] `/help` returns HTTP 200 while logged in
+- [ ] Footer on every page now includes a "Help" link (left of "Terms"), pointing to `/help`
+- [ ] Help page header reads "Help Center" with the intro paragraph below it
+- [ ] Sidebar table of contents lists: Overview, Dynamic QR Codes, Static QR Codes, QR Styling, Downloads, Analytics, Plans and Entitlements, Account Settings, Billing and Subscriptions, Moderation and Abuse, Security and Privacy, FAQ
+- [ ] Clicking each sidebar link jumps to the matching `<section id="…">` and the section starts visible (scroll-margin honored)
+- [ ] On a viewport ≤800 px wide, the sidebar stacks above the main content and is no longer sticky
+- [ ] Sidebar is sticky on wide viewports
+- [ ] The Dynamic QR section explains pause/resume/archive/restore, destination history, and analytics
+- [ ] The Static QR section lists the four templates (Text/URL, Wi-Fi, Email, vCard) and states they're not saved and not tracked
+- [ ] The Styling section explains colors, transparent background, module styles, finder-pattern preservation, and logo (dynamic only)
+- [ ] The Downloads section lists 512 / 1024 / 2048 / 4096 px PNG options and the filename pattern, plus SVG vector behavior
+- [ ] The Analytics section names the scan dashboard fields and clarifies static QR codes are not tracked
+- [ ] The Plans section links to `/pricing`
+- [ ] The Account section links to `/account/settings`, `/account/security`, and `/forgot-password`
+- [ ] The Billing section explains that the Stripe webhook (not the success page) activates paid access
+- [ ] The Moderation section links to `/abuse` and `/acceptable-use`
+- [ ] The Security and Privacy section links to `/terms`, `/privacy`, `/acceptable-use`, `/abuse`, `/contact`
+- [ ] FAQ includes the six required questions and answers
+- [ ] The intro paragraph and the Dynamic / Static sections include links to `/qr/create` and `/qr/static`
+- [ ] Routing: visiting `/help` does NOT resolve via the `/{slug}` catch-all (no 302 redirect to an external URL even if a `help` short link existed before — the reserved-slug list prevents creating one in the first place)
+- [ ] Reserved slug: attempting to create a custom short link with slug `help` is rejected by `SlugService` validation
+- [ ] No new database rows after visiting `/help` (no audit log, no analytics entry)
+- [ ] No Stripe / billing files exercised by `/help`
+
+*Last updated: 2026-05-16 — Phase 35: public Help Center added at `/help`; footer Help link added; `help` reserved as a short-link slug.*
