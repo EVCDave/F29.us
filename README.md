@@ -783,7 +783,7 @@ The plan detail and edit pages show a warning banner when the plan has active su
 
 ### Billing / public subscriptions
 
-Stripe Checkout and subscription lifecycle management are implemented (Phases 35–38). Set `STRIPE_ENABLED=true` and configure Stripe env vars to activate billing. Admin plan assignment remains available as a manual fallback for complimentary and grandfathered access. See [docs/STRIPE_PLAN.md](docs/STRIPE_PLAN.md) for the full Stripe architecture.
+Stripe Checkout and subscription lifecycle management are implemented (Phases 35–38). Set `STRIPE_ENABLED=true` and configure Stripe env vars to activate billing. Admin plan assignment remains available as a manual fallback for complimentary and grandfathered access. See [docs/STRIPE_PLAN.md](docs/STRIPE_PLAN.md) for the full Stripe architecture and test-mode validation procedure. See [docs/STRIPE_LAUNCH_CHECKLIST.md](docs/STRIPE_LAUNCH_CHECKLIST.md) before switching to live mode.
 
 ---
 
@@ -1306,9 +1306,13 @@ Run through it before every production deployment.
 
 The following are intentionally absent:
 
+- Stripe paid-to-paid plan switching (proration and upgrade/downgrade paths — deferred)
+- Stripe Customer Portal integration (payment method updates, invoice history self-service)
+- Invoice and payment-method self-service UI
+- Tax, coupon, and discount logic
+- Live-mode Stripe launch (test-mode QA checklist must pass first — see `docs/QA_CHECKLIST.md` section 17 and [`docs/STRIPE_LAUNCH_CHECKLIST.md`](docs/STRIPE_LAUNCH_CHECKLIST.md))
 - Analytics retention data purge (retention is a query filter only — old rows are not deleted)
 - Geolocation in scan events (country/region/city stored as NULL)
-- Stripe Customer Portal integration (payment method updates, invoice history self-service)
 - Global session revocation on password reset (only the current browser session is rotated; other active sessions remain valid)
 - Multi-factor authentication (MFA / TOTP)
 - Team / workspace / multi-user account features

@@ -618,4 +618,83 @@ These are intentional absences. Confirm they are clearly communicated to users w
 
 ---
 
-*Last updated: 2026-05-15 — Phase 38 Stripe Subscription Lifecycle section added*
+## 17. Stripe Test-Mode End-to-End QA
+
+Complete this section using `STRIPE_MODE=test` before switching to live. All webhook tests require the Stripe CLI listener running.
+
+### Prerequisites
+- [ ] `.env`: `STRIPE_ENABLED=true`, `STRIPE_MODE=test`, test-mode `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` all set
+- [ ] Stripe CLI installed and authenticated (`stripe login`)
+- [ ] Webhook listener started: `stripe listen --forward-to http://localhost:8000/stripe/webhook` — copy the printed webhook secret into `STRIPE_WEBHOOK_SECRET`
+- [ ] At least one paid plan has an active Stripe price mapped (`/admin/plans/{id}`)
+- [ ] A test user exists with a verified email address
+
+### Configuration
+- [ ] `/admin/ops` shows `STRIPE_ENABLED: enabled`, `STRIPE_MODE: test`
+- [ ] All three key rows show "configured" (no values displayed)
+- [ ] Stripe SDK shows "present"
+- [ ] Active Stripe prices count > 0; no plans missing active price
+
+### Checkout
+- [ ] Unauthenticated user visits `/pricing` → Subscribe buttons visible for paid plans
+- [ ] Authenticated user with verified email clicks Subscribe → redirected to Stripe Checkout (URL contains `checkout.stripe.com`)
+- [ ] Stripe Checkout page shows the correct plan name and price
+- [ ] Enter test card `4242 4242 4242 4242`, any future expiry, any CVC → payment succeeds
+- [ ] On success: redirected to `/account/subscription?checkout=success` with success flash message
+- [ ] `stripe_checkout_sessions` row: `status='completed'`, `completed_at` set
+- [ ] `user_subscriptions` row: `status='active'`, `billing_status='active'`, `billing_provider='stripe'`, Stripe IDs populated, period dates set
+- [ ] Audit log entry: `action='stripe_checkout_completed'`
+- [ ] Subscription page shows correct plan name, billing status, and next renewal date
+
+### Webhook delivery
+- [ ] Stripe CLI terminal shows `200` for each forwarded event
+- [ ] No failed webhooks in `/admin/ops` "Failed webhooks (24 h)"
+- [ ] Replay: `stripe events resend <evt_id>` → second delivery returns `200`; no duplicate `user_subscriptions` row (idempotent)
+
+### `invoice.payment_succeeded`
+- [ ] Trigger: `stripe trigger invoice.payment_succeeded`
+- [ ] `billing_status` remains `active`; `current_period_end` updated if changed
+- [ ] Audit log entry: `action='stripe_invoice_paid'`
+
+### `invoice.payment_failed`
+- [ ] Trigger: `stripe trigger invoice.payment_failed`
+- [ ] `billing_status` set to `past_due`
+- [ ] Subscription page and dashboard show payment-failed banner (warning style)
+- [ ] User retains paid-plan features (grace period active)
+- [ ] Notification email received (requires `MAIL_ENABLED=true`)
+- [ ] Audit log entry: `action='stripe_invoice_payment_failed'`
+- [ ] `/admin/ops` "Past due" count > 0 with warning indicator
+
+### Cancellation
+- [ ] Authenticated subscriber visits `/account/subscription` → "Cancel Subscription" button visible
+- [ ] User submits cancellation → Stripe subscription set to `cancel_at_period_end=true`
+- [ ] Page shows info banner: subscription cancels at end of billing period
+- [ ] "Cancel Subscription" button no longer shown; "Switch to Free" column shows disabled label
+- [ ] Notification email received: cancellation scheduled (requires `MAIL_ENABLED=true`)
+- [ ] Audit log entry: `action='stripe_subscription_cancel_requested'`
+- [ ] `/admin/ops` "Canceling at period end" count = 1
+- [ ] Trigger deletion: `stripe trigger customer.subscription.deleted`
+- [ ] `billing_status='canceled'`, `status='canceled'`
+- [ ] If `current_period_end` > now: subscription page shows "Access Until" date and info banner; paid features accessible
+- [ ] Notification email received: subscription ended (requires `MAIL_ENABLED=true`)
+
+### Entitlement downgrade after cancellation
+- [ ] Immediately after `customer.subscription.deleted` with future `current_period_end`: user has paid access
+- [ ] Update DB row: set `current_period_end` to a past timestamp → user falls back to Free plan, paid features inaccessible
+- [ ] Restore `current_period_end` to future → paid access returns
+
+### Notifications
+- [ ] `invoice.payment_failed` → payment-failed email received
+- [ ] Cancel form submission → cancellation-scheduled email received
+- [ ] `customer.subscription.deleted` → subscription-ended email received
+- [ ] All email links use the correct `APP_URL`
+
+### Admin Ops
+- [ ] After test checkout: "Active" billing-state count = 1
+- [ ] After `invoice.payment_failed`: "Past due" count = 1, warning shown
+- [ ] After cancel scheduled: "Canceling at period end" count = 1
+- [ ] After `customer.subscription.deleted`: counts reflect updated state
+
+---
+
+*Last updated: 2026-05-15 — Phase 39: Stripe test-mode end-to-end QA section added*
