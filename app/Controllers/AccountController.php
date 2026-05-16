@@ -100,6 +100,15 @@ class AccountController
             }
         }
 
+        $billingBanner    = $activeSub ? BillingStatusService::bannerForSubscription($activeSub) : null;
+        $showCancelButton = $activeSub
+            && BillingStatusService::isStripeBacked($activeSub)
+            && $activeSub['status'] === 'active'
+            && !(bool) ($activeSub['cancel_at_period_end'] ?? false)
+            && !in_array($activeSub['billing_status'] ?? '', ['canceled', 'unpaid', 'incomplete'], true);
+        $currentSubscriptionIsStripeBacked = $activeSub !== null
+            && BillingStatusService::isStripeBacked($activeSub);
+
         View::render('account/subscription', [
             'pageTitle'          => 'My Subscription — f29.us Dynamic QR',
             'activeSub'          => $activeSub,
@@ -116,6 +125,9 @@ class AccountController
             'checkoutStatus'     => $checkoutStatus,
             'stripeEnabled'      => $stripeEnabled,
             'stripePricesByPlan' => $stripePricesByPlan,
+            'billingBanner'      => $billingBanner,
+            'showCancelButton'   => $showCancelButton,
+            'currentSubscriptionIsStripeBacked' => $currentSubscriptionIsStripeBacked,
         ]);
     }
 
@@ -145,7 +157,7 @@ class AccountController
         }
 
         $stmt = $pdo->prepare("
-            SELECT id, plan_id FROM user_subscriptions
+            SELECT id, plan_id, billing_provider, provider_subscription_id FROM user_subscriptions
             WHERE  user_id = ? AND status = 'active'
             ORDER  BY started_at DESC, id DESC
             LIMIT  1
@@ -167,6 +179,18 @@ class AccountController
             $_SESSION['flash'] = ['type' => 'error',
                 'text' => 'Online checkout is now used for paid plans. Please use the Subscribe button.'];
             redirect('/account/subscription');
+        }
+
+        // Block local Free switch for active Stripe-backed subscriptions.
+        // These must use the cancel-at-period-end flow to avoid conflicting with Stripe billing.
+        if ($isFree && $activeSub !== null) {
+            $isStripeBacked = ($activeSub['billing_provider'] ?? '') === 'stripe'
+                && !empty($activeSub['provider_subscription_id']);
+            if ($isStripeBacked) {
+                $_SESSION['flash'] = ['type' => 'info',
+                    'text' => 'Paid Stripe subscriptions must be canceled at period end. Use the Cancel Subscription button instead.'];
+                redirect('/account/subscription');
+            }
         }
 
         $now = gmdate('Y-m-d H:i:s');
@@ -240,6 +264,87 @@ class AccountController
         }
 
         redirect($result['checkout_url']);
+    }
+
+    // ── Cancel Stripe subscription at period end ──────────────────────────────
+
+    public function cancelStripeSubscription(array $params = []): void
+    {
+        CsrfService::requireValid();
+        AuthService::requireAuth();
+
+        if (!StripeService::isEnabled()) {
+            $_SESSION['flash'] = ['type' => 'error', 'text' => 'Online billing is not enabled.'];
+            redirect('/account/subscription');
+        }
+
+        $userId = (int) AuthService::userId();
+        EmailVerificationService::requireVerifiedEmail($userId);
+
+        $pdo  = Database::get();
+        $stmt = $pdo->prepare("
+            SELECT id, provider_subscription_id, current_period_end, billing_status
+              FROM user_subscriptions
+             WHERE user_id = ? AND status = 'active'
+               AND billing_provider = 'stripe'
+               AND provider_subscription_id IS NOT NULL
+               AND provider_subscription_id != ''
+             ORDER BY started_at DESC, id DESC
+             LIMIT 1
+        ");
+        $stmt->execute([$userId]);
+        $activeSub = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$activeSub) {
+            $_SESSION['flash'] = ['type' => 'error',
+                'text' => 'No active Stripe subscription was found to cancel.'];
+            redirect('/account/subscription');
+        }
+
+        $subId       = (int) $activeSub['id'];
+        $stripeSubId = (string) $activeSub['provider_subscription_id'];
+
+        try {
+            $updated = StripeService::cancelSubscriptionAtPeriodEnd($stripeSubId);
+        } catch (Throwable $e) {
+            error_log('Stripe cancel-at-period-end error for user ' . $userId . ': ' . $e->getMessage());
+            $_SESSION['flash'] = ['type' => 'error',
+                'text' => 'Could not schedule cancellation. Please try again or contact support.'];
+            redirect('/account/subscription');
+        }
+
+        // Optimistic local update from the returned Stripe subscription
+        $now          = gmdate('Y-m-d H:i:s');
+        $newPeriodEnd = StripeService::stripeTimestampToSql($updated->current_period_end ?? null);
+        $newStatus    = StripeService::mapSubscriptionStatus($updated->status ?? '');
+
+        $pdo->prepare("
+            UPDATE user_subscriptions
+               SET cancel_at_period_end = 1,
+                   current_period_end   = COALESCE(?, current_period_end),
+                   billing_status       = ?,
+                   updated_at           = ?
+             WHERE id = ?
+        ")->execute([$newPeriodEnd, $newStatus, $now, $subId]);
+
+        EntitlementService::clearCache($userId);
+
+        AuditLogService::log(
+            $userId,
+            'user_subscription',
+            $subId,
+            'stripe_cancel_at_period_end_requested',
+            [
+                'stripe_subscription_id' => $stripeSubId,
+                'current_period_end'     => $newPeriodEnd,
+            ]
+        );
+
+        NotificationService::subscriptionCancellationScheduled($subId);
+
+        $_SESSION['flash'] = ['type' => 'success',
+            'text' => 'Your subscription has been scheduled to cancel at the end of the current billing period.'];
+        redirect('/account/subscription');
     }
 
     // ── Cancel a pending change request ──────────────────────────────────────

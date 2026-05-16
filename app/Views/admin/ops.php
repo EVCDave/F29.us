@@ -305,3 +305,48 @@ $fail = static function (string $msg): string {
     <?php endif; ?>
     <?php endif; ?>
 </table>
+
+<!-- ── Subscription Billing State ────────────────────────────────────────── -->
+<?php if ($checks['db_connected'] && $checks['sub_bs_active'] !== null): ?>
+<h2 class="mb-3">Subscription Billing State</h2>
+<table class="mw-560 mb-8 text-base">
+    <tr>
+        <th class="col-200">Active</th>
+        <td><?= (int) $checks['sub_bs_active'] ?></td>
+    </tr>
+    <tr>
+        <th>Trialing</th>
+        <td><?= (int) $checks['sub_bs_trialing'] ?></td>
+    </tr>
+    <tr>
+        <th>Past due</th>
+        <td>
+            <?php $pd = (int) $checks['sub_bs_past_due']; ?>
+            <?= $pd > 0 ? $warn($pd . ' past due') : View::e((string) $pd) ?>
+        </td>
+    </tr>
+    <tr>
+        <th>Unpaid</th>
+        <td>
+            <?php $un = (int) $checks['sub_bs_unpaid']; ?>
+            <?= $un > 0 ? $warn($un . ' unpaid') : View::e((string) $un) ?>
+        </td>
+    </tr>
+    <tr>
+        <th>Incomplete</th>
+        <td>
+            <?php $ic = (int) $checks['sub_bs_incomplete']; ?>
+            <?= $ic > 0 ? $warn($ic . ' incomplete') : View::e((string) $ic) ?>
+        </td>
+    </tr>
+    <tr>
+        <th>Canceling at period end</th>
+        <td>
+            <?php $cs = (int) $checks['sub_bs_cancel_soon']; ?>
+            <?= $cs > 0
+                ? '<span class="text-muted">' . $cs . '</span>'
+                : View::e((string) $cs) ?>
+        </td>
+    </tr>
+</table>
+<?php endif; ?>

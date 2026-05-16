@@ -374,6 +374,7 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | POST | `/account/subscription/change` | Plan change — free plan is immediate; paid plan creates a pending request (or is blocked if Stripe is enabled) |
 | POST | `/account/subscription/checkout` | Start Stripe Checkout Session for a paid plan (STRIPE_ENABLED=true only) |
 | POST | `/account/subscription/request-cancel` | Cancel a pending plan-change request |
+| POST | `/account/subscription/cancel-stripe` | Cancel active Stripe subscription at period end (STRIPE_ENABLED=true only) |
 
 ### Stripe webhooks
 
@@ -782,7 +783,7 @@ The plan detail and edit pages show a warning banner when the plan has active su
 
 ### Billing / public subscriptions
 
-Billing, public checkout, and payment processor integration are **not implemented**. Plan assignment is manual via the admin area only.
+Stripe Checkout and subscription lifecycle management are implemented (Phases 35–38). Set `STRIPE_ENABLED=true` and configure Stripe env vars to activate billing. Admin plan assignment remains available as a manual fallback for complimentary and grandfathered access. See [docs/STRIPE_PLAN.md](docs/STRIPE_PLAN.md) for the full Stripe architecture.
 
 ---
 
@@ -902,6 +903,17 @@ Billing, public checkout, and payment processor integration are **not implemente
 | **`checkout.session.expired` handler — marks local checkout session expired** | ✓ |
 | **`POST /stripe/webhook` endpoint — raw body read, signature verified, 400 on failure, 200 after recording** | ✓ |
 | **Admin ops webhook stats — total event count, latest processed timestamp, failed/ignored counts (24 h)** | ✓ |
+| **`StripeService::cancelSubscriptionAtPeriodEnd()`, `mapSubscriptionStatus()`, `stripeTimestampToSql()`** | ✓ |
+| **`customer.subscription.updated/deleted` webhook handlers — sync billing_status, period dates, entitlement cache** | ✓ |
+| **`invoice.payment_succeeded/failed` webhook handlers — sync active/past_due status and period dates** | ✓ |
+| **`POST /account/subscription/cancel-stripe` — cancel-at-period-end via Stripe API, optimistic local update** | ✓ |
+| **`EntitlementService` billing-status gating — not_applicable/manual/active/trialing/past_due → paid plan; canceled+future period → paid plan; else → Free plan** | ✓ |
+| **`BillingStatusService` — `bannerForSubscription()`, `isStripeBacked()`, `isAccessCurrentlyPaid()`** | ✓ |
+| **Billing banners on subscription page and dashboard (info for cancel-scheduled/future access; error for payment failure/access ended)** | ✓ |
+| **Billing status + period-end/renews-on rows in subscription page Current Plan table** | ✓ |
+| **Cancel subscription button on subscription page (Stripe-backed only, conditional on state)** | ✓ |
+| **Notification emails: `paymentFailed()`, `subscriptionCancellationScheduled()`, `subscriptionCanceled()`** | ✓ |
+| **Admin Ops: Subscription Billing State section (active/trialing/past_due/unpaid/incomplete/cancel_soon counts)** | ✓ |
 
 ## Subscription Groundwork
 
@@ -913,20 +925,30 @@ Billing, public checkout, and payment processor integration are **not implemente
 
 `/account/subscription` is accessible to authenticated users. It shows:
 
-- **Current plan** — plan name, billing cycle, started date, grandfathered date if set, legacy badge if applicable, and a contextual status message
+- **Current plan** — plan name, billing cycle, billing status, period end (renews on / access until), started date, grandfathered date if set, legacy badge if applicable, and a billing state banner when relevant
+- **Cancel Subscription** — shown for active Stripe-backed subscriptions that are not already scheduled to cancel
 - **Usage summary** — QR code count vs. limit, analytics retention days, custom slug and SVG export availability (drawn from live entitlements)
 - **Pending plan-change requests** — any waiting requests with cancel option; shows "none" state when empty
 - **Recent request history** — last 10 resolved (approved/denied/canceled) requests with outcome messaging
-- **Available plans** — feature comparison table with clear action labels: `Current Plan`, `Switch to Free`, `Request Review`, `Request Pending`
+- **Available plans** — feature comparison table. Action labels per plan column:
+  - `Current Plan` — already on this plan
+  - `Request Pending` — pending change request exists for this plan
+  - `Subscribe` — paid plan with active Stripe price (Stripe enabled)
+  - `Online checkout not configured` — paid plan with no active Stripe price
+  - `Cancel paid subscription above` — Free plan column when user has an active Stripe-backed paid subscription
+  - `Switch to Free` — Free plan column for non-Stripe-backed subscriptions
+  - `Request Review` — paid plan when Stripe is disabled (manual flow)
 
 ### Plan selection behavior
 
-Switching to a plan is handled server-side:
+Switching to a plan is handled server-side. All plan eligibility is validated server-side (public, active, not legacy) — the posted `plan_id` is always re-verified against the database.
 
-- **Free plan** (`internal_name = 'free_v1'`): the switch is immediate. The current subscription is closed and a new active free subscription is created.
-- **All other public plans**: a `subscription_change_requests` row is created with `status = 'pending'` for admin review. No subscription change occurs until an admin approves it.
+- **Free plan — Stripe-backed subscription active**: blocked with an error. User must use the Cancel Subscription button (cancel-at-period-end via Stripe API) instead of locally switching to Free. This prevents a mismatch where Stripe continues billing while the local subscription is set to Free.
+- **Free plan — non-Stripe subscription**: the switch is immediate. The current subscription is closed and a new active free subscription is created.
+- **Paid plan — Stripe enabled**: must use Stripe Checkout (`POST /account/subscription/checkout`). Direct POST to `/account/subscription/change` for a paid plan is rejected when `STRIPE_ENABLED=true`.
+- **Paid plan — Stripe disabled**: a `subscription_change_requests` row is created with `status='pending'` for admin review. No subscription change occurs until approved.
 
-All plan eligibility is validated server-side (public, active, not legacy). The form `plan_id` value is never trusted without a database lookup. Billing is not yet automated — no charges apply.
+### Admin review of change requests
 
 ### Admin review of change requests
 
@@ -1217,7 +1239,7 @@ The plan detail page (`/admin/plans/{id}`) shows all billing price mappings and 
 
 ### Stripe integration lifecycle
 
-Checkout Session creation (Phase 36) and webhook-based subscription activation (Phase 37) are implemented.
+Checkout Session creation (Phase 36), webhook-based subscription activation (Phase 37), and full subscription lifecycle synchronization with billing-status gating (Phase 38) are implemented.
 
 #### Checkout flow (Phase 36 + 37 implemented)
 
@@ -1233,36 +1255,38 @@ Checkout Session creation (Phase 36) and webhook-based subscription activation (
 
 > **`POST /account/subscription/change`** (the previous request-review path) is blocked for paid plans when `STRIPE_ENABLED=true`, with an error directing the user to the Subscribe button.
 
-#### Webhook events to handle
+#### Webhook events handled (Phase 37–38)
 
 | Stripe event | Action |
 |---|---|
-| `customer.subscription.created` | Set `billing_status='active'`, populate period dates |
-| `customer.subscription.updated` | Sync `billing_status`, `current_period_end`, `cancel_at_period_end` |
-| `customer.subscription.deleted` | Set `billing_status='canceled'`, set `canceled_at` |
-| `invoice.payment_failed` | Set `billing_status='past_due'` |
-| `invoice.payment_succeeded` | Reset `billing_status='active'`, update period dates |
-| `customer.subscription.trial_will_end` | Email notice (3 days before) |
+| `checkout.session.completed` | Activate `user_subscriptions` row (Phase 37) |
+| `checkout.session.expired` | Mark local checkout session expired (Phase 37) |
+| `customer.subscription.updated` | Sync `billing_status`, `current_period_end`, `cancel_at_period_end`; set status=canceled if billing_status=canceled (Phase 38) |
+| `customer.subscription.deleted` | Set `billing_status='canceled'`, `status='canceled'`, `canceled_at`; notify user (Phase 38) |
+| `invoice.payment_succeeded` | Set `billing_status='active'`, update period dates (Phase 38) |
+| `invoice.payment_failed` | Set `billing_status='past_due'`; notify user (Phase 38) |
 
-All webhook payloads must be verified with `Stripe-Signature` using the endpoint's signing secret. Use `stripe.webhooks.constructEvent()` from the official Stripe PHP SDK.
+#### Access gating (`EntitlementService`, Phase 38)
 
-#### Access gating
+| `billing_status` | Entitlement behavior |
+|---|---|
+| `not_applicable`, `manual`, `active`, `trialing`, `past_due` | Subscribed plan features |
+| `canceled` + `current_period_end` in the future | Subscribed plan features until period end |
+| `canceled` + period end past/null | Free plan features |
+| `unpaid`, `incomplete` | Free plan features immediately |
+| No active `user_subscriptions` row | Free plan features |
 
-When billing is live, `EntitlementService` should additionally check `billing_status`:
-- `active`, `trialing`, `manual` → full access
-- `past_due` → restricted access (show payment-failed banner, soft-block new QR creation)
-- `unpaid`, `canceled` → treat as free tier
-- `incomplete` → block non-free features; prompt to complete payment
+`past_due` retains paid access during the grace window (no countdown timer in Phase 38).
 
-This gating logic should be implemented in `EntitlementService` so all access checks remain in one place.
+#### Subscription cancel flow (Phase 38)
 
-#### Subscription cancel flow
-
-1. User requests cancellation from `/account/subscription`.
-2. Server calls `stripe.subscriptions.update(subId, { cancel_at_period_end: true })`.
-3. Set `cancel_at_period_end = 1` locally.
-4. On `customer.subscription.deleted` webhook → set `billing_status='canceled'`.
-5. User retains access until `current_period_end`.
+1. User clicks **Cancel Subscription** on `/account/subscription` (visible for active Stripe-backed subscriptions not already canceling).
+2. Server POSTs to `POST /account/subscription/cancel-stripe` (CSRF + auth + verified email).
+3. `StripeService::cancelSubscriptionAtPeriodEnd()` updates the Stripe subscription (`cancel_at_period_end: true`).
+4. Local `user_subscriptions` row optimistically updated: `cancel_at_period_end=1`, `current_period_end` and `billing_status` synced from Stripe response.
+5. Entitlement cache cleared; user retains paid access until `current_period_end`.
+6. Webhook `customer.subscription.updated` confirms the update.
+7. Webhook `customer.subscription.deleted` fires at period end → `billing_status='canceled'`, `status='canceled'`; user falls back to Free plan.
 
 ---
 
@@ -1284,10 +1308,7 @@ The following are intentionally absent:
 
 - Analytics retention data purge (retention is a query filter only — old rows are not deleted)
 - Geolocation in scan events (country/region/city stored as NULL)
-- `EntitlementService` billing-status gating — `billing_status` is stored and populated by the webhook handler (Phase 37), but not yet checked when resolving entitlements (Phase 38)
-- Subscription lifecycle webhooks — `customer.subscription.updated/deleted`, `invoice.payment_succeeded/failed` (Phase 38)
-- Cancellation via Stripe API and `cancel_at_period_end` flow (Phase 38)
-- `past_due` / `unpaid` access degradation and payment-failed banners (Phase 38)
+- Stripe Customer Portal integration (payment method updates, invoice history self-service)
 - Global session revocation on password reset (only the current browser session is rotated; other active sessions remain valid)
 - Multi-factor authentication (MFA / TOTP)
 - Team / workspace / multi-user account features

@@ -197,6 +197,49 @@ class StripeService
         return self::client()->subscriptions->retrieve($subscriptionId);
     }
 
+    // ── Subscription lifecycle helpers ────────────────────────────────────────
+
+    /**
+     * Schedule a subscription to cancel at the current period end.
+     */
+    public static function cancelSubscriptionAtPeriodEnd(string $stripeSubscriptionId): \Stripe\Subscription
+    {
+        self::requireEnabled();
+        return self::client()->subscriptions->update(
+            $stripeSubscriptionId,
+            ['cancel_at_period_end' => true]
+        );
+    }
+
+    /**
+     * Map a Stripe subscription status string to the local billing_status ENUM value.
+     */
+    public static function mapSubscriptionStatus(string $stripeStatus): string
+    {
+        return match ($stripeStatus) {
+            'active'             => 'active',
+            'trialing'           => 'trialing',
+            'past_due'           => 'past_due',
+            'unpaid'             => 'unpaid',
+            'canceled'           => 'canceled',
+            'incomplete'         => 'incomplete',
+            'incomplete_expired' => 'canceled',
+            default              => 'incomplete',
+        };
+    }
+
+    /**
+     * Convert a Stripe Unix timestamp (int or null) to a UTC SQL datetime string.
+     * Returns null for missing, empty, or non-numeric values.
+     */
+    public static function stripeTimestampToSql(mixed $timestamp): ?string
+    {
+        if ($timestamp === null || $timestamp === '' || !is_numeric($timestamp)) {
+            return null;
+        }
+        return gmdate('Y-m-d H:i:s', (int) $timestamp);
+    }
+
     // ── Internal ──────────────────────────────────────────────────────────────
 
     private static function client(): \Stripe\StripeClient

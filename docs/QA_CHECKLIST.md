@@ -518,13 +518,94 @@ Test with [Stripe CLI](https://stripe.com/docs/stripe-cli): `stripe listen --for
 
 ---
 
-## 15. Known Gaps (Not Blockers for Current Launch)
+## 15. Stripe — Subscription Lifecycle (Phase 38)
+
+**Prerequisites:** Phase 37 prerequisites met. Use Stripe CLI to trigger events or complete real test-mode checkouts.
+
+### Billing-status gating (EntitlementService)
+- [ ] User with `billing_status='active'` subscription: paid plan features available normally
+- [ ] User with `billing_status='past_due'`: paid plan features still available (grace window)
+- [ ] User with `billing_status='unpaid'` or `'incomplete'`: entitlements fall back to Free plan immediately
+- [ ] User with `billing_status='canceled'` and `current_period_end` in the future: paid features still available
+- [ ] User with `billing_status='canceled'` and `current_period_end` in the past (or null): entitlements fall back to Free plan
+- [ ] No active subscription: entitlements fall back to Free plan
+
+### Billing banners
+- [ ] `billing_status='past_due'`: subscription page and dashboard show an error banner about payment failure
+- [ ] `billing_status='unpaid'` or `'incomplete'`: subscription page and dashboard show error banner about limited access
+- [ ] `billing_status='canceled'` with future period end: subscription page and dashboard show info banner with access-until date
+- [ ] `billing_status='canceled'` with past period end: subscription page and dashboard show error banner (plan ended)
+- [ ] `cancel_at_period_end=1` (active, not yet canceled): subscription page and dashboard show info banner with cancels-on date
+- [ ] No billing issue: no banner shown
+
+### Subscription page — billing table rows
+- [ ] `billing_status` row visible in Current Plan table when billing_status is not `not_applicable`
+- [ ] `billing_status='past_due'` shown as "past due" (underscores replaced with spaces)
+- [ ] "Renews On" row shows `current_period_end` formatted as `Month D, YYYY` when subscription is active
+- [ ] "Access Until" label shown instead of "Renews On" when `cancel_at_period_end=1` or `billing_status='canceled'`
+
+### Cancel subscription (cancel-at-period-end)
+- [ ] Cancel button visible on subscription page when: Stripe-backed, `status='active'`, `cancel_at_period_end=0`, `billing_status` not canceled/unpaid/incomplete
+- [ ] Cancel button not visible when `cancel_at_period_end=1` (already scheduled)
+- [ ] Cancel button not visible when `billing_status='canceled'`
+- [ ] Cancel button not visible when `billing_provider` is not `'stripe'`
+- [ ] Clicking Cancel and confirming the confirmation dialog: `POST /account/subscription/cancel-stripe` is submitted
+- [ ] Without CSRF token → 403
+- [ ] While logged out → redirect to `/login`
+- [ ] With unverified email → redirect to `/account/verify-email`
+- [ ] Success: flash message confirming cancellation scheduled; `cancel_at_period_end=1` in `user_subscriptions`; Stripe subscription now has `cancel_at_period_end: true`
+- [ ] After cancel: Cancel button no longer shown; info banner appears with cancels-on date
+
+### Webhook lifecycle handlers
+
+#### `customer.subscription.updated`
+- [ ] Trigger via Stripe CLI: `stripe trigger customer.subscription.updated`
+- [ ] Local `user_subscriptions` row updated: `billing_status`, `current_period_end`, `cancel_at_period_end` synced
+- [ ] If Stripe subscription is `canceled`: local row also gets `status='canceled'`, `canceled_at` set
+- [ ] Entitlement cache cleared; refreshing shows updated plan access
+- [ ] `audit_logs` entry with `action='stripe_subscription_updated'`
+- [ ] Webhook event recorded with `processing_status='processed'`
+
+#### `customer.subscription.deleted`
+- [ ] Trigger via Stripe CLI: `stripe trigger customer.subscription.deleted`
+- [ ] Local `user_subscriptions` row: `billing_status='canceled'`, `status='canceled'`, `canceled_at` set
+- [ ] Entitlement cache cleared; user immediately falls back to Free plan features
+- [ ] Notification email sent to user (subscription ended)
+- [ ] `audit_logs` entry with `action='stripe_subscription_deleted'`
+
+#### `invoice.payment_succeeded`
+- [ ] Trigger via Stripe CLI: `stripe trigger invoice.payment_succeeded`
+- [ ] Local subscription `billing_status='active'`; `current_period_start/end` updated from invoice period
+- [ ] Entitlement cache cleared
+- [ ] `audit_logs` entry with `action='stripe_invoice_paid'`
+
+#### `invoice.payment_failed`
+- [ ] Trigger via Stripe CLI: `stripe trigger invoice.payment_failed`
+- [ ] Local subscription `billing_status='past_due'`
+- [ ] Entitlement cache cleared; paid features remain accessible
+- [ ] Notification email sent to user (payment failed)
+- [ ] `audit_logs` entry with `action='stripe_invoice_payment_failed'`
+
+### Notification emails
+- [ ] Payment-failed notification email received when `invoice.payment_failed` fires (with `MAIL_ENABLED=true`)
+- [ ] Cancellation-scheduled notification email received after `POST /account/subscription/cancel-stripe`
+- [ ] Subscription-ended notification email received when `customer.subscription.deleted` fires
+
+### Admin Ops — subscription billing state
+- [ ] `/admin/ops` shows "Subscription Billing State" section when DB is connected
+- [ ] Counts reflect current `user_subscriptions` billing_status distribution
+- [ ] "Past due" and "Unpaid" rows show a warning indicator when count > 0
+- [ ] "Canceling at period end" count shown without warning (informational)
+
+---
+
+## 16. Known Gaps (Not Blockers for Current Launch)
 
 These are intentional absences. Confirm they are clearly communicated to users where applicable:
 
 | Gap | Status |
 |-----|--------|
-| Online checkout / Stripe payment processing | Checkout session creation (Phase 36) + webhook activation (Phase 37) implemented. Lifecycle sync (Phase 38) not yet done. |
+| Online checkout / Stripe payment processing | Fully implemented through Phase 38: checkout session creation, webhook activation, lifecycle sync, billing-status gating, cancel-at-period-end flow. |
 | Password reset by email | Implemented (Phase 24) |
 | Email notifications of any kind | Implemented (Phase 27) |
 | Multi-factor authentication (MFA) | Not implemented |
@@ -537,4 +618,4 @@ These are intentional absences. Confirm they are clearly communicated to users w
 
 ---
 
-*Last updated: 2026-05-15 — Phase 37 Stripe Webhook Processing section added*
+*Last updated: 2026-05-15 — Phase 38 Stripe Subscription Lifecycle section added*

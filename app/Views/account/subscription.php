@@ -60,6 +60,11 @@ $statusHistoryMessages = [
 </div>
 <?php endif; ?>
 
+<?php if ($billingBanner): ?>
+<?php $bannerCls = $billingBanner['type'] === 'warning' ? 'flash-error' : 'flash-info'; ?>
+<div class="flash <?= $bannerCls ?> mb-6"><?= View::e($billingBanner['message']) ?></div>
+<?php endif; ?>
+
 <!-- ── Current Plan ────────────────────────────────────────────────────────── -->
 <h2 class="mb-3">Current Plan</h2>
 
@@ -113,7 +118,38 @@ $statusHistoryMessages = [
         <td><?= View::e(substr($activeSub['grandfathered_at'], 0, 10)) ?></td>
     </tr>
     <?php endif; ?>
+    <?php if (!empty($activeSub['billing_status']) && $activeSub['billing_status'] !== 'not_applicable'): ?>
+    <tr>
+        <th>Billing Status</th>
+        <td><?= View::e(str_replace('_', ' ', $activeSub['billing_status'])) ?></td>
+    </tr>
+    <?php endif; ?>
+    <?php if (!empty($activeSub['current_period_end'])): ?>
+    <?php
+    $isScheduledCancel = (bool) ($activeSub['cancel_at_period_end'] ?? false);
+    $isBillingCanceled = ($activeSub['billing_status'] ?? '') === 'canceled';
+    $periodEndLabel    = ($isScheduledCancel || $isBillingCanceled) ? 'Access Until' : 'Renews On';
+    ?>
+    <tr>
+        <th><?= $periodEndLabel ?></th>
+        <td><?= View::e(date('F j, Y', strtotime($activeSub['current_period_end']))) ?></td>
+    </tr>
+    <?php endif; ?>
 </table>
+
+<?php if ($showCancelButton): ?>
+<div class="mb-8">
+    <form method="post" action="/account/subscription/cancel-stripe"
+          data-confirm="Cancel your subscription? You will retain access until the end of the current billing period.">
+        <?= CsrfService::field() ?>
+        <button type="submit" class="btn btn-danger btn-sm">Cancel Subscription</button>
+    </form>
+    <p class="text-82 text-muted mt-2">
+        You will keep your current plan features until the end of the billing period.
+        Your subscription will not renew.
+    </p>
+</div>
+<?php endif; ?>
 
 <?php else: ?>
 <p class="text-muted-2 mb-8">You do not have an active subscription.</p>
@@ -307,11 +343,15 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
             <?php elseif ($isPending): ?>
                 <span class="btn-disabled btn-disabled-sm">Request Pending</span>
             <?php elseif ($isFree): ?>
+                <?php if ($currentSubscriptionIsStripeBacked): ?>
+                <span class="btn-disabled btn-disabled-sm text-83">Cancel paid subscription above</span>
+                <?php else: ?>
                 <form method="post" action="/account/subscription/change">
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
                     <button type="submit" class="btn btn-sm">Switch to Free</button>
                 </form>
+                <?php endif; ?>
             <?php elseif ($stripeEnabled): ?>
                 <?php if ($checkoutCycle): ?>
                 <form method="post" action="/account/subscription/checkout">

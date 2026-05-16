@@ -23,9 +23,13 @@ class StripeWebhookService
         try {
             // Each handler returns 'processed' or 'ignored'; dispatcher marks once.
             $result = match ($eventType) {
-                'checkout.session.completed' => self::handleCheckoutCompleted($event->data->object, $eventId),
-                'checkout.session.expired'   => self::handleCheckoutExpired($event->data->object, $eventId),
-                default                      => 'ignored',
+                'checkout.session.completed'    => self::handleCheckoutCompleted($event->data->object, $eventId),
+                'checkout.session.expired'      => self::handleCheckoutExpired($event->data->object, $eventId),
+                'customer.subscription.updated' => self::handleSubscriptionUpdated($event->data->object, $eventId),
+                'customer.subscription.deleted' => self::handleSubscriptionDeleted($event->data->object, $eventId),
+                'invoice.payment_succeeded'     => self::handleInvoicePaymentSucceeded($event->data->object, $eventId),
+                'invoice.payment_failed'        => self::handleInvoicePaymentFailed($event->data->object, $eventId),
+                default                         => 'ignored',
             };
 
             if ($result === 'processed') {
@@ -126,15 +130,12 @@ class StripeWebhookService
         $earlyStatus = $stmt->fetchColumn();
 
         if ($earlyStatus === false) {
-            // Not found — session not created by this system
             return 'ignored';
         }
         if ($earlyStatus === 'completed') {
-            // Already activated — idempotent, no duplicate subscription
             return 'processed';
         }
         if ($earlyStatus !== 'pending') {
-            // expired or canceled — nothing to activate
             return 'ignored';
         }
 
@@ -148,11 +149,11 @@ class StripeWebhookService
             );
         }
 
-        $billingStatus      = self::mapBillingStatus($stripeStatus);
+        $billingStatus      = StripeService::mapSubscriptionStatus($stripeStatus);
         $stripeCustomerId   = (string) ($session->customer ?? '');
-        $currentPeriodStart = self::tsToDatetime($stripeSub->current_period_start ?? null);
-        $currentPeriodEnd   = self::tsToDatetime($stripeSub->current_period_end   ?? null);
-        $trialEndsAt        = self::tsToDatetime(
+        $currentPeriodStart = StripeService::stripeTimestampToSql($stripeSub->current_period_start ?? null);
+        $currentPeriodEnd   = StripeService::stripeTimestampToSql($stripeSub->current_period_end   ?? null);
+        $trialEndsAt        = StripeService::stripeTimestampToSql(
             $stripeStatus === 'trialing' ? ($stripeSub->trial_end ?? null) : null
         );
         $now = gmdate('Y-m-d H:i:s');
@@ -177,7 +178,6 @@ class StripeWebhookService
             $localSession = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$localSession || $localSession['status'] !== 'pending') {
-                // Concurrent webhook already activated this checkout
                 $pdo->rollBack();
                 return 'processed';
             }
@@ -186,7 +186,6 @@ class StripeWebhookService
             $planId       = (int) $localSession['plan_id'];
             $billingCycle = $localSession['billing_cycle'];
 
-            // Fall back to local row's customer ID if Stripe event has none
             if ($stripeCustomerId === '') {
                 $stripeCustomerId = (string) ($localSession['stripe_customer_id'] ?? '');
             }
@@ -254,9 +253,6 @@ class StripeWebhookService
 
     // ── checkout.session.expired ──────────────────────────────────────────────
 
-    /**
-     * Returns 'processed' or 'ignored'. Never calls mark* methods directly.
-     */
     private static function handleCheckoutExpired(object $session, string $eventId): string
     {
         $stripeSessionId = $session->id ?? '';
@@ -273,24 +269,257 @@ class StripeWebhookService
         return 'processed';
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // ── customer.subscription.updated ────────────────────────────────────────
 
-    private static function mapBillingStatus(string $stripeStatus): string
+    private static function handleSubscriptionUpdated(object $subscription, string $eventId): string
     {
-        return match ($stripeStatus) {
-            'active'             => 'active',
-            'trialing'           => 'trialing',
-            'past_due'           => 'past_due',
-            'unpaid'             => 'unpaid',
-            'canceled'           => 'canceled',
-            'incomplete'         => 'incomplete',
-            'incomplete_expired' => 'canceled',
-            default              => 'incomplete',
-        };
+        $stripeSubId = $subscription->id ?? '';
+        if ($stripeSubId === '') {
+            return 'ignored';
+        }
+
+        $pdo  = Database::get();
+        $stmt = $pdo->prepare("
+            SELECT id, user_id, billing_status
+              FROM user_subscriptions
+             WHERE provider_subscription_id = ? AND billing_provider = 'stripe'
+             ORDER BY id DESC
+             LIMIT 1
+        ");
+        $stmt->execute([$stripeSubId]);
+        $localSub = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$localSub) {
+            return 'ignored';
+        }
+
+        $localSubId       = (int) $localSub['id'];
+        $userId           = (int) $localSub['user_id'];
+        $oldBillingStatus = (string) $localSub['billing_status'];
+
+        $newBillingStatus   = StripeService::mapSubscriptionStatus($subscription->status ?? '');
+        $currentPeriodStart = StripeService::stripeTimestampToSql($subscription->current_period_start ?? null);
+        $currentPeriodEnd   = StripeService::stripeTimestampToSql($subscription->current_period_end   ?? null);
+        $trialEndsAt        = StripeService::stripeTimestampToSql($subscription->trial_end             ?? null);
+        $cancelAtPeriodEnd  = (int) (bool) ($subscription->cancel_at_period_end ?? false);
+        $now = gmdate('Y-m-d H:i:s');
+
+        if ($newBillingStatus === 'canceled') {
+            $pdo->prepare("
+                UPDATE user_subscriptions
+                   SET billing_status = ?,
+                       current_period_start = ?, current_period_end = ?,
+                       trial_ends_at = ?, cancel_at_period_end = 0,
+                       status = 'canceled', canceled_at = ?, updated_at = ?
+                 WHERE id = ?
+            ")->execute([
+                $newBillingStatus,
+                $currentPeriodStart, $currentPeriodEnd,
+                $trialEndsAt, $now, $now,
+                $localSubId,
+            ]);
+        } else {
+            $pdo->prepare("
+                UPDATE user_subscriptions
+                   SET billing_status = ?,
+                       current_period_start = ?, current_period_end = ?,
+                       trial_ends_at = ?, cancel_at_period_end = ?,
+                       updated_at = ?
+                 WHERE id = ?
+            ")->execute([
+                $newBillingStatus,
+                $currentPeriodStart, $currentPeriodEnd,
+                $trialEndsAt, $cancelAtPeriodEnd, $now,
+                $localSubId,
+            ]);
+        }
+
+        EntitlementService::clearCache($userId);
+
+        AuditLogService::log(
+            $userId,
+            'user_subscription',
+            $localSubId,
+            'stripe_subscription_updated',
+            [
+                'stripe_event_id'        => $eventId,
+                'stripe_subscription_id' => $stripeSubId,
+                'old_billing_status'     => $oldBillingStatus,
+                'new_billing_status'     => $newBillingStatus,
+                'cancel_at_period_end'   => $cancelAtPeriodEnd,
+                'current_period_end'     => $currentPeriodEnd,
+            ]
+        );
+
+        return 'processed';
     }
 
-    private static function tsToDatetime(?int $ts): ?string
+    // ── customer.subscription.deleted ─────────────────────────────────────────
+
+    private static function handleSubscriptionDeleted(object $subscription, string $eventId): string
     {
-        return $ts !== null ? gmdate('Y-m-d H:i:s', $ts) : null;
+        $stripeSubId = $subscription->id ?? '';
+        if ($stripeSubId === '') {
+            return 'ignored';
+        }
+
+        $pdo  = Database::get();
+        $stmt = $pdo->prepare("
+            SELECT id, user_id
+              FROM user_subscriptions
+             WHERE provider_subscription_id = ? AND billing_provider = 'stripe'
+             ORDER BY id DESC
+             LIMIT 1
+        ");
+        $stmt->execute([$stripeSubId]);
+        $localSub = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$localSub) {
+            return 'ignored';
+        }
+
+        $localSubId = (int) $localSub['id'];
+        $userId     = (int) $localSub['user_id'];
+        $now = gmdate('Y-m-d H:i:s');
+
+        $pdo->prepare("
+            UPDATE user_subscriptions
+               SET billing_status = 'canceled', status = 'canceled',
+                   canceled_at = ?, cancel_at_period_end = 0, updated_at = ?
+             WHERE id = ?
+        ")->execute([$now, $now, $localSubId]);
+
+        EntitlementService::clearCache($userId);
+
+        AuditLogService::log(
+            $userId,
+            'user_subscription',
+            $localSubId,
+            'stripe_subscription_deleted',
+            [
+                'stripe_event_id'        => $eventId,
+                'stripe_subscription_id' => $stripeSubId,
+            ]
+        );
+
+        NotificationService::subscriptionCanceled($localSubId);
+
+        return 'processed';
+    }
+
+    // ── invoice.payment_succeeded ─────────────────────────────────────────────
+
+    private static function handleInvoicePaymentSucceeded(object $invoice, string $eventId): string
+    {
+        $stripeSubId = $invoice->subscription ?? '';
+        if (!is_string($stripeSubId) || $stripeSubId === '') {
+            return 'ignored';
+        }
+
+        $pdo  = Database::get();
+        $stmt = $pdo->prepare("
+            SELECT id, user_id
+              FROM user_subscriptions
+             WHERE provider_subscription_id = ? AND billing_provider = 'stripe'
+             ORDER BY id DESC
+             LIMIT 1
+        ");
+        $stmt->execute([$stripeSubId]);
+        $localSub = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$localSub) {
+            return 'ignored';
+        }
+
+        $localSubId = (int) $localSub['id'];
+        $userId     = (int) $localSub['user_id'];
+
+        // Invoice carries period_start/period_end for the billing window
+        $periodStart = StripeService::stripeTimestampToSql($invoice->period_start ?? null);
+        $periodEnd   = StripeService::stripeTimestampToSql($invoice->period_end   ?? null);
+        $now = gmdate('Y-m-d H:i:s');
+
+        if ($periodStart !== null && $periodEnd !== null) {
+            $pdo->prepare("
+                UPDATE user_subscriptions
+                   SET billing_status = 'active',
+                       current_period_start = ?, current_period_end = ?,
+                       updated_at = ?
+                 WHERE id = ?
+            ")->execute([$periodStart, $periodEnd, $now, $localSubId]);
+        } else {
+            $pdo->prepare("
+                UPDATE user_subscriptions
+                   SET billing_status = 'active', updated_at = ?
+                 WHERE id = ?
+            ")->execute([$now, $localSubId]);
+        }
+
+        EntitlementService::clearCache($userId);
+
+        AuditLogService::log(
+            $userId,
+            'user_subscription',
+            $localSubId,
+            'stripe_invoice_payment_succeeded',
+            [
+                'stripe_event_id'        => $eventId,
+                'stripe_subscription_id' => $stripeSubId,
+            ]
+        );
+
+        return 'processed';
+    }
+
+    // ── invoice.payment_failed ────────────────────────────────────────────────
+
+    private static function handleInvoicePaymentFailed(object $invoice, string $eventId): string
+    {
+        $stripeSubId = $invoice->subscription ?? '';
+        if (!is_string($stripeSubId) || $stripeSubId === '') {
+            return 'ignored';
+        }
+
+        $pdo  = Database::get();
+        $stmt = $pdo->prepare("
+            SELECT id, user_id
+              FROM user_subscriptions
+             WHERE provider_subscription_id = ? AND billing_provider = 'stripe'
+             ORDER BY id DESC
+             LIMIT 1
+        ");
+        $stmt->execute([$stripeSubId]);
+        $localSub = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$localSub) {
+            return 'ignored';
+        }
+
+        $localSubId = (int) $localSub['id'];
+        $userId     = (int) $localSub['user_id'];
+        $now = gmdate('Y-m-d H:i:s');
+
+        $pdo->prepare("
+            UPDATE user_subscriptions
+               SET billing_status = 'past_due', updated_at = ?
+             WHERE id = ?
+        ")->execute([$now, $localSubId]);
+
+        EntitlementService::clearCache($userId);
+
+        AuditLogService::log(
+            $userId,
+            'user_subscription',
+            $localSubId,
+            'stripe_invoice_payment_failed',
+            [
+                'stripe_event_id'        => $eventId,
+                'stripe_subscription_id' => $stripeSubId,
+            ]
+        );
+
+        NotificationService::paymentFailed($localSubId);
+
+        return 'processed';
     }
 }
