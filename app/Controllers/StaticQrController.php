@@ -17,6 +17,7 @@ class StaticQrController
     public function form(): void
     {
         AuthService::requireAuth();
+        StaticQrLogoService::cleanupExpired();
         $this->renderForm([]);
     }
 
@@ -25,6 +26,7 @@ class StaticQrController
         CsrfService::requireValid();
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
+        StaticQrLogoService::cleanupExpired();
 
         $input        = $this->captureInput();
         $result       = StaticQrPayloadService::build($input);
@@ -32,11 +34,19 @@ class StaticQrController
         $style        = $styleBuilt['style'];
         $styleErrors  = $styleBuilt['errors'];
 
-        $errors = array_merge($result['errors'], $styleErrors);
+        // Resolve the logo (new upload wins; otherwise reuse session token).
+        $logoResolved = $this->resolveLogoForRequest($userId, $input);
+        $logoErrors   = $logoResolved['errors'];
+        $logoToken    = $logoResolved['token'];
+        if ($logoResolved['logo'] !== null) {
+            $style = $this->applyLogoToStyle($style, $logoResolved['logo']);
+        }
+
+        $errors = array_merge($result['errors'], $styleErrors, $logoErrors);
 
         // Only render the preview if BOTH payload and style validate cleanly.
         $previewSvg = null;
-        if ($result['ok'] && empty($styleErrors)) {
+        if ($result['ok'] && empty($styleErrors) && empty($logoErrors)) {
             try {
                 $previewSvg = base64_encode(
                     QrCodeService::generateSvg($result['payload'], 300, $style)
@@ -48,6 +58,8 @@ class StaticQrController
         }
 
         $this->renderForm([
+            'logoToken'   => $logoToken,
+            'logo'        => $logoResolved['logo'],
             'input'       => $input,
             'result'      => $result,
             'style'       => $style,
@@ -61,6 +73,7 @@ class StaticQrController
         CsrfService::requireValid();
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
+        StaticQrLogoService::cleanupExpired();
 
         if (!EntitlementService::isEnabled($userId, 'can_export_png')) {
             $this->forbidden('PNG export is not available on your plan.');
@@ -72,13 +85,30 @@ class StaticQrController
         $style       = $styleBuilt['style'];
         $styleErrors = $styleBuilt['errors'];
 
+        // Reuse a previously-uploaded session logo if a token was forwarded.
+        // No file upload happens on the download form, so this is the only
+        // logo source for downloads.
+        $tokenLogo = StaticQrLogoService::getLogoForToken(
+            $this->extractLogoTokenFromInput(),
+            $userId
+        );
+        if ($tokenLogo !== null) {
+            if (!EntitlementService::isEnabled($userId, 'can_upload_qr_logo')) {
+                // Defense in depth — entitlement was lost between preview and download.
+                $tokenLogo = null;
+            } else {
+                $style = $this->applyLogoToStyle($style, $tokenLogo);
+            }
+        }
+
         if (!$result['ok'] || !empty($styleErrors)) {
-            // Re-render the form with errors rather than 403, so the user can fix the inputs.
             $this->renderForm([
-                'input'  => $input,
-                'result' => $result,
-                'style'  => $style,
-                'errors' => array_merge($result['errors'], $styleErrors),
+                'input'     => $input,
+                'result'    => $result,
+                'style'     => $style,
+                'errors'    => array_merge($result['errors'], $styleErrors),
+                'logoToken' => $tokenLogo ? $this->extractLogoTokenFromInput() : null,
+                'logo'      => $tokenLogo,
             ]);
             return;
         }
@@ -110,6 +140,7 @@ class StaticQrController
         CsrfService::requireValid();
         AuthService::requireAuth();
         $userId = (int) AuthService::userId();
+        StaticQrLogoService::cleanupExpired();
 
         if (!EntitlementService::isEnabled($userId, 'can_export_svg')) {
             $this->forbidden('SVG export is not available on your plan.');
@@ -121,12 +152,26 @@ class StaticQrController
         $style       = $styleBuilt['style'];
         $styleErrors = $styleBuilt['errors'];
 
+        $tokenLogo = StaticQrLogoService::getLogoForToken(
+            $this->extractLogoTokenFromInput(),
+            $userId
+        );
+        if ($tokenLogo !== null) {
+            if (!EntitlementService::isEnabled($userId, 'can_upload_qr_logo')) {
+                $tokenLogo = null;
+            } else {
+                $style = $this->applyLogoToStyle($style, $tokenLogo);
+            }
+        }
+
         if (!$result['ok'] || !empty($styleErrors)) {
             $this->renderForm([
-                'input'  => $input,
-                'result' => $result,
-                'style'  => $style,
-                'errors' => array_merge($result['errors'], $styleErrors),
+                'input'     => $input,
+                'result'    => $result,
+                'style'     => $style,
+                'errors'    => array_merge($result['errors'], $styleErrors),
+                'logoToken' => $tokenLogo ? $this->extractLogoTokenFromInput() : null,
+                'logo'      => $tokenLogo,
             ]);
             return;
         }
@@ -187,7 +232,93 @@ class StaticQrController
             'background_transparent' => !empty($src['background_transparent']),
             'module_style'           => $get('module_style') !== '' ? $get('module_style') : 'square',
             'size'                   => $get('size'),
+            'static_logo_token'      => $get('static_logo_token'),
         ];
+    }
+
+    /**
+     * Pull the static_logo_token off the request. Kept as a separate method so
+     * the validation regex lives in one place.
+     */
+    private function extractLogoTokenFromInput(): ?string
+    {
+        $token = (string) ($_POST['static_logo_token'] ?? '');
+        return preg_match('/^[a-f0-9]{32}$/', $token) ? $token : null;
+    }
+
+    /**
+     * Determine which logo (if any) to apply to the current request.
+     *
+     * Priority:
+     *   1. A newly uploaded $_FILES['static_logo'] from an entitled user.
+     *      Stores the file via StaticQrLogoService, returns the new token.
+     *   2. A reusable session token from a previous preview, scoped to the user.
+     *   3. None.
+     *
+     * Returns ['token'=>?string, 'logo'=>?array, 'errors'=>string[]].
+     *
+     * If a file is uploaded by a user who does NOT have can_upload_qr_logo,
+     * the request is hard-rejected with 403 rather than silently dropping the
+     * upload — the user clearly intended to use the feature.
+     */
+    private function resolveLogoForRequest(int $userId, array $input): array
+    {
+        // Any error code other than UPLOAD_ERR_NO_FILE means the user attempted
+        // to upload something. We must surface failures like UPLOAD_ERR_INI_SIZE
+        // and UPLOAD_ERR_FORM_SIZE even when PHP reports size === 0, so the
+        // user sees a real error instead of "no upload" being silently assumed.
+        $uploadError = (int) ($_FILES['static_logo']['error'] ?? UPLOAD_ERR_NO_FILE);
+        $hasUpload   = isset($_FILES['static_logo'])
+                    && is_array($_FILES['static_logo'])
+                    && $uploadError !== UPLOAD_ERR_NO_FILE;
+
+        if ($hasUpload) {
+            if (!EntitlementService::isEnabled($userId, 'can_upload_qr_logo')) {
+                $this->forbidden('Your plan does not allow QR logo upload.');
+            }
+
+            // Replace any prior token from this preview chain so we don't pile up files.
+            $previousToken = $this->extractLogoTokenFromInput();
+            if ($previousToken !== null) {
+                StaticQrLogoService::deleteLogoToken($previousToken, $userId);
+            }
+
+            $result = StaticQrLogoService::storeUploadedLogo($_FILES['static_logo'], $userId);
+            if (!$result['ok']) {
+                return ['token' => null, 'logo' => null, 'errors' => $result['errors']];
+            }
+            return ['token' => $result['token'], 'logo' => $result['logo'], 'errors' => []];
+        }
+
+        // No new upload — try to reuse the token (preview re-submits, etc.).
+        $token = $this->extractLogoTokenFromInput();
+        $logo  = StaticQrLogoService::getLogoForToken($token, $userId);
+        if ($logo !== null && !EntitlementService::isEnabled($userId, 'can_upload_qr_logo')) {
+            // Entitlement disappeared between requests; drop silently.
+            return ['token' => null, 'logo' => null, 'errors' => []];
+        }
+        return [
+            'token'  => $logo !== null ? $token : null,
+            'logo'   => $logo,
+            'errors' => [],
+        ];
+    }
+
+    /**
+     * Decorate a style array with a temporary logo. Always sets ECL=H, which
+     * overrides any color/transparent/module-style choice (mirrors dynamic QR
+     * policy: logo wins).
+     */
+    private function applyLogoToStyle(array $style, array $logo): array
+    {
+        $style['logo_enabled']           = true;
+        $style['logo_absolute_path']     = $logo['path'];
+        $style['logo_original_filename'] = $logo['original_filename'] ?? null;
+        $style['logo_mime_type']         = $logo['mime_type'] ?? 'image/png';
+        $style['logo_size_bytes']        = $logo['size_bytes'] ?? null;
+        $style['logo_max_percent']       = (int) ($logo['logo_percent'] ?? 20);
+        $style['error_correction_level'] = 'H';
+        return $style;
     }
 
     /**
@@ -335,6 +466,9 @@ class StaticQrController
         $canModule    = EntitlementService::isEnabled($userId, 'can_customize_qr_module_style');
         $canExportPng = EntitlementService::isEnabled($userId, 'can_export_png');
         $canExportSvg = EntitlementService::isEnabled($userId, 'can_export_svg');
+        $canLogo      = EntitlementService::isEnabled($userId, 'can_upload_qr_logo');
+        $logoMaxKb    = (int) EntitlementService::getValue($userId, 'qr_logo_max_size_kb', 0);
+        $logoPercent  = (int) EntitlementService::getValue($userId, 'qr_logo_max_percent', 0);
 
         $pngSizes      = $this->allowedPngDownloadSizesForUser($userId);
         $defaultSize   = end($pngSizes) ?: 512;
@@ -353,10 +487,15 @@ class StaticQrController
             'canModuleStyle'   => $canModule,
             'canExportPng'     => $canExportPng,
             'canExportSvg'     => $canExportSvg,
+            'canLogo'          => $canLogo,
+            'logoMaxKb'        => $logoMaxKb,
+            'logoMaxPercent'   => $logoPercent,
             'pngDownloadSizes' => $pngSizes,
             'pngDefaultSize'   => $defaultSize,
             'pngSelectedSize'  => $selectedSize,
             'allowedTypes'     => StaticQrPayloadService::TYPES,
+            'logo'             => $state['logo']      ?? null,
+            'logoToken'        => $state['logoToken'] ?? null,
         ]);
     }
 

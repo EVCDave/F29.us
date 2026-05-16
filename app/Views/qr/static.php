@@ -3,7 +3,7 @@ $type = $input['type'] ?? 'text';
 $ok   = ($result['ok'] ?? false) === true;
 
 /** Build the hidden inputs that re-submit the validated state from preview → download. */
-$hiddenInputs = static function (array $input): string {
+$hiddenInputs = static function (array $input, ?string $logoToken = null): string {
     $passthrough = [
         'type', 'content',
         'ssid', 'password', 'security',
@@ -24,6 +24,10 @@ $hiddenInputs = static function (array $input): string {
     }
     if (!empty($input['background_transparent'])) {
         $html .= '<input type="hidden" name="background_transparent" value="1">';
+    }
+    if ($logoToken !== null && $logoToken !== '') {
+        $html .= '<input type="hidden" name="static_logo_token" value="'
+              . htmlspecialchars($logoToken, ENT_QUOTES, 'UTF-8') . '">';
     }
     return $html;
 };
@@ -52,8 +56,11 @@ $hiddenInputs = static function (array $input): string {
 </div>
 <?php endif; ?>
 
-<form method="post" action="/qr/static/preview">
+<form method="post" action="/qr/static/preview" enctype="multipart/form-data">
     <?= CsrfService::field() ?>
+    <?php if (!empty($logoToken)): ?>
+    <input type="hidden" name="static_logo_token" value="<?= View::e($logoToken) ?>">
+    <?php endif; ?>
 
     <h2 class="mb-3">1. Choose a template</h2>
     <div class="mb-5 d-flex gap-2 flex-wrap">
@@ -239,6 +246,48 @@ $hiddenInputs = static function (array $input): string {
         <?php endif; ?>
     </fieldset>
 
+    <!-- ── Logo ─────────────────────────────────────────────────────────── -->
+    <fieldset class="mw-720 mb-6">
+        <legend><strong>Logo (optional)</strong></legend>
+
+        <?php if (!($canLogo ?? false)): ?>
+        <p class="text-88 text-muted-2 mb-0">
+            Logo upload for static QR codes is available on Pro and Team plans.
+            <a href="/pricing">View plans</a>.
+        </p>
+        <?php else: ?>
+        <?php if (!empty($logo) && !empty($logo['original_filename'])): ?>
+        <div class="card-note mb-3">
+            <p class="fw-medium mb-1">Logo ready for this static QR preview</p>
+            <p class="text-88 mb-1"><?= View::e((string) $logo['original_filename']) ?></p>
+            <?php if (!empty($logo['size_bytes'])): ?>
+            <p class="text-2xs text-muted-2 mb-0">
+                <?= number_format((int) $logo['size_bytes'] / 1024, 1) ?> KB &middot;
+                Uploaded for this session only; not saved to your account.
+            </p>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+        <div class="mb-2">
+            <label for="static_logo">
+                <?= !empty($logo) ? 'Replace logo' : 'Upload logo' ?>
+            </label>
+            <p class="text-2xs text-muted-2 mb-2">
+                PNG, JPG, or WEBP &mdash; max <?= (int) $logoMaxKb ?> KB &mdash;
+                logo appears at <?= (int) $logoMaxPercent ?>% of QR width.
+            </p>
+            <input type="file" id="static_logo" name="static_logo"
+                   accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp">
+        </div>
+        <p class="text-2xs text-muted-2 mb-0">
+            Static QR logos are stored temporarily for this preview only. They are deleted
+            automatically when the session ends or after about 30 minutes. Logos are never
+            saved to your account or shared.
+        </p>
+        <?php endif; ?>
+    </fieldset>
+
     <button type="submit" class="btn">Preview Static QR</button>
 </form>
 
@@ -269,7 +318,7 @@ $hiddenInputs = static function (array $input): string {
     <?php if ($canExportPng): ?>
     <form method="post" action="/qr/static/download/png" class="qr-download-form">
         <?= CsrfService::field() ?>
-        <?= $hiddenInputs($input) ?>
+        <?= $hiddenInputs($input, $logoToken ?? null) ?>
         <label for="png-size" class="sr-only">PNG size</label>
         <select id="png-size" name="size" aria-label="PNG size">
             <?php foreach ($pngDownloadSizes as $sizeOption): ?>
@@ -288,7 +337,7 @@ $hiddenInputs = static function (array $input): string {
     <?php if ($canExportSvg): ?>
     <form method="post" action="/qr/static/download/svg" class="form-inline">
         <?= CsrfService::field() ?>
-        <?= $hiddenInputs($input) ?>
+        <?= $hiddenInputs($input, $logoToken ?? null) ?>
         <button type="submit" class="btn btn-secondary">Download SVG</button>
     </form>
     <?php else: ?>

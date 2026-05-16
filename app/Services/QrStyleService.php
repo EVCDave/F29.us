@@ -183,14 +183,26 @@ class QrStyleService
             return ['Logo upload is not available on your current plan.'];
         }
 
-        $errCode = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+        $errCode = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
 
-        if ($errCode === UPLOAD_ERR_NO_FILE || ($file['size'] ?? 0) === 0) {
+        if ($errCode === UPLOAD_ERR_NO_FILE) {
             return ['Please choose a logo image to upload.'];
+        }
+
+        // Surface specific upload-state errors before falling back to the
+        // "size === 0 means no upload" heuristic — otherwise an oversized
+        // upload (UPLOAD_ERR_INI_SIZE / UPLOAD_ERR_FORM_SIZE), which arrives
+        // with size = 0, would be misreported as "please choose a file".
+        if ($errCode === UPLOAD_ERR_INI_SIZE || $errCode === UPLOAD_ERR_FORM_SIZE) {
+            return ['Logo image is too large for your current plan.'];
         }
 
         if ($errCode !== UPLOAD_ERR_OK) {
             return ['Upload failed. Please try again.'];
+        }
+
+        if (($file['size'] ?? 0) === 0) {
+            return ['Please choose a logo image to upload.'];
         }
 
         if ((int) $file['size'] > $maxKb * 1024) {

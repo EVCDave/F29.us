@@ -241,6 +241,41 @@ All checklist items are manual unless noted otherwise.
 - [ ] After download, no new row appears in `audit_logs`
 - [ ] Static QR generation does NOT consume the user's `max_qr_codes` quota
 
+**Static QR logo upload:**
+- [ ] Free user sees the Logo fieldset with the "Logo upload for static QR codes is available on Pro and Team plans." message and no file input
+- [ ] Starter user (no `can_upload_qr_logo` by default) sees the same upgrade message and no file input
+- [ ] Pro user sees the file input and the limit note "PNG, JPG, or WEBP — max 512 KB — logo appears at 25% of QR width" (values reflect the seeded Pro `qr_logo_max_size_kb` / `qr_logo_max_percent`)
+- [ ] Team user sees the file input and the limit note "PNG, JPG, or WEBP — max 1024 KB — logo appears at 30% of QR width"
+- [ ] Pro user uploads a valid PNG → preview includes the logo composited in the center; ECL forced to H (visible if the renderer exposes it; otherwise verified by scan reliability)
+- [ ] Pro user uploads a valid JPG → preview includes the logo
+- [ ] Pro user uploads a valid JPEG → preview includes the logo
+- [ ] Pro user uploads a valid WEBP → preview includes the logo
+- [ ] Pro user uploads an SVG file → rejected with "Logo must be a PNG, JPG, or WEBP image."
+- [ ] Pro user uploads a text file renamed `.png` → rejected with "The uploaded file does not appear to be a valid image."
+- [ ] Pro user uploads a file larger than `qr_logo_max_size_kb` → rejected with "Logo image is too large for your current plan."
+- [ ] Free user POSTing a multipart `static_logo` file → 403 "Your plan does not allow QR logo upload." (defense in depth against hidden-form tampering; no file is stored)
+- [ ] After a successful preview, the page shows "Logo ready for this static QR preview" with the original filename and "Uploaded for this session only" note
+- [ ] After a successful preview, both PNG and SVG download forms include a hidden `static_logo_token` value
+- [ ] PNG download after preview includes the logo
+- [ ] SVG download after preview includes the logo (only when the user has `can_export_svg`)
+- [ ] Logo + custom colors renders correctly
+- [ ] Logo + transparent background renders correctly
+- [ ] Logo + gapped-square module style renders correctly
+- [ ] Logo + circle module style renders correctly
+- [ ] Logo + 1024 px PNG renders correctly
+- [ ] Logo + 4096 px PNG renders correctly (subject to the 256 MB memory bump from Phase 33)
+- [ ] No file is created under `public/` — temp files only live under `storage/static-qr-logos/`
+- [ ] Temp filename matches `static-{userId}-{32-hex}.{ext}`; no user-entered filename appears on disk
+- [ ] No row is created in `qr_code_styles` for a static logo upload
+- [ ] No row is created in `audit_logs` for a static logo upload
+- [ ] No row is created in any other table for static logo use
+- [ ] After 30 minutes of inactivity, the next visit to `/qr/static` deletes the expired session entry and unlinks the file
+- [ ] Uploading a second logo within the same preview chain deletes the previous file (no orphan accumulation)
+- [ ] Orphan files in `storage/static-qr-logos/` older than 2× TTL are swept on the next request
+- [ ] Forwarding a `static_logo_token` from another user's session does NOT resolve to a logo (token is scoped to its owner)
+- [ ] Missing/expired `static_logo_token` on the download form → download succeeds without a logo (no error)
+- [ ] Entitlement removed between preview and download → cached session logo is ignored on the download, output has no logo
+
 ### QR color customization
 
 **Entitlement gating:**
@@ -320,19 +355,19 @@ All checklist items are manual unless noted otherwise.
 **Entitlement gating:**
 - [ ] Free plan user: style page shows "Logo in QR code — Available on Pro and Team plans"; no upload form shown
 - [ ] Starter user: color picker enabled but no logo upload form; POST to `/qr/{id}/style/logo` returns 403
-- [ ] Pro user: upload form visible with "max 250 KB / 20% of QR width" note
+- [ ] Pro user: upload form visible with "max 512 KB / 25% of QR width" note
 
 **Upload — valid files:**
-- [ ] Pro user uploads valid PNG under 250 KB → succeeds; flash "Logo uploaded successfully"
+- [ ] Pro user uploads valid PNG under 512 KB → succeeds; flash "Logo uploaded successfully"
 - [ ] Pro user uploads valid JPG/JPEG → succeeds
 - [ ] Pro user uploads valid WEBP → succeeds
-- [ ] Team user uploads file up to 500 KB → succeeds
+- [ ] Team user uploads file up to 1024 KB → succeeds
 - [ ] QR preview on style page shows logo after upload
 - [ ] PNG download includes the logo
 - [ ] SVG download includes the logo (embedded as `<image>` element)
 
 **Upload — rejected files:**
-- [ ] Pro user uploads file over 250 KB → rejected: "Logo image is too large for your current plan."
+- [ ] Pro user uploads file over 512 KB → rejected: "Logo image is too large for your current plan."
 - [ ] SVG file upload rejected: "Logo must be a PNG, JPG, or WEBP image."
 - [ ] Text file renamed `.png` rejected: "The uploaded file does not appear to be a valid image."
 - [ ] Submit with no file selected → rejected: "Please choose a logo image to upload."
@@ -929,4 +964,4 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 - [ ] Visiting `/` does not call Stripe or any external service
 - [ ] No inline JavaScript and no inline styles on the homepage view
 
-*Last updated: 2026-05-16 — Phase 36: homepage refreshed with hero, dynamic-QR value section, six feature cards, static-vs-dynamic comparison, styling/downloads/analytics sections, and pricing + final CTAs.*
+*Last updated: 2026-05-16 — Phase 37: static QR logo upload added — session+filesystem token under `storage/static-qr-logos/`, validated via the existing `QrStyleService::validateLogoUpload`, expiring after 30 minutes; no database storage; reuses dynamic QR logo limits.*
