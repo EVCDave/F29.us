@@ -806,12 +806,13 @@ class QrController
         $userId = (int) AuthService::userId();
         $qrId   = (int) ($params['id'] ?? 0);
 
-        $qr              = $this->loadOwnedQrCode($qrId, $userId);
-        $canCustomize    = EntitlementService::isEnabled($userId, 'can_customize_qr_colors');
-        $canUploadLogo   = EntitlementService::isEnabled($userId, 'can_upload_qr_logo');
-        $logoMaxKb       = (int) EntitlementService::getValue($userId, 'qr_logo_max_size_kb', 0);
-        $logoMaxPercent  = (int) EntitlementService::getValue($userId, 'qr_logo_max_percent', 0);
-        $style           = QrStyleService::getForQr($qrId);
+        $qr                = $this->loadOwnedQrCode($qrId, $userId);
+        $canCustomize      = EntitlementService::isEnabled($userId, 'can_customize_qr_colors');
+        $canModuleStyle    = EntitlementService::isEnabled($userId, 'can_customize_qr_module_style');
+        $canUploadLogo     = EntitlementService::isEnabled($userId, 'can_upload_qr_logo');
+        $logoMaxKb         = (int) EntitlementService::getValue($userId, 'qr_logo_max_size_kb', 0);
+        $logoMaxPercent    = (int) EntitlementService::getValue($userId, 'qr_logo_max_percent', 0);
+        $style             = QrStyleService::getForQr($qrId);
 
         $flash = $_SESSION['flash'] ?? null;
         unset($_SESSION['flash']);
@@ -829,6 +830,7 @@ class QrController
             'qr'             => $qr,
             'style'          => $style,
             'canCustomize'   => $canCustomize,
+            'canModuleStyle' => $canModuleStyle,
             'canUploadLogo'  => $canUploadLogo,
             'logoMaxKb'      => $logoMaxKb,
             'logoMaxPercent' => $logoMaxPercent,
@@ -851,11 +853,21 @@ class QrController
             $this->forbidden('QR color customization is not available on your plan.');
         }
 
-        $foreground  = trim($_POST['foreground_color'] ?? '');
-        $background  = trim($_POST['background_color'] ?? '');
-        $transparent = isset($_POST['background_transparent']);
+        $foreground     = trim($_POST['foreground_color'] ?? '');
+        $background     = trim($_POST['background_color'] ?? '');
+        $transparent    = isset($_POST['background_transparent']);
+        $moduleStyleRaw = trim($_POST['module_style']     ?? 'square');
+        $canModuleStyle = EntitlementService::isEnabled($userId, 'can_customize_qr_module_style');
 
         $errors = QrStyleService::validateColors($foreground, $background);
+
+        $moduleErr = QrStyleService::validateModuleStyle($moduleStyleRaw);
+        if ($moduleErr !== null) {
+            $errors[] = $moduleErr;
+        } elseif ($moduleStyleRaw !== 'square' && !$canModuleStyle) {
+            // Reject hidden-form tampering by unentitled users.
+            $this->forbidden('Custom QR module styles are not available on your plan.');
+        }
 
         if (!empty($errors)) {
             $style = QrStyleService::getForQr($qrId);
@@ -875,8 +887,10 @@ class QrController
                     'foreground_color'       => $foreground,
                     'background_color'       => $background,
                     'background_transparent' => $transparent,
+                    'module_style'           => QrStyleService::normalizeModuleStyle($moduleStyleRaw),
                 ]),
                 'canCustomize'   => true,
+                'canModuleStyle' => $canModuleStyle,
                 'canUploadLogo'  => EntitlementService::isEnabled($userId, 'can_upload_qr_logo'),
                 'logoMaxKb'      => (int) EntitlementService::getValue($userId, 'qr_logo_max_size_kb', 0),
                 'logoMaxPercent' => (int) EntitlementService::getValue($userId, 'qr_logo_max_percent', 0),
@@ -889,12 +903,15 @@ class QrController
 
         $fg = QrStyleService::normalizeHexColor($foreground);
         $bg = QrStyleService::normalizeHexColor($background);
+        $moduleStyle = $canModuleStyle ? $moduleStyleRaw : 'square';
 
         $oldStyle = QrStyleService::getForQr($qrId);
 
-        QrStyleService::saveColors($qrId, $fg, $bg, $transparent);
+        QrStyleService::saveColors($qrId, $fg, $bg, $transparent, $moduleStyle);
 
-        $newEcl = $oldStyle['logo_enabled'] ? 'H' : 'Q';
+        // Reload to capture the effective ECL after save (handles all-defaults → row deleted → M).
+        $newStyle = QrStyleService::getForQr($qrId);
+        $newEcl   = $newStyle['error_correction_level'];
 
         AuditLogService::log($userId, 'qr_code', $qrId, 'style_updated', [
             'old_foreground_color'       => $oldStyle['foreground_color'],
@@ -903,6 +920,8 @@ class QrController
             'new_background_color'       => $bg,
             'old_background_transparent' => $oldStyle['background_transparent'],
             'new_background_transparent' => $transparent,
+            'old_module_style'           => $oldStyle['module_style'] ?? 'square',
+            'new_module_style'           => $moduleStyle,
             'old_error_correction_level' => $oldStyle['error_correction_level'],
             'new_error_correction_level' => $newEcl,
         ]);
@@ -935,6 +954,8 @@ class QrController
             'new_background_color'       => '#FFFFFF',
             'old_background_transparent' => $oldStyle['background_transparent'],
             'new_background_transparent' => false,
+            'old_module_style'           => $oldStyle['module_style'] ?? 'square',
+            'new_module_style'           => 'square',
             'old_error_correction_level' => $oldStyle['error_correction_level'],
             'new_error_correction_level' => 'M',
         ]);
@@ -979,6 +1000,7 @@ class QrController
                 'qr'             => $qr,
                 'style'          => $style,
                 'canCustomize'   => EntitlementService::isEnabled($userId, 'can_customize_qr_colors'),
+                'canModuleStyle' => EntitlementService::isEnabled($userId, 'can_customize_qr_module_style'),
                 'canUploadLogo'  => true,
                 'logoMaxKb'      => $logoMaxKb,
                 'logoMaxPercent' => $logoMaxPercent,
@@ -1043,6 +1065,16 @@ class QrController
      */
     private function resolveRenderStyle(array $style, int $userId): array
     {
+        // Suppress non-square module style for users without the entitlement,
+        // for rendering only — stored value is not modified.
+        $moduleStyle = $style['module_style'] ?? 'square';
+        if ($moduleStyle !== 'square'
+            && !EntitlementService::isEnabled($userId, 'can_customize_qr_module_style')
+        ) {
+            $style['module_style'] = 'square';
+            $moduleStyle           = 'square';
+        }
+
         if (!$style['logo_enabled']) {
             return $style;
         }
@@ -1057,7 +1089,8 @@ class QrController
 
             $hasCustomStyle = $style['foreground_color'] !== '#000000'
                            || $style['background_color']  !== '#FFFFFF'
-                           || ($style['background_transparent'] ?? false);
+                           || ($style['background_transparent'] ?? false)
+                           || $moduleStyle !== 'square';
             $style['error_correction_level'] = $hasCustomStyle ? 'Q' : 'M';
         } else {
             $style['logo_max_percent']       = $logoMaxPercent;

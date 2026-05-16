@@ -9,6 +9,7 @@ $displayFeatures = [
     'can_pause_links'          => 'Pause Links',
     'can_export_analytics'     => 'Export Analytics',
     'can_customize_qr_colors'  => 'Custom QR Colors/Backgrounds',
+    'can_customize_qr_module_style' => 'Custom QR module styles',
     'can_upload_qr_logo'       => 'QR Logo Upload',
     'qr_logo_max_size_kb'      => 'Logo Max Size',
     'qr_logo_max_percent'      => 'Logo Coverage',

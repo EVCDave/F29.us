@@ -85,7 +85,31 @@
                         Always test before printing.
                     </p>
                 </div>
-                <button type="submit" class="btn">Save Colors</button>
+
+                <?php $currentModuleStyle = $style['module_style'] ?? 'square'; ?>
+                <div class="mb-5">
+                    <label for="module_style">Module Style</label>
+                    <?php if (!($canModuleStyle ?? false)): ?>
+                    <select id="module_style" name="module_style" disabled>
+                        <option value="square" selected>Classic squares &mdash; Most compatible</option>
+                    </select>
+                    <input type="hidden" name="module_style" value="square">
+                    <p class="text-2xs text-muted-2 mt-1">
+                        Module styles are available on Starter, Pro, and Team plans.
+                    </p>
+                    <?php else: ?>
+                    <select id="module_style" name="module_style">
+                        <option value="square"        <?= $currentModuleStyle === 'square'        ? 'selected' : '' ?>>Classic squares &mdash; Most compatible</option>
+                        <option value="gapped_square" <?= $currentModuleStyle === 'gapped_square' ? 'selected' : '' ?>>Gapped squares &mdash; Modern look with spacing</option>
+                        <option value="circle"        <?= $currentModuleStyle === 'circle'        ? 'selected' : '' ?>>Circles &mdash; Rounded dot style</option>
+                    </select>
+                    <p class="text-2xs text-muted-2 mt-1">
+                        Finder-pattern squares always remain classic squares for reliable scanning.
+                    </p>
+                    <?php endif; ?>
+                </div>
+
+                <button type="submit" class="btn">Save Style</button>
             </fieldset>
         </form>
     </div>

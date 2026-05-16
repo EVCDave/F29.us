@@ -6,12 +6,15 @@ class QrStyleService
     private const ALLOWED_LOGO_MIMES = ['image/png', 'image/jpeg', 'image/webp'];
     private const ALLOWED_LOGO_EXTS  = ['png', 'jpg', 'jpeg', 'webp'];
 
+    public const MODULE_STYLES = ['square', 'gapped_square', 'circle'];
+
     public static function defaultStyle(): array
     {
         return [
             'foreground_color'       => '#000000',
             'background_color'       => '#FFFFFF',
             'background_transparent' => false,
+            'module_style'           => 'square',
             'error_correction_level' => 'M',
             'logo_enabled'           => false,
             'logo_path'              => null,
@@ -42,6 +45,7 @@ class QrStyleService
             'foreground_color'       => $row['foreground_color']        ?? '#000000',
             'background_color'       => $row['background_color']        ?? '#FFFFFF',
             'background_transparent' => (bool) ($row['background_transparent'] ?? false),
+            'module_style'           => self::normalizeModuleStyle($row['module_style'] ?? 'square'),
             'error_correction_level' => $row['error_correction_level']  ?? 'M',
             'logo_enabled'           => (bool) ($row['logo_enabled']    ?? false),
             'logo_path'              => $row['logo_path']               ?? null,
@@ -53,30 +57,77 @@ class QrStyleService
     }
 
     /**
-     * Upsert foreground/background colors and the transparent-background flag.
-     * Sets ECL=Q for any custom style; preserves ECL=H when a logo is already active.
+     * Normalize a module style string. Falls back to 'square' for invalid values.
+     */
+    public static function normalizeModuleStyle(string $style): string
+    {
+        return in_array($style, self::MODULE_STYLES, true) ? $style : 'square';
+    }
+
+    /**
+     * Validate a module style choice.
+     * Returns an error string if invalid, null if valid.
+     */
+    public static function validateModuleStyle(string $style): ?string
+    {
+        if (!in_array($style, self::MODULE_STYLES, true)) {
+            return 'Module style must be one of: ' . implode(', ', self::MODULE_STYLES) . '.';
+        }
+        return null;
+    }
+
+    /**
+     * Upsert foreground/background colors, transparent-background flag, and module style.
+     *
+     * ECL policy:
+     *   logo active                              → H
+     *   any custom color / transparent / shape   → Q
+     *   all defaults and no logo                 → row is deleted (equivalent to no style row, ECL M)
      */
     public static function saveColors(
         int    $qrId,
         string $foreground,
         string $background,
-        bool   $transparent = false
+        bool   $transparent = false,
+        string $moduleStyle = 'square'
     ): void {
+        $moduleStyle = self::normalizeModuleStyle($moduleStyle);
+
+        $hasCustomStyle =
+            $foreground   !== '#000000'
+            || $background !== '#FFFFFF'
+            || $transparent
+            || $moduleStyle !== 'square';
+
+        $existing  = self::getForQr($qrId);
+        $logoActive = (bool) ($existing['logo_enabled'] ?? false);
+
+        // No logo and all-defaults → drop the row so this QR is "no style" again.
+        if (!$logoActive && !$hasCustomStyle) {
+            Database::get()->prepare(
+                "DELETE FROM qr_code_styles WHERE qr_code_id = ?"
+            )->execute([$qrId]);
+            return;
+        }
+
+        $newEcl = $logoActive ? 'H' : ($hasCustomStyle ? 'Q' : 'M');
+
         $pdo = Database::get();
         $now = gmdate('Y-m-d H:i:s');
 
         $pdo->prepare("
             INSERT INTO qr_code_styles
                 (qr_code_id, foreground_color, background_color, background_transparent,
-                 error_correction_level, logo_enabled, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 'Q', 0, ?, ?)
+                 module_style, error_correction_level, logo_enabled, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)
             ON DUPLICATE KEY UPDATE
                 foreground_color       = VALUES(foreground_color),
                 background_color       = VALUES(background_color),
                 background_transparent = VALUES(background_transparent),
-                error_correction_level = IF(logo_enabled = 1, 'H', 'Q'),
+                module_style           = VALUES(module_style),
+                error_correction_level = IF(logo_enabled = 1, 'H', VALUES(error_correction_level)),
                 updated_at             = VALUES(updated_at)
-        ")->execute([$qrId, $foreground, $background, (int) $transparent, $now, $now]);
+        ")->execute([$qrId, $foreground, $background, (int) $transparent, $moduleStyle, $newEcl, $now, $now]);
     }
 
     /**
@@ -245,7 +296,8 @@ class QrStyleService
 
         $hasCustomStyle = $existing['foreground_color'] !== '#000000'
                        || $existing['background_color']  !== '#FFFFFF'
-                       || ($existing['background_transparent'] ?? false);
+                       || ($existing['background_transparent'] ?? false)
+                       || (($existing['module_style'] ?? 'square') !== 'square');
         $newEcl = $hasCustomStyle ? 'Q' : 'M';
 
         $pdo = Database::get();
