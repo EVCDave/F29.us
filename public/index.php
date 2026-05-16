@@ -75,6 +75,7 @@ $router->get('/privacy',         [PolicyController::class, 'privacy']);
 $router->get('/acceptable-use',  [PolicyController::class, 'acceptableUse']);
 $router->get('/abuse',           [PolicyController::class, 'abuse']);
 $router->get('/contact',         [PolicyController::class, 'contact']);
+$router->get('/help',            [PolicyController::class, 'help']);
 $router->get('/login',     [AuthController::class, 'loginPage']);
 $router->post('/login',    [AuthController::class, 'loginSubmit']);
 $router->get('/register',  [AuthController::class, 'registerPage']);

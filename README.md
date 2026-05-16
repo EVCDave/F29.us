@@ -345,6 +345,7 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | GET | `/acceptable-use` | Acceptable Use Policy |
 | GET | `/abuse` | Report Abuse page |
 | GET | `/contact` | Contact page |
+| GET | `/help` | Help Center — explains dynamic vs static QR, styling, downloads, analytics, plans, account, billing, moderation, security, and an FAQ |
 | GET | `/verify-email` | Email verification link handler (token from email) |
 | GET | `/forgot-password` | Forgot password form |
 | POST | `/forgot-password` | Send password reset email |
@@ -1196,8 +1197,9 @@ The following public-facing policy pages are available at launch. All are **draf
 | Acceptable Use Policy | `/acceptable-use` | Prohibited uses (phishing, malware, spam, deception, illegal content), enforcement, no automated scanning notice |
 | Report Abuse | `/abuse` | What to report, how to report, what to include, contact email |
 | Contact | `/contact` | Support, abuse, and privacy contact emails; note that ticketing is not implemented |
+| Help Center | `/help` | Plain-language explanation of dynamic vs static QR codes, styling, downloads, analytics, plans, account, billing, moderation, security, and an FAQ. Sidebar table of contents with anchored sections; no authentication, no form processing. |
 
-All five pages are linked in the site footer. No authentication is required. No form processing or database writes occur on any of these pages.
+All six pages are linked in the site footer. No authentication is required. No form processing or database writes occur on any of these pages. `help` is included in [`config/reserved_slugs.php`](config/reserved_slugs.php) so users cannot register `help` as a custom short slug.
 
 ### Policy email configuration
 

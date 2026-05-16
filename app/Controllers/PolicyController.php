@@ -41,4 +41,11 @@ class PolicyController
             'privacyEmail' => $_ENV['PRIVACY_EMAIL']  ?? 'privacy@f29.us',
         ], 'main');
     }
+
+    public function help(array $params = []): void
+    {
+        View::render('help', [
+            'pageTitle' => 'Help — f29.us Dynamic QR',
+        ], 'main');
+    }
 }

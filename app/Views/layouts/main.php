@@ -61,6 +61,7 @@ $_unverified = $navUser
         <div class="footer-inner">
             <p>&copy; <?= date('Y') ?> f29.us &mdash; Dynamic QR Codes</p>
             <nav class="footer-nav">
+                <a href="/help">Help</a>
                 <a href="/terms">Terms</a>
                 <a href="/privacy">Privacy</a>
                 <a href="/acceptable-use">Acceptable Use</a>
