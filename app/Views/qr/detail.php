@@ -137,7 +137,18 @@
 <div class="actions-group">
 
     <?php if ($canExportPng): ?>
-    <a href="/qr/<?= (int) $qr['id'] ?>/download/png" class="btn btn-secondary">Download PNG</a>
+    <form method="get" action="/qr/<?= (int) $qr['id'] ?>/download/png" class="qr-download-form">
+        <label for="png-size" class="sr-only">PNG size</label>
+        <select id="png-size" name="size" aria-label="PNG size">
+            <?php foreach (($pngDownloadSizes ?? [512]) as $sizeOption): ?>
+            <option value="<?= (int) $sizeOption ?>"
+                <?= (int) $sizeOption === (int) ($pngDefaultSize ?? 512) ? 'selected' : '' ?>>
+                <?= (int) $sizeOption ?>px
+            </option>
+            <?php endforeach; ?>
+        </select>
+        <button type="submit" class="btn btn-secondary">Download PNG</button>
+    </form>
     <?php else: ?>
     <span class="btn-disabled" title="Not available on your plan">Download PNG</span>
     <?php endif; ?>
@@ -150,6 +161,9 @@
 
 </div>
 <p class="text-2xs text-muted-2 mt-2">
+    SVG is vector-based and can be scaled without quality loss.
+</p>
+<p class="text-2xs text-muted-2 mt-1">
     QR code encodes: <code><?= View::e($shortUrl) ?></code>
 </p>
 

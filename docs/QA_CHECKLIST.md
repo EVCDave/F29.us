@@ -140,6 +140,42 @@ All checklist items are manual unless noted otherwise.
 - [ ] PNG and SVG downloads apply the saved custom style (custom foreground/background colors match the in-app preview)
 - [ ] PNG and SVG downloads for QR codes with no custom style use default black-on-white
 
+### QR PNG download size
+
+**Entitlement gating:**
+- [ ] Free user sees only `512px` in the size select on `/qr/{id}`
+- [ ] Starter user sees `512px` and `1024px`
+- [ ] Pro user sees `512px`, `1024px`, `2048px`
+- [ ] Team user sees `512px`, `1024px`, `2048px`, `4096px`
+- [ ] Default selected option is the largest size allowed for the user's plan
+
+**Server-side validation:**
+- [ ] Free user submitting `?size=1024` to `/qr/{id}/download/png` is rejected with 403 ("Your plan does not allow that PNG download size.")
+- [ ] Any user submitting `?size=9999` (or non-numeric) is rejected with 403 ("Invalid PNG download size.")
+- [ ] Submitting no `size` parameter defaults to 512px and downloads successfully
+
+**Dimensions (open the file in an image viewer and verify pixel size):**
+- [ ] `size=512` → PNG is 512x512
+- [ ] `size=1024` → PNG is 1024x1024
+- [ ] `size=2048` → PNG is 2048x2048 (Pro/Team only)
+- [ ] `size=4096` → PNG is 4096x4096 (Team only); does NOT return a raw 500 even on memory-tight hosts — either a successful download, or a safe "Could not generate PNG at the requested size." 403 with the failure logged server-side
+- [ ] After a 4096 download, peak PHP memory stays under the bumped 256M (controller raises `memory_limit` to 256M for `size >= 2048`)
+
+**Style compatibility (each at a non-default size):**
+- [ ] Custom colors render correctly at selected size
+- [ ] Transparent background still produces an alpha-channel PNG at selected size
+- [ ] Logo overlay still renders centered at selected size
+- [ ] `gapped_square` module style renders at selected size
+- [ ] `circle` module style renders at selected size
+
+**Filename and SVG:**
+- [ ] PNG filename includes the size suffix, e.g. `f29-qr-{name}-{slug}-1024px.png`
+- [ ] SVG download remains available and unchanged (vector, no size selector)
+
+**Pricing/subscription display:**
+- [ ] `/pricing` — "Max PNG download size" row shows `512px`, `1024px`, `2048px`, `4096px` for Free, Starter, Pro, Team
+- [ ] `/account/subscription` — same
+
 ### QR color customization
 
 **Entitlement gating:**
@@ -192,7 +228,7 @@ All checklist items are manual unless noted otherwise.
 - [ ] PNG download reflects the saved module style (gapped or circle)
 - [ ] SVG download reflects the saved module style (uses `<rect>` for gapped, `<circle>` for circle)
 - [ ] The three finder-pattern eyes (top-left, top-right, bottom-left 7x7 blocks) remain classic squares for every module style — visually verifiable
-- [ ] QR codes with `module_style = 'square'` produce byte-identical output to the prior renderer (default flow uses endroid writers)
+- [ ] QR codes with `module_style = 'square'` still render via the standard endroid writer path before the final exact-size PNG normalization (square SVG remains the endroid writer output unchanged)
 - [ ] Custom colors + non-square module style render correctly together
 - [ ] Transparent background + non-square module style renders correctly (modules drawn over transparent background)
 - [ ] Logo overlay still renders on top of non-square modules; logo is centered

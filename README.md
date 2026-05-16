@@ -1028,10 +1028,36 @@ Users on Starter and higher plans can also customize the **shape** of QR data mo
 - Logo overlay: ECL = H (logo wins; non-square module style does not demote H to Q)
 
 **Renderer:**
-- `module_style = 'square'` uses the endroid writers directly so output is byte-identical to prior behavior (no regression for unstyled or color-only QR codes).
+- `module_style = 'square'` uses the standard endroid writer path before the final exact-size PNG normalization. SVG output for square style is the endroid writer output unchanged. PNG output for square style is no longer byte-identical to the pre–Phase 33 renderer because of the exact-size resize step, but it still uses the standard endroid render path for all module rendering.
 - `module_style = 'gapped_square' | 'circle'` walks the endroid Matrix and emits per-module shapes: a centered rect at 80% of module size for gapped, a centered filled ellipse at 80% diameter for circle. Finder-pattern modules render as full squares regardless. Logo overlay (if any) is composited last.
 
 **Supported output surfaces:** in-app SVG preview, PNG download, SVG download — all reflect the saved module style.
+
+### QR PNG download size
+
+Users can pick the pixel size of the PNG export at download time on the QR detail page. The selection is an **export option**, not a persistent style — the stored QR style is unchanged. SVG remains vector and is not size-gated.
+
+**Entitlement key:** `max_qr_download_size_px` (int). Seeded values:
+
+| Plan    | `max_qr_download_size_px` |
+| ------- | ------------------------: |
+| Free    |                       512 |
+| Starter |                      1024 |
+| Pro     |                      2048 |
+| Team    |                      4096 |
+
+**Fixed allowed sizes:** `[512, 1024, 2048, 4096]`. The detail page's PNG size selector shows only sizes `≤ max_qr_download_size_px`. The default selection is the largest allowed size. The selector submits as `GET /qr/{id}/download/png?size={px}`.
+
+**Server-side validation** (`QrController::downloadPng`):
+- `size` must be a digit string and present in the fixed allow-list → otherwise `403 Invalid PNG download size.`
+- `size` must be `≤ max_qr_download_size_px` for the user → otherwise `403 Your plan does not allow that PNG download size.`
+- Missing/blank `size` defaults to `512`.
+
+**Rendering:** the selected size is passed through to `QrCodeService::generatePng($content, $size, $style)`. The default (square) path uses endroid's writer at the requested size; the custom matrix renderer (for `gapped_square` / `circle`) renders at the matrix's natural pixel size. In both paths a final GD nearest-neighbor resize (`imagecopyresized`) forces exact `size × size` output dimensions, so a request for 1024 produces a 1024×1024 PNG regardless of endroid's block-size rounding. The resampler first peeks the PNG IHDR header and short-circuits without allocating any GD canvas when the source is already exact, which is essential at 4096px where each truecolor RGBA canvas is ~67 MB. Nearest-neighbor scaling is used deliberately to keep QR module edges crisp and hard — bilinear/anti-aliased scaling blurs module boundaries and can hurt scan reliability. Transparent backgrounds, custom colors, logo overlays, and non-square module styles all work at any allowed size.
+
+**Memory and large sizes:** for `size >= 2048` the controller bumps `memory_limit` to `256M` via `ini_set` for that request. A 4096×4096 RGBA canvas is ~67 MB and the resize step can briefly hold both a source and destination canvas, so the default 128M limit is not enough. Any rendering failure is caught: the controller logs `[QR PNG Download] Failed for QR ID … at size …px: …` and the user gets a safe 403 ("Could not generate PNG at the requested size. Please try a smaller size or contact support.") rather than a raw 500. If a particular deployment cannot grant 256M, hosts can cap Team to 2048 by editing `PlanFeaturesSeeder` — the allow-list logic automatically drops 4096 from the size selector.
+
+**Filename:** PNG downloads are named `f29-qr-{name}-{slug}-{size}px.png` so multiple-size downloads don't collide.
 
 ### QR logo upload
 

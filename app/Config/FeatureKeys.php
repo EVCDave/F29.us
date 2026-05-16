@@ -26,6 +26,7 @@ class FeatureKeys
         'can_upload_qr_logo'        => 'bool',
         'qr_logo_max_size_kb'       => 'int',
         'qr_logo_max_percent'       => 'int',
+        'max_qr_download_size_px'   => 'int',
     ];
 
     public static function isBuiltin(string $key): bool

@@ -16,11 +16,13 @@ declare(strict_types=1);
  * module shape (square, gapped_square, circle). Pass the return value of
  * QrStyleService::getForQr() or null for defaults.
  *
- * When module_style is "square" (default), the endroid writers are used
- * directly so output is byte-identical to prior behavior. When module_style
- * is "gapped_square" or "circle", a custom renderer walks the endroid Matrix
- * and emits per-module shapes. Finder-pattern modules (top-left, top-right,
- * bottom-left 7x7 blocks) always render as full squares for scan reliability.
+ * When module_style is "square" (default), the standard endroid writer path
+ * is used; PNG output is then passed through a final exact-size normalization
+ * step (nearest-neighbor) to honor the caller-requested pixel size. When
+ * module_style is "gapped_square" or "circle", a custom renderer walks the
+ * endroid Matrix and emits per-module shapes. Finder-pattern modules
+ * (top-left, top-right, bottom-left 7x7 blocks) always render as full squares
+ * for scan reliability.
  */
 class QrCodeService
 {
@@ -32,18 +34,22 @@ class QrCodeService
         self::requireLibrary();
 
         if (self::needsCustomRenderer($style)) {
-            return self::renderCustomPng($content, $size, $style);
+            $png = self::renderCustomPng($content, $size, $style);
+        } else {
+            $builder = \Endroid\QrCode\Builder\Builder::create()
+                ->writer(new \Endroid\QrCode\Writer\PngWriter())
+                ->data($content)
+                ->size($size)
+                ->margin(10);
+
+            self::applyStyle($builder, $style, $size);
+
+            $png = $builder->build()->getString();
         }
 
-        $builder = \Endroid\QrCode\Builder\Builder::create()
-            ->writer(new \Endroid\QrCode\Writer\PngWriter())
-            ->data($content)
-            ->size($size)
-            ->margin(10);
-
-        self::applyStyle($builder, $style, $size);
-
-        return $builder->build()->getString();
+        // Endroid rounds block sizes so actual output may differ from $size by a few px.
+        // Force exact requested dimensions so downloads honor the user's selected size.
+        return self::resamplePngToSize($png, $size);
     }
 
     public static function generateSvg(string $content, int $size = 300, ?array $style = null): string
@@ -136,7 +142,9 @@ class QrCodeService
         $fg          = $style['foreground_color']       ?? '#000000';
         $bg          = $style['background_color']       ?? '#FFFFFF';
         $transparent = (bool) ($style['background_transparent'] ?? false);
-        $moduleStyle = $style['module_style'] ?? 'square';
+        // This function is only entered via needsCustomRenderer(), so module_style
+        // is already 'gapped_square' or 'circle' — no 'square' fallback needed here.
+        $moduleStyle = $style['module_style'];
 
         $fgAttr = htmlspecialchars($fg, ENT_QUOTES, 'UTF-8');
 
@@ -192,11 +200,12 @@ class QrCodeService
                 $logoPercent = max(1.0, (float) ($style['logo_max_percent'] ?? 20));
                 $logoWidth   = max(1, (int) round($outerSize * $logoPercent / 100));
                 $logoX       = ($outerSize - $logoWidth) / 2.0;
+                $logoY       = $logoX;
                 $mime        = $style['logo_mime_type'] ?? 'image/png';
                 $logoBytes   = @file_get_contents($logoPath);
                 if ($logoBytes !== false) {
                     $b64 = base64_encode($logoBytes);
-                    $parts[] = '<image x="' . self::fmt($logoX) . '" y="' . self::fmt($logoX)
+                    $parts[] = '<image x="' . self::fmt($logoX) . '" y="' . self::fmt($logoY)
                              . '" width="' . $logoWidth . '" height="' . $logoWidth
                              . '" preserveAspectRatio="xMidYMid meet" '
                              . 'href="data:' . htmlspecialchars($mime, ENT_QUOTES, 'UTF-8')
@@ -224,7 +233,9 @@ class QrCodeService
         $fg          = $style['foreground_color']       ?? '#000000';
         $bg          = $style['background_color']       ?? '#FFFFFF';
         $transparent = (bool) ($style['background_transparent'] ?? false);
-        $moduleStyle = $style['module_style'] ?? 'square';
+        // This function is only entered via needsCustomRenderer(), so module_style
+        // is already 'gapped_square' or 'circle' — no 'square' fallback needed here.
+        $moduleStyle = $style['module_style'];
 
         $im = imagecreatetruecolor($outerSize, $outerSize);
 
@@ -305,9 +316,10 @@ class QrCodeService
                 $logoSrc     = self::loadImage($logoPath);
                 if ($logoSrc !== null) {
                     $logoX = (int) round(($outerSize - $logoWidth) / 2.0);
+                    $logoY = $logoX;
                     imagecopyresampled(
                         $im, $logoSrc,
-                        $logoX, $logoX, 0, 0,
+                        $logoX, $logoY, 0, 0,
                         $logoWidth, $logoWidth,
                         imagesx($logoSrc), imagesy($logoSrc)
                     );
@@ -322,6 +334,93 @@ class QrCodeService
         imagedestroy($im);
 
         return $png;
+    }
+
+    /**
+     * Force a PNG to exact NxN dimensions. If the source already matches, return as-is.
+     * Used to honor user-selected PNG download sizes despite endroid block-size rounding.
+     *
+     * Uses imagecopyresized (nearest-neighbor) rather than imagecopyresampled (bilinear),
+     * because QR modules need crisp, hard edges — interpolated scaling blurs the module
+     * boundaries and can hurt scan reliability.
+     *
+     * Memory hygiene: peeks the PNG IHDR header to detect already-correct dimensions
+     * BEFORE allocating any GD image. At 4096px each truecolor RGBA canvas is ~67 MB
+     * and src+dst together can exceed default 128M memory_limit, so the early skip
+     * is what lets large sizes work on typical hosts.
+     */
+    private static function resamplePngToSize(string $pngBytes, int $size): string
+    {
+        // Cheap header peek first — avoids two ~67 MB GD allocations when not needed.
+        [$srcW, $srcH] = self::peekPngDimensions($pngBytes);
+        if ($srcW === $size && $srcH === $size) {
+            return $pngBytes;
+        }
+
+        if (!function_exists('imagecreatefromstring')) {
+            return $pngBytes;
+        }
+
+        $src = @imagecreatefromstring($pngBytes);
+        if ($src === false) {
+            throw new RuntimeException('Failed to decode rendered PNG for size normalization.');
+        }
+        // Re-derive in case the IHDR peek failed and returned (0, 0).
+        $srcW = imagesx($src);
+        $srcH = imagesy($src);
+        if ($srcW === $size && $srcH === $size) {
+            imagedestroy($src);
+            return $pngBytes;
+        }
+
+        $dst = @imagecreatetruecolor($size, $size);
+        if ($dst === false) {
+            imagedestroy($src);
+            throw new RuntimeException('Failed to allocate ' . $size . 'x' . $size . ' canvas for PNG normalization.');
+        }
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        $transparentFill = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+        imagefilledrectangle($dst, 0, 0, $size - 1, $size - 1, $transparentFill);
+
+        if (!imagecopyresized($dst, $src, 0, 0, 0, 0, $size, $size, $srcW, $srcH)) {
+            imagedestroy($src);
+            imagedestroy($dst);
+            throw new RuntimeException('Failed to resize PNG to ' . $size . 'x' . $size . '.');
+        }
+
+        // Free the source as soon as possible so the imagepng output buffer
+        // doesn't have to share memory with two full canvases.
+        imagedestroy($src);
+
+        ob_start();
+        $ok = @imagepng($dst);
+        $out = (string) ob_get_clean();
+        imagedestroy($dst);
+
+        if (!$ok || $out === '') {
+            throw new RuntimeException('Failed to encode resized PNG.');
+        }
+
+        return $out;
+    }
+
+    /**
+     * Read width and height from a PNG byte string's IHDR chunk without
+     * decoding the full image. Returns [0, 0] on any header malformation.
+     *
+     * PNG layout: 8-byte signature + 4-byte IHDR length + 4-byte "IHDR" + 4-byte width + 4-byte height.
+     */
+    private static function peekPngDimensions(string $pngBytes): array
+    {
+        if (strlen($pngBytes) < 24 || substr($pngBytes, 0, 8) !== "\x89PNG\r\n\x1A\n") {
+            return [0, 0];
+        }
+        $unpacked = @unpack('Nwidth/Nheight', substr($pngBytes, 16, 8));
+        if (!is_array($unpacked) || !isset($unpacked['width'], $unpacked['height'])) {
+            return [0, 0];
+        }
+        return [(int) $unpacked['width'], (int) $unpacked['height']];
     }
 
     private static function loadImage(string $path): ?\GdImage
