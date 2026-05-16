@@ -338,7 +338,7 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/` | Homepage |
+| GET | `/` | Homepage — hero, dynamic-QR value proposition, feature cards, static-vs-dynamic comparison, styling/downloads/analytics sections, pricing + final CTAs. Public; no DB writes; CTAs link to `/qr/create`, `/qr/static`, `/pricing`, `/help`, and `/register` (logged-out only). |
 | GET | `/pricing` | Public plan comparison — features, prices, plan selection |
 | GET | `/terms` | Terms of Service |
 | GET | `/privacy` | Privacy Policy |
