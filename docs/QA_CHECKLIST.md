@@ -1106,4 +1106,72 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 - [ ] Audit log contains `contact_message_note_updated` rows with `note_length` after a note save
 - [ ] Public `/{slug}` catch-all still resolves real short slugs after the new routes are registered (no shadowing)
 
-*Last updated: 2026-05-17 — Phase 40: public contact form at `/contact` with CSRF, honeypot, minimum-form-time, and per-IP / per-email rate limiting; submissions stored in `contact_messages`; admin review at `/admin/contact-messages` with status/note workflow; Privacy Policy updated.*
+### Abuse Report Form
+
+**Public form:**
+- [ ] `/abuse` loads while logged out
+- [ ] `/abuse` loads while logged in
+- [ ] Form shows: Name, Email, Reported URL, Destination URL (optional), Abuse type, Description / evidence
+- [ ] Abuse-type dropdown lists: Phishing, Malware, Spam, Impersonation, Illegal content, Harassment, Other
+- [ ] Logged-in user sees Name + Email prefilled (display_name → first+last → email local-part), still editable
+- [ ] Honeypot `name="website"` is present and wrapped in `.hp-field`; `tabindex="-1"`; empty default value
+- [ ] Hidden `form_started_at` timestamp present
+- [ ] Existing `ABUSE_EMAIL` mailto link still visible as a fallback ("Alternate Contact" section)
+- [ ] "General support" link points to `/contact`
+- [ ] "What to Report" guidance still present
+- [ ] "What to Expect" / "Automated scanning not implemented" copy still present
+- [ ] Blank submission shows validation errors for each required field
+- [ ] Invalid email rejected with "Please enter a valid email address."
+- [ ] Missing reported URL rejected with "Reported URL is required."
+- [ ] Reported URL without `http://` or `https://` rejected
+- [ ] Empty destination URL is accepted (optional field)
+- [ ] Provided destination URL without scheme is rejected
+- [ ] Invalid abuse_type (e.g. tampered POST value `spammyspam`) rejected with "Please choose an abuse type."
+- [ ] Description over 5000 characters rejected
+- [ ] Null byte / hard control character in any field rejected with "One or more fields contain characters that are not allowed."
+- [ ] Missing CSRF token returns 403
+- [ ] Honeypot filled → success page rendered, NO row inserted, NO email sent
+- [ ] Submitted in less than ~3 seconds → success page rendered, NO row inserted, NO email sent
+- [ ] Valid logged-out submission inserts `contact_messages` row with `category='abuse'`, `user_id=NULL`
+- [ ] Valid logged-in submission inserts row with `category='abuse'` and populated `user_id`
+- [ ] Row `subject` equals `Abuse report: {type label}` (e.g. `Abuse report: Phishing or credential theft`)
+- [ ] Row `message` contains the reported URL, the destination URL (or `(not provided)`), the abuse-type label, and the user's description
+- [ ] `ip_hash` populated (HMAC via `LoginThrottleService::hashIp`); raw IP is NOT stored
+- [ ] `user_agent` populated, truncated at 1000 chars
+- [ ] Rate limit: 5 abuse submissions per IP hash per hour scoped to `category='abuse'` — 6th rejected with the abuse-specific rate-limit error
+- [ ] Rate limit: 3 abuse submissions per email per hour scoped to `category='abuse'` — 4th rejected
+- [ ] Contact-form rate limit does NOT block abuse submissions and vice versa (different `category` scope)
+- [ ] `/contact` rate-limit query filters with `category IN ('general','billing','technical','account','problem','other')` — abuse rows do NOT count toward the 5/IP/hour or 3/email/hour contact-form limits
+- [ ] Submitting 5 abuse reports in an hour does NOT exhaust the contact-form rate limit (a normal contact submission immediately afterward still succeeds)
+- [ ] Submitting 5 contact messages in an hour does NOT exhaust the abuse-form rate limit (a normal abuse report immediately afterward still succeeds)
+- [ ] README Legal and Policy Pages paragraph correctly identifies both `/contact` and `/abuse` as form-processing pages (not just `/contact`)
+- [ ] `MAIL_ENABLED=false`: row still stored; no email; no crash
+- [ ] `MAIL_ENABLED=true`: abuse inbox receives `[f29.us Abuse Report] {type label}` notification containing message ID, name, email, user ID, subject, formatted report, submitted timestamp, user agent, IP hash, and an admin detail link
+- [ ] Notification recipient resolves from `ABUSE_EMAIL` (fallback `abuse@f29.us`)
+- [ ] Success message reads "Thanks — your abuse report has been submitted. We'll review it and take appropriate action if it violates our policies." (does NOT promise personal response)
+- [ ] No raw IP appears anywhere in the notification email
+
+**Admin review:**
+- [ ] `/admin/contact-messages?category=abuse` filter shows only abuse rows
+- [ ] Abuse rows in the list have the `row-abuse` background tint and an `Abuse report` red badge in the Category cell
+- [ ] Non-abuse rows keep the plain category label and no row tint
+- [ ] `/admin/contact-messages/{id}` for an abuse row shows the warning card at the top ("This message is an abuse report.") with links to `/admin/moderation/links` and `/admin/moderation/domains`
+- [ ] Admin can mark an abuse report `reviewed` — status updates, `handled_at` + `handled_by_user_id` set
+- [ ] Admin can mark an abuse report `closed`
+- [ ] Admin can reopen as `new` — handled fields cleared
+- [ ] Admin can save an internal note on an abuse report; note is not emailed to the submitter and is not exposed publicly
+- [ ] Status change writes `contact_message_status_updated` to the audit log
+- [ ] Note save writes `contact_message_note_updated` to the audit log
+- [ ] CSRF missing on `/admin/contact-messages/{id}/status` returns 403
+- [ ] CSRF missing on `/admin/contact-messages/{id}/note` returns 403
+- [ ] Admin home `/admin` shows a "New Abuse Reports" stat tile, warn-styled when > 0, plus an "Abuse Reports" button in the Support section that deep-links to `?category=abuse&status=new`
+- [ ] The existing "New Contact Messages" tile counts only `category != 'abuse'` so abuse and non-abuse counts don't double-up
+
+**Docs / policy:**
+- [ ] Privacy Policy discloses stored abuse-report data (reported URL, destination URL, abuse type, description, user agent, hashed IP, optional account association)
+- [ ] Acceptable Use Policy links to `/abuse` (Section 6 "Reporting Violations")
+- [ ] Contact page abuse-routing card still points to `/abuse`
+- [ ] README documents `POST /abuse`, the abuse-as-`contact_messages` mapping, the `ABUSE_EMAIL` notification, the admin highlighting, and the abuse-report row in the Notifications-sent table
+- [ ] Public `/{slug}` catch-all still resolves real short slugs (no shadowing by `POST /abuse`)
+
+*Last updated: 2026-05-17 — Phase 41: public abuse-report form at `/abuse` reusing `contact_messages` with `category='abuse'`; admin contact-message list and detail visibly emphasize abuse rows; new "New Abuse Reports" admin home tile; `NotificationService::abuseReportSubmitted` routes to `ABUSE_EMAIL`; Privacy Policy discloses the new data collection.*

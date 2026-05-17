@@ -148,6 +148,10 @@ td a { color: #0066cc; }
 .status-reviewed { color: #1d4ed8; font-weight: 500; }
 .status-closed   { color: #6b7280; font-weight: 500; }
 
+/* ── Abuse-report emphasis in admin contact-message list ──────────────────── */
+.row-abuse  td  { background: #fef2f2; }
+.badge-abuse    { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 3px; background: #fee2e2; color: #991b1b; font-weight: 600; font-size: 0.82rem; }
+
 /* ── Homepage ─────────────────────────────────────────────────────────────── */
 .home-hero { padding: 2.25rem 0 1.5rem; border-bottom: 1px solid #eee; margin-bottom: 2rem; }
 .home-hero-title { font-size: 2.1rem; line-height: 1.15; margin: 0 0 0.75rem; max-width: 760px; }

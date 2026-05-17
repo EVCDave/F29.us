@@ -343,7 +343,8 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | GET | `/terms` | Terms of Service |
 | GET | `/privacy` | Privacy Policy |
 | GET | `/acceptable-use` | Acceptable Use Policy |
-| GET | `/abuse` | Report Abuse page |
+| GET | `/abuse` | Public abuse-report form |
+| POST | `/abuse` | Submit abuse report — CSRF-protected; honeypot, minimum-form-time, and per-IP / per-email rate limits (scoped to `category='abuse'`); inserts into `contact_messages` with the abuse fields formatted into the message body; sends notification to `ABUSE_EMAIL` when mail is enabled |
 | GET | `/contact` | Public contact form |
 | POST | `/contact` | Submit contact form — CSRF, honeypot, minimum-form-time and rate-limit (5/IP-hash/hour, 3/email/hour) protections; stores `contact_messages` row, mails `MAIL_SUPPORT_ADDRESS` when mail is enabled |
 | GET | `/help` | Help Center — explains dynamic vs static QR, styling, downloads, analytics, plans, account, billing, moderation, security, and an FAQ |
@@ -1231,11 +1232,11 @@ The following public-facing policy pages are available at launch. All are **draf
 | Terms of Service | `/terms` | Account responsibility, QR/link rules, moderation rights, liability limitation, billing note |
 | Privacy Policy | `/privacy` | Data collected, scan analytics, IP hashing, cookies (including the optional 30-day `f29_remember` persistent-login cookie disclosure), no data sale, retention |
 | Acceptable Use Policy | `/acceptable-use` | Prohibited uses (phishing, malware, spam, deception, illegal content), enforcement, no automated scanning notice |
-| Report Abuse | `/abuse` | What to report, how to report, what to include, contact email |
+| Report Abuse | `/abuse` | Public abuse-report form (name / email / reported URL / destination URL / abuse type / description). CSRF-protected with hidden honeypot + minimum-form-time + per-IP / per-email rate limits scoped to `category='abuse'`. Reports are stored as `contact_messages` rows with `category='abuse'` — no separate `abuse_reports` table. Notification goes to `ABUSE_EMAIL` (fallback `abuse@f29.us`) when `MAIL_ENABLED=true`. Admin review at `/admin/contact-messages?category=abuse`, where abuse rows are visually highlighted and the detail page shows a warning card linking to the moderation pages. Fallback `ABUSE_EMAIL` mailto remains visible on the page. |
 | Contact | `/contact` | Public contact form (name / email / category / subject / message), CSRF-protected, with hidden honeypot + minimum-form-time + per-IP/per-email rate limits. Submissions land in `contact_messages` and trigger an email notification to the support address when `MAIL_ENABLED=true`. The page still shows support/abuse/privacy fallback emails. Admin review at `/admin/contact-messages` (admin role required). |
 | Help Center | `/help` | Plain-language explanation of dynamic vs static QR codes, styling, downloads, analytics, plans, account, billing, moderation, security, and an FAQ. Sidebar table of contents with anchored sections; no authentication, no form processing. |
 
-All six pages are linked in the site footer. No authentication is required to view them. The **Contact** page includes a public form that writes to `contact_messages` and notifies the support inbox when mail is enabled; the other policy/help pages are informational only and do not process forms or write to the database. `help` is included in [`config/reserved_slugs.php`](config/reserved_slugs.php) so users cannot register `help` as a custom short slug.
+All six pages are linked in the site footer. No authentication is required to view them. The **Contact** page and the **Report Abuse** page include public forms that write to `contact_messages` and send notification emails when mail is enabled — `/contact` to `MAIL_SUPPORT_ADDRESS` and `/abuse` to `ABUSE_EMAIL`. The other policy / help pages are informational only and do not process forms or write to the database. `help` is included in [`config/reserved_slugs.php`](config/reserved_slugs.php) so users cannot register `help` as a custom short slug.
 
 ### Policy email configuration
 
@@ -1304,6 +1305,7 @@ Set `MAIL_ENABLED=true` in `.env` and configure the SMTP variables. When `MAIL_E
 | Link disabled by admin | Link owner |
 | Link restored by admin | Link owner |
 | Contact form submitted | Support inbox &mdash; `MAIL_SUPPORT_ADDRESS` (falls back to `SUPPORT_EMAIL`, then `support@f29.us`) |
+| Abuse report submitted | Abuse inbox &mdash; `ABUSE_EMAIL` (falls back to `abuse@f29.us`) |
 
 ### Architecture
 
