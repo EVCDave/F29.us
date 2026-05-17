@@ -1174,4 +1174,80 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 - [ ] README documents `POST /abuse`, the abuse-as-`contact_messages` mapping, the `ABUSE_EMAIL` notification, the admin highlighting, and the abuse-report row in the Notifications-sent table
 - [ ] Public `/{slug}` catch-all still resolves real short slugs (no shadowing by `POST /abuse`)
 
-*Last updated: 2026-05-17 — Phase 41: public abuse-report form at `/abuse` reusing `contact_messages` with `category='abuse'`; admin contact-message list and detail visibly emphasize abuse rows; new "New Abuse Reports" admin home tile; `NotificationService::abuseReportSubmitted` routes to `ABUSE_EMAIL`; Privacy Policy discloses the new data collection.*
+### Phase 42 — Admin QR & Link Moderation
+
+**Admin link browser:**
+- [ ] Non-admin user accessing `/admin/moderation/links` is denied with 403
+- [ ] Admin loads `/admin/moderation/links` successfully
+- [ ] Default filter is `status=disabled`
+- [ ] Status filter set to "All statuses" shows active / paused / archived / disabled rows
+- [ ] Status filter `active` shows only active rows
+- [ ] Owner-email search filters by `LIKE %email%`
+- [ ] Slug search filters by `LIKE %slug%`
+- [ ] Destination URL search filters by `LIKE %text%`
+- [ ] Destination domain filter matches the host portion of `current_target_url` (e.g. `example.com` matches `https://example.com/foo`)
+- [ ] `has_abuse_reports=yes` shows only rows that have at least one related abuse report
+- [ ] `has_abuse_reports=no` shows only rows with zero related abuse reports
+- [ ] Each row shows the abuse-report count; abuse-affected rows are visually emphasized (`.row-abuse` background tint + `.badge-abuse` count pill)
+- [ ] Each row shows total scans
+- [ ] Each row links to `/admin/moderation/links/{id}` via the Review action
+
+**Admin link detail:**
+- [ ] Link detail loads and shows owner, QR code id + name, current destination, destination domain, status, total / 24h / 7d scan counts
+- [ ] If the destination domain is already on the active blocklist, the detail page shows the "already on blocklist" hint and hides the Block-Domain form button
+- [ ] Destination-history table renders entries newest-first (when history exists)
+- [ ] Recent audit log shows entries for both the short link and its QR code, newest first
+- [ ] When at least one abuse report links to this short link or its QR code, the warning card at the top reads "N abuse reports reference this link"
+- [ ] Related abuse reports table lists ID, status, reporter, subject, and a "View" link to `/admin/contact-messages/{id}`
+- [ ] Disable form is hidden when the link is already disabled
+- [ ] Restore form appears only when the link is currently disabled
+
+**Abuse-report → short-link linkage (migration 035):**
+- [ ] `php migrate.php` applies migration 035 cleanly
+- [ ] Abuse report submitted with a reported URL like `https://f29.us/{slug}` stores `reported_url`, `reported_domain='f29.us'`, populates `related_short_link_id` AND `related_qr_code_id`
+- [ ] Abuse report submitted with `https://www.f29.us/{slug}` resolves the same way (the `www.` prefix is stripped)
+- [ ] Abuse report submitted with a path matching a reserved slug (e.g. `https://f29.us/contact`) leaves both related IDs NULL but still stores `reported_url` + `reported_domain`
+- [ ] Abuse report submitted with a non-f29 URL (e.g. `https://malicious.example/path`) stores `reported_url` + `reported_domain` but leaves both related IDs NULL
+- [ ] Abuse report detail page shows the "Linked QR / short link" line with a link to `/admin/moderation/links/{related_short_link_id}` when the relation is set, and shows the "No matching f29 short link was detected" hint otherwise
+- [ ] Abuse report detail page shows the reported URL + reported domain when stored
+- [ ] Admin contact-message list shows a "linked to link #N" hint under the abuse badge for rows where `related_short_link_id` is set
+
+**Disable / restore:**
+- [ ] Admin opens an active link's detail; Disable form is visible
+- [ ] Disable form's reason `<select>` lists exactly the eight controlled values: phishing, malware, spam, impersonation, illegal, harassment, policy_violation, other
+- [ ] Disabling with no reason shows the "A disable reason is required." flash and does not change the row
+- [ ] Disabling with a controlled-list key stores the matching human label in `short_links.disabled_reason` (e.g. `phishing` → `Phishing / credential theft`)
+- [ ] Disable writes audit log action `admin_disabled` with metadata: slug, old_status, disabled_reason, has_note
+- [ ] Public `/{slug}` for a disabled link does NOT redirect; it shows the unavailable page
+- [ ] Public unavailable page does NOT expose the `disabled_reason`
+- [ ] Link owner sees the disabled banner on their `/qr/{id}` detail page
+- [ ] Link owner cannot resume a disabled link (`POST /qr/{id}/resume` short-circuits when status ≠ `paused`)
+- [ ] Link owner cannot archive a disabled link (allowed only when status is `active` or `paused`)
+- [ ] Link owner cannot edit destination on a disabled link (the `archived | disabled` guard in `QrController::restoreDestination` and the equivalent `update` path)
+- [ ] Admin restores a disabled link via `POST /admin/moderation/links/{id}/restore`; status returns to `active`; `disabled_reason` row data is preserved for audit context
+- [ ] Restore writes audit log action `admin_restored`
+- [ ] Restored link's public `/{slug}` redirects normally again
+
+**Block destination domain from link:**
+- [ ] Admin clicks "Block Domain" on a link detail; `blocked_domains` row is inserted (or reactivated if a prior inactive row exists)
+- [ ] No matter what, this link is NOT auto-disabled — clicking Block Domain alone does not change the link's status
+- [ ] Other existing links pointing to the same domain are NOT auto-disabled
+- [ ] Future QR creation with a destination on the blocked domain is rejected by the existing `DomainBlocklistService::isBlockedUrl` check
+- [ ] Block writes audit log action `blocked_domain_added_from_link` with metadata: domain, reason, source_short_link_id, source_slug, reactivated
+- [ ] Blocking a domain that is already actively blocked shows the info flash "already on the active blocklist" and does not duplicate the row
+- [ ] Blocking a domain that has an inactive prior row reactivates that row and writes `reactivated=true` in the audit metadata
+
+**Admin home / navigation:**
+- [ ] `/admin` shows new tiles: Disabled Links, Links With Abuse Reports, Active Blocked Domains; Disabled and Abuse-linked tiles warn-style when > 0
+- [ ] Moderation section exposes three buttons: Review Links, Links With Abuse Reports, Blocked Domains
+- [ ] "Links With Abuse Reports" button links to `/admin/moderation/links?status=&has_abuse_reports=yes`
+
+**Routing / regression:**
+- [ ] Public `/{slug}` catch-all still resolves a real short slug (no shadowing from the new admin routes)
+- [ ] CSRF missing on `/admin/moderation/links/{id}/disable` returns 403
+- [ ] CSRF missing on `/admin/moderation/links/{id}/restore` returns 403
+- [ ] CSRF missing on `/admin/moderation/links/{id}/block-domain` returns 403
+- [ ] No raw IP exposed anywhere in the new admin views or notifications
+- [ ] No Stripe / billing files were touched by Phase 42
+
+*Last updated: 2026-05-17 — Phase 42: admin QR / link moderation workflow — link browser gained `domain` and `has_abuse_reports` filters plus scan-total and abuse-count columns, link detail gained scan windows / destination history / related abuse reports / audit log / Block-Domain action, abuse reports auto-link to `short_links` + `qr_codes` via migration 035 columns, controlled-list disable reasons.*

@@ -39,17 +39,34 @@ class AdminController
             "SELECT COUNT(*) FROM contact_messages WHERE status = 'new' AND category = 'abuse'"
         )->fetchColumn();
 
+        // Moderation overview counts: cheap one-row aggregates against indexed columns.
+        $disabledLinks = (int) $pdo->query(
+            "SELECT COUNT(*) FROM short_links WHERE status = 'disabled'"
+        )->fetchColumn();
+        $linksWithAbuseReports = (int) $pdo->query("
+            SELECT COUNT(DISTINCT related_short_link_id)
+            FROM   contact_messages
+            WHERE  category = 'abuse'
+              AND  related_short_link_id IS NOT NULL
+        ")->fetchColumn();
+        $activeBlockedDomains = (int) $pdo->query(
+            "SELECT COUNT(*) FROM blocked_domains WHERE is_active = 1"
+        )->fetchColumn();
+
         View::render('admin/index', [
-            'pageTitle'          => 'Admin — f29.us Dynamic QR',
-            'totalUsers'         => $totalUsers,
-            'totalQr'            => $totalQr,
-            'totalPlans'         => $totalPlans,
-            'pendingRequests'    => $pendingRequests,
-            'activeSubs'         => $activeSubs,
-            'recentAuditCount'   => $recentAuditCount,
-            'failedLogins24h'    => $failedLogins24h,
-            'newContactMessages' => $newContactMessages,
-            'newAbuseReports'    => $newAbuseReports,
+            'pageTitle'             => 'Admin — f29.us Dynamic QR',
+            'totalUsers'            => $totalUsers,
+            'totalQr'               => $totalQr,
+            'totalPlans'            => $totalPlans,
+            'pendingRequests'       => $pendingRequests,
+            'activeSubs'            => $activeSubs,
+            'recentAuditCount'      => $recentAuditCount,
+            'failedLogins24h'       => $failedLogins24h,
+            'newContactMessages'    => $newContactMessages,
+            'newAbuseReports'       => $newAbuseReports,
+            'disabledLinks'         => $disabledLinks,
+            'linksWithAbuseReports' => $linksWithAbuseReports,
+            'activeBlockedDomains'  => $activeBlockedDomains,
         ]);
     }
 

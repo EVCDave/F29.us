@@ -57,8 +57,25 @@
 </div>
 
 <h2 class="mb-3">Moderation</h2>
+<div class="admin-stat-grid mb-3">
+    <div class="admin-stat-card <?= $disabledLinks > 0 ? 'admin-stat-card--warn' : '' ?>">
+        <div class="admin-stat-value <?= $disabledLinks > 0 ? 'admin-stat-value--warn' : '' ?>"><?= (int) $disabledLinks ?></div>
+        <div class="admin-stat-label">Disabled Links</div>
+    </div>
+    <div class="admin-stat-card <?= $linksWithAbuseReports > 0 ? 'admin-stat-card--warn' : '' ?>">
+        <div class="admin-stat-value <?= $linksWithAbuseReports > 0 ? 'admin-stat-value--warn' : '' ?>"><?= (int) $linksWithAbuseReports ?></div>
+        <div class="admin-stat-label">Links With Abuse Reports</div>
+    </div>
+    <div class="admin-stat-card">
+        <div class="admin-stat-value"><?= (int) $activeBlockedDomains ?></div>
+        <div class="admin-stat-label">Active Blocked Domains</div>
+    </div>
+</div>
 <div class="actions-group mb-8">
-    <a href="/admin/moderation/links" class="btn btn-secondary">Moderated Links</a>
+    <a href="/admin/moderation/links" class="btn btn-secondary">Review Links</a>
+    <a href="/admin/moderation/links?status=&amp;has_abuse_reports=yes" class="btn btn-secondary <?= $linksWithAbuseReports > 0 ? 'text-warning btn-secondary-warn' : '' ?>">
+        Links With Abuse Reports<?= $linksWithAbuseReports > 0 ? ' (' . (int) $linksWithAbuseReports . ')' : '' ?>
+    </a>
     <a href="/admin/moderation/domains" class="btn btn-secondary">Blocked Domains</a>
 </div>
 

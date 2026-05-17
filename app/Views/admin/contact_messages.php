@@ -73,6 +73,11 @@
             <td>
                 <?php if ($isAbuse): ?>
                 <span class="badge-abuse">Abuse report</span>
+                <?php if (!empty($m['related_short_link_id'])): ?>
+                <span class="text-2xs text-muted-2 d-block">
+                    linked to <a href="/admin/moderation/links/<?= (int) $m['related_short_link_id'] ?>">link #<?= (int) $m['related_short_link_id'] ?></a>
+                </span>
+                <?php endif; ?>
                 <?php else: ?>
                 <?= View::e($categories[(string) $m['category']] ?? (string) $m['category']) ?>
                 <?php endif; ?>

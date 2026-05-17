@@ -464,10 +464,11 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/admin/moderation/links` | Moderated links — filter by status, owner, slug, destination |
-| GET | `/admin/moderation/links/{id}` | Link detail — owner, destination, moderation metadata, scan count |
-| POST | `/admin/moderation/links/{id}/disable` | Disable a link — stops redirects immediately |
+| GET | `/admin/moderation/links` | Admin link browser — filter by status, owner, slug, destination, destination domain, or has-abuse-reports; lists scan totals + abuse-report counts per row |
+| GET | `/admin/moderation/links/{id}` | Link detail — owner, destination, moderation metadata, total / 24h / 7d scan counts, destination history, related abuse reports, recent audit log, and Block-Domain action |
+| POST | `/admin/moderation/links/{id}/disable` | Disable a link — controlled-list `disabled_reason` (phishing / malware / spam / impersonation / illegal / harassment / policy_violation / other), optional `moderation_note` |
 | POST | `/admin/moderation/links/{id}/restore` | Restore a disabled link to active |
+| POST | `/admin/moderation/links/{id}/block-domain` | Add (or reactivate) the destination's host on `blocked_domains`. Does NOT auto-disable this link or other links to the domain — moderation is explicit |
 | GET | `/admin/moderation/domains` | Blocked domain list with add form |
 | POST | `/admin/moderation/domains` | Add a domain to the blocklist |
 | POST | `/admin/moderation/domains/{id}/toggle` | Activate or deactivate a blocked domain entry |
@@ -1211,10 +1212,11 @@ External malware scanning (Google Safe Browsing, VirusTotal, etc.) is **not impl
 
 | Page | Path | Description |
 |------|------|-------------|
-| Moderated links | `/admin/moderation/links` | Filter links by status, owner, slug, or destination. Defaults to disabled links. |
-| Link detail | `/admin/moderation/links/{id}` | Full context: owner, destination, moderation metadata, recent scan count. Disable or restore form. |
-| Disable link | `POST /admin/moderation/links/{id}/disable` | Requires `disabled_reason`. Optional `moderation_note`. |
-| Restore link | `POST /admin/moderation/links/{id}/restore` | Sets status to active. Preserves moderation metadata. |
+| Admin link browser | `/admin/moderation/links` | Search all users' short links. Filters: `status` (active / paused / archived / disabled / all), `owner` email substring, `slug`, `dest` URL substring, `domain` host substring, `has_abuse_reports` (yes / no). Lists scan totals + abuse-report counts; rows linked to an abuse report are visually emphasized. Default filter is `status=disabled`. |
+| Link detail | `/admin/moderation/links/{id}` | Full moderation surface for one short link: owner / QR context, destination + extracted domain (flagged if domain already on the blocklist), total / 24h / 7d scan counts, destination history, related abuse reports (links to `/admin/contact-messages/{id}`), recent audit log entries for both the short link and its QR code, Disable / Restore form, and a Block-Domain form. |
+| Disable link | `POST /admin/moderation/links/{id}/disable` | Controlled-list `disabled_reason` (phishing / malware / spam / impersonation / illegal / harassment / policy_violation / other) — the human label is stored in `short_links.disabled_reason`. Optional `moderation_note`. Writes audit log action `admin_disabled` and notifies the owner. |
+| Restore link | `POST /admin/moderation/links/{id}/restore` | Sets status to active. Preserves moderation metadata for audit context. Writes audit log action `admin_restored` and notifies the owner. |
+| Block destination domain (from link) | `POST /admin/moderation/links/{id}/block-domain` | Adds (or reactivates if previously deactivated) the destination's host to `blocked_domains` with optional `reason`. Writes audit log action `blocked_domain_added_from_link` with the source short-link id + slug. Does NOT automatically disable this link or other existing links to the same domain — moderation is explicit. Future QR creation and destination edits to the domain are rejected by `DomainBlocklistService::isBlockedUrl`. |
 | Blocked domains | `/admin/moderation/domains` | List all blocked domains with add form and active/inactive toggle. |
 | Add domain | `POST /admin/moderation/domains` | Normalizes (lowercase, strips www.) before storage. Rejects duplicates. |
 | Toggle domain | `POST /admin/moderation/domains/{id}/toggle` | Flips `is_active`. Inactive entries do not block destinations. |
@@ -1232,7 +1234,7 @@ The following public-facing policy pages are available at launch. All are **draf
 | Terms of Service | `/terms` | Account responsibility, QR/link rules, moderation rights, liability limitation, billing note |
 | Privacy Policy | `/privacy` | Data collected, scan analytics, IP hashing, cookies (including the optional 30-day `f29_remember` persistent-login cookie disclosure), no data sale, retention |
 | Acceptable Use Policy | `/acceptable-use` | Prohibited uses (phishing, malware, spam, deception, illegal content), enforcement, no automated scanning notice |
-| Report Abuse | `/abuse` | Public abuse-report form (name / email / reported URL / destination URL / abuse type / description). CSRF-protected with hidden honeypot + minimum-form-time + per-IP / per-email rate limits scoped to `category='abuse'`. Reports are stored as `contact_messages` rows with `category='abuse'` — no separate `abuse_reports` table. Notification goes to `ABUSE_EMAIL` (fallback `abuse@f29.us`) when `MAIL_ENABLED=true`. Admin review at `/admin/contact-messages?category=abuse`, where abuse rows are visually highlighted and the detail page shows a warning card linking to the moderation pages. Fallback `ABUSE_EMAIL` mailto remains visible on the page. |
+| Report Abuse | `/abuse` | Public abuse-report form (name / email / reported URL / destination URL / abuse type / description). CSRF-protected with hidden honeypot + minimum-form-time + per-IP / per-email rate limits scoped to `category='abuse'`. Reports are stored as `contact_messages` rows with `category='abuse'` — no separate `abuse_reports` table. The reported URL is parsed for f29 hosts (`APP_URL`, `QR_BASE_URL`, `f29.us`, `www.f29.us`) and, when a non-reserved slug is found, the matching `short_links.id` and `qr_codes.id` are written into the new `related_short_link_id` / `related_qr_code_id` columns (migration `035_add_abuse_report_linkage_to_contact_messages.php`). The bare `reported_url` and `reported_domain` are stored even when no f29 link matches. Notification goes to `ABUSE_EMAIL` (fallback `abuse@f29.us`) when `MAIL_ENABLED=true`. Admin review at `/admin/contact-messages?category=abuse`, where abuse rows are visually highlighted, the detail page shows the linked moderation-detail URL, and the moderation Link detail page shows all related abuse reports back-linked into the contact-message detail. Fallback `ABUSE_EMAIL` mailto remains visible on the page. |
 | Contact | `/contact` | Public contact form (name / email / category / subject / message), CSRF-protected, with hidden honeypot + minimum-form-time + per-IP/per-email rate limits. Submissions land in `contact_messages` and trigger an email notification to the support address when `MAIL_ENABLED=true`. The page still shows support/abuse/privacy fallback emails. Admin review at `/admin/contact-messages` (admin role required). |
 | Help Center | `/help` | Plain-language explanation of dynamic vs static QR codes, styling, downloads, analytics, plans, account, billing, moderation, security, and an FAQ. Sidebar table of contents with anchored sections; no authentication, no form processing. |
 
