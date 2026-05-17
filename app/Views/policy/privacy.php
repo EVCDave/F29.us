@@ -48,6 +48,9 @@ protected. We aim to collect only what is necessary to operate the Service.</p>
     <li>Geographic fields (country, region, city) — currently stored as empty; geolocation is not yet implemented</li>
 </ul>
 
+<h3>Contact form submissions</h3>
+<p>If you contact us through the <a href="/contact">Contact page</a>, we store the name, email address, category, subject, and message you submit. If you are logged in at the time, we also store the associated account ID. For abuse-prevention and rate-limiting we record your browser&rsquo;s user-agent string and an HMAC-hashed IP &mdash; the plain IP is not stored. Submissions are visible only to administrators reviewing the support queue. Admins may attach an internal note that is not shown publicly and not emailed to you.</p>
+
 <h3>Subscription and administrative data</h3>
 <ul class="ul-content">
     <li>Plan assignments and billing cycle records</li>

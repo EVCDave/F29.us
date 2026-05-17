@@ -571,6 +571,79 @@ class NotificationService
         }
     }
 
+    // ── Contact form: message submitted ──────────────────────────────────────
+
+    /**
+     * Send a notification to the support inbox when a user submits the public
+     * contact form. No-op when mail is disabled. Falls back gracefully if the
+     * mailer fails — the contact_messages row is already persisted.
+     */
+    public static function contactMessageSubmitted(int $contactMessageId): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $stmt = Database::get()->prepare("
+                SELECT id, user_id, name, email, category, subject, message,
+                       user_agent, ip_hash, created_at
+                FROM contact_messages
+                WHERE id = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$contactMessageId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                return;
+            }
+
+            $supportAddress = $_ENV['MAIL_SUPPORT_ADDRESS']
+                ?? $_ENV['SUPPORT_EMAIL']
+                ?? 'support@f29.us';
+
+            $categoryLabels = [
+                'general'   => 'General question',
+                'billing'   => 'Billing / subscription',
+                'technical' => 'Technical support',
+                'account'   => 'Account access',
+                'problem'   => 'Report a problem',
+                'other'     => 'Other',
+            ];
+            $categoryLabel = $categoryLabels[$row['category']] ?? (string) $row['category'];
+
+            $appUrl  = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
+            $appUrlE = self::e($appUrl);
+
+            $subject = '[f29.us Contact] ' . $categoryLabel . ': ' . $row['subject'];
+
+            $userLine = $row['user_id'] !== null
+                ? '<strong>User ID:</strong> ' . (int) $row['user_id'] . '<br>'
+                : '<strong>User ID:</strong> (not logged in)<br>';
+
+            $messageBody = nl2br(self::e((string) $row['message']));
+
+            $bodyHtml = self::wrap(
+                "A new message was submitted through the contact form.<br><br>"
+                . '<strong>Message ID:</strong> ' . (int) $row['id'] . '<br>'
+                . '<strong>Name:</strong> ' . self::e((string) $row['name']) . '<br>'
+                . '<strong>Email:</strong> ' . self::e((string) $row['email']) . '<br>'
+                . $userLine
+                . '<strong>Category:</strong> ' . self::e($categoryLabel) . '<br>'
+                . '<strong>Subject:</strong> ' . self::e((string) $row['subject']) . '<br>'
+                . '<strong>Submitted at:</strong> ' . self::e((string) $row['created_at']) . ' UTC<br>'
+                . '<strong>User agent:</strong> ' . self::e((string) ($row['user_agent'] ?? '(not provided)')) . '<br>'
+                . '<strong>IP hash:</strong> ' . self::e((string) ($row['ip_hash'] ?? '(not provided)')) . '<br><br>'
+                . '<strong>Message:</strong><br>' . $messageBody . '<br><br>'
+                . '<a href="' . $appUrlE . '/admin/contact-messages/' . (int) $row['id'] . '">Review in admin</a>'
+            );
+
+            MailerService::send($supportAddress, 'Support', $subject, $bodyHtml);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] contactMessageSubmitted #' . $contactMessageId . ': ' . $e->getMessage());
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private static function loadSubscriptionUser(int $userSubscriptionId): array|false

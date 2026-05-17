@@ -60,6 +60,8 @@ require APP_PATH . '/Controllers/SubscriptionHistoryController.php';
 require APP_PATH . '/Controllers/OpsController.php';
 require APP_PATH . '/Controllers/ModerationController.php';
 require APP_PATH . '/Controllers/PolicyController.php';
+require APP_PATH . '/Controllers/ContactController.php';
+require APP_PATH . '/Controllers/AdminContactController.php';
 require APP_PATH . '/Controllers/StripeWebhookController.php';
 require APP_PATH . '/Controllers/EmailVerificationController.php';
 require APP_PATH . '/Controllers/PasswordResetController.php';
@@ -74,7 +76,8 @@ $router->get('/terms',           [PolicyController::class, 'terms']);
 $router->get('/privacy',         [PolicyController::class, 'privacy']);
 $router->get('/acceptable-use',  [PolicyController::class, 'acceptableUse']);
 $router->get('/abuse',           [PolicyController::class, 'abuse']);
-$router->get('/contact',         [PolicyController::class, 'contact']);
+$router->get('/contact',         [ContactController::class, 'show']);
+$router->post('/contact',        [ContactController::class, 'submit']);
 $router->get('/help',            [PolicyController::class, 'help']);
 $router->get('/login',     [AuthController::class, 'loginPage']);
 $router->post('/login',    [AuthController::class, 'loginSubmit']);
@@ -175,6 +178,13 @@ $router->get('/admin/subscription-requests/{id}',         [SubscriptionRequestCo
 $router->post('/admin/subscription-requests/{id}/approve',[SubscriptionRequestController::class, 'approve']);
 $router->post('/admin/subscription-requests/{id}/deny',   [SubscriptionRequestController::class, 'deny']);
 $router->post('/admin/subscription-requests/{id}/cancel', [SubscriptionRequestController::class, 'adminCancel']);
+
+// ── Admin: contact messages ───────────────────────────────────────────────────
+// Exact list route before id-pattern routes.
+$router->get('/admin/contact-messages',              [AdminContactController::class, 'index']);
+$router->get('/admin/contact-messages/{id}',         [AdminContactController::class, 'detail']);
+$router->post('/admin/contact-messages/{id}/status', [AdminContactController::class, 'updateStatus']);
+$router->post('/admin/contact-messages/{id}/note',   [AdminContactController::class, 'updateNote']);
 
 // ── Admin: audit logs ─────────────────────────────────────────────────────────
 // Exact route registered before pattern route.

@@ -32,15 +32,20 @@ class AdminController
         $stmt->execute([$cutoff24h]);
         $failedLogins24h = (int) $stmt->fetchColumn();
 
+        $newContactMessages = (int) $pdo->query(
+            "SELECT COUNT(*) FROM contact_messages WHERE status = 'new'"
+        )->fetchColumn();
+
         View::render('admin/index', [
-            'pageTitle'        => 'Admin — f29.us Dynamic QR',
-            'totalUsers'       => $totalUsers,
-            'totalQr'          => $totalQr,
-            'totalPlans'       => $totalPlans,
-            'pendingRequests'  => $pendingRequests,
-            'activeSubs'       => $activeSubs,
-            'recentAuditCount' => $recentAuditCount,
-            'failedLogins24h'  => $failedLogins24h,
+            'pageTitle'          => 'Admin — f29.us Dynamic QR',
+            'totalUsers'         => $totalUsers,
+            'totalQr'            => $totalQr,
+            'totalPlans'         => $totalPlans,
+            'pendingRequests'    => $pendingRequests,
+            'activeSubs'         => $activeSubs,
+            'recentAuditCount'   => $recentAuditCount,
+            'failedLogins24h'    => $failedLogins24h,
+            'newContactMessages' => $newContactMessages,
         ]);
     }
 
