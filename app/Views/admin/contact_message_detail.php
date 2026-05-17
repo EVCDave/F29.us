@@ -17,6 +17,33 @@ $categoryLabel = $categories[(string) $message['category']] ?? (string) $message
     <p class="text-88 mb-1">
         Review the reported URL and destination carefully before taking moderation action.
     </p>
+    <?php
+    $relatedShortLinkId = $message['related_short_link_id'] ?? null;
+    $relatedQrCodeId    = $message['related_qr_code_id']    ?? null;
+    $reportedUrl        = $message['reported_url']          ?? null;
+    $reportedDomain     = $message['reported_domain']       ?? null;
+    ?>
+    <?php if ($reportedUrl !== null && $reportedUrl !== ''): ?>
+    <p class="text-88 mb-1">
+        <strong>Reported URL:</strong> <a href="<?= View::e((string) $reportedUrl) ?>" target="_blank"
+                                          class="word-break"><?= View::e((string) $reportedUrl) ?></a>
+        <?php if ($reportedDomain): ?>
+        <span class="text-2xs text-muted-2 d-block">domain: <code><?= View::e((string) $reportedDomain) ?></code></span>
+        <?php endif; ?>
+    </p>
+    <?php endif; ?>
+    <?php if ($relatedShortLinkId): ?>
+    <p class="text-88 mb-1">
+        <strong>Linked QR / short link:</strong>
+        <a href="/admin/moderation/links/<?= (int) $relatedShortLinkId ?>">
+            Open moderation detail for short link #<?= (int) $relatedShortLinkId ?>
+        </a>
+    </p>
+    <?php else: ?>
+    <p class="text-2xs text-muted-2 mb-1">
+        No matching f29 short link was detected from the reported URL.
+    </p>
+    <?php endif; ?>
     <p class="text-2xs text-muted-2 mb-0">
         Related admin pages:
         <a href="/admin/moderation/links">Moderated Links</a> &middot;

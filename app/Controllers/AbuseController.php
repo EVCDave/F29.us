@@ -99,19 +99,48 @@ class AbuseController
         $body           = $this->formatBody($reportedUrl, $destinationUrl, $abuseTypeLabel, $message);
         $userAgent      = mb_substr((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 1000);
 
+        // Structured linkage — populated even when no f29 short-link match is
+        // found, so admins can still filter by reported_domain.
+        $reportedDomain      = DomainBlocklistService::extractHost($reportedUrl);
+        $relatedShortLinkId  = null;
+        $relatedQrCodeId     = null;
+
+        $slug = $this->extractF29Slug($reportedUrl);
+        if ($slug !== null) {
+            $stmt = Database::get()->prepare("
+                SELECT sl.id AS short_link_id, qr.id AS qr_id
+                FROM short_links sl
+                LEFT JOIN qr_codes qr ON qr.short_link_id = sl.id
+                WHERE sl.slug = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$slug]);
+            $linkRow = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($linkRow) {
+                $relatedShortLinkId = (int) $linkRow['short_link_id'];
+                $relatedQrCodeId    = $linkRow['qr_id'] !== null ? (int) $linkRow['qr_id'] : null;
+            }
+        }
+
         try {
             $pdo = Database::get();
             $pdo->prepare("
                 INSERT INTO contact_messages
                     (user_id, name, email, category, subject, message,
+                     reported_url, reported_domain,
+                     related_qr_code_id, related_short_link_id,
                      status, ip_hash, user_agent, created_at)
-                VALUES (?, ?, ?, 'abuse', ?, ?, 'new', ?, ?, ?)
+                VALUES (?, ?, ?, 'abuse', ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?)
             ")->execute([
                 $user['id'] ?? null,
                 $name,
                 $email,
                 $subject,
                 $body,
+                $reportedUrl,
+                $reportedDomain,
+                $relatedQrCodeId,
+                $relatedShortLinkId,
                 $ipHash,
                 $userAgent !== '' ? $userAgent : null,
                 gmdate('Y-m-d H:i:s'),
@@ -212,6 +241,68 @@ class AbuseController
         }
         $scheme = parse_url($url, PHP_URL_SCHEME);
         return in_array($scheme, ['http', 'https'], true);
+    }
+
+    /**
+     * If the reported URL is an f29 short link, return its slug. Otherwise null.
+     *
+     * Hosts accepted: the host parts of APP_URL and QR_BASE_URL, plus the
+     * literal `f29.us` and `www.f29.us` so admin tooling works on deployments
+     * where those env vars are not set yet. Reserved slugs (system routes such
+     * as /admin, /qr, /contact, /abuse) are intentionally excluded so a paste
+     * of e.g. `https://f29.us/contact` does not falsely match.
+     */
+    private function extractF29Slug(string $url): ?string
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        $path = parse_url($url, PHP_URL_PATH);
+        if (!is_string($host) || !is_string($path)) {
+            return null;
+        }
+
+        $normalize = static fn(string $h): string => strtolower(
+            str_starts_with(strtolower($h), 'www.') ? substr($h, 4) : $h
+        );
+
+        $candidate = $normalize($host);
+
+        $allowed = ['f29.us'];
+        foreach (['APP_URL', 'QR_BASE_URL'] as $envKey) {
+            $envValue = $_ENV[$envKey] ?? '';
+            if (!is_string($envValue) || $envValue === '') {
+                continue;
+            }
+            $envHost = parse_url($envValue, PHP_URL_HOST);
+            if (is_string($envHost) && $envHost !== '') {
+                $allowed[] = $normalize($envHost);
+            }
+        }
+        $allowed = array_values(array_unique($allowed));
+
+        if (!in_array($candidate, $allowed, true)) {
+            return null;
+        }
+
+        // Path must be a single segment like /abc123 — strip leading slash,
+        // drop anything after the next slash, then validate against the slug
+        // format and the reserved-slug list.
+        $trimmed = ltrim($path, '/');
+        if ($trimmed === '') {
+            return null;
+        }
+        $firstSegment = explode('/', $trimmed, 2)[0];
+        $slug         = SlugService::normalize($firstSegment);
+
+        if ($slug === '' || SlugService::isReserved($slug)) {
+            return null;
+        }
+        // Defer the character-pattern check to SlugService (min length 1 so a
+        // short legitimate slug isn't rejected before we look it up).
+        $check = SlugService::validateFormat($slug, 1, 64);
+        if (!$check['valid']) {
+            return null;
+        }
+        return $slug;
     }
 
     // ── Rate limit ──────────────────────────────────────────────────────────

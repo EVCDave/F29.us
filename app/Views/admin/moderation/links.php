@@ -38,6 +38,19 @@
         <input type="text" id="dest" name="dest" value="<?= View::e($destFilter) ?>"
                class="filter-input">
     </div>
+    <div>
+        <label for="domain" class="filter-label">Destination domain</label>
+        <input type="text" id="domain" name="domain" value="<?= View::e($domainFilter ?? '') ?>"
+               placeholder="example.com" class="filter-input">
+    </div>
+    <div>
+        <label for="has_abuse_reports" class="filter-label">Abuse reports</label>
+        <select id="has_abuse_reports" name="has_abuse_reports" class="filter-input">
+            <option value=""    <?= ($abuseFilter ?? '') === ''    ? 'selected' : '' ?>>Any</option>
+            <option value="yes" <?= ($abuseFilter ?? '') === 'yes' ? 'selected' : '' ?>>With reports</option>
+            <option value="no"  <?= ($abuseFilter ?? '') === 'no'  ? 'selected' : '' ?>>No reports</option>
+        </select>
+    </div>
     <button type="submit" class="btn btn-secondary">Filter</button>
     <a href="/admin/moderation/links" class="filter-link">Reset</a>
 </form>
@@ -56,14 +69,16 @@
             <th>Owner</th>
             <th>Destination</th>
             <th class="col-80">Status</th>
+            <th class="col-70 nowrap">Scans</th>
+            <th class="col-70 nowrap">Abuse</th>
             <th>Disabled reason</th>
-            <th class="col-130">Disabled at</th>
             <th class="col-50"></th>
         </tr>
     </thead>
     <tbody>
     <?php foreach ($links as $link): ?>
-    <tr>
+    <?php $abuseCount = (int) ($link['abuse_report_count'] ?? 0); ?>
+    <tr<?= $abuseCount > 0 ? ' class="row-abuse"' : '' ?>>
         <td class="text-muted"><?= (int) $link['id'] ?></td>
         <td><code><?= View::e($link['slug']) ?></code></td>
         <td><?= View::e($link['qr_name'] ?? '—') ?></td>
@@ -74,8 +89,15 @@
             </a>
         </td>
         <td><span class="status-<?= View::e($link['status']) ?>"><?= View::e(ucfirst($link['status'])) ?></span></td>
+        <td class="text-muted text-82 nowrap"><?= (int) ($link['total_scans'] ?? 0) ?></td>
+        <td class="nowrap">
+            <?php if ($abuseCount > 0): ?>
+            <span class="badge-abuse"><?= $abuseCount ?></span>
+            <?php else: ?>
+            <span class="text-faint">0</span>
+            <?php endif; ?>
+        </td>
         <td class="text-warning text-82"><?= View::e($link['disabled_reason'] ?? '') ?></td>
-        <td class="text-muted text-82 nowrap"><?= View::e($link['disabled_at'] ?? '') ?></td>
         <td><a href="/admin/moderation/links/<?= (int) $link['id'] ?>" class="btn btn-secondary btn-xs">Review</a></td>
     </tr>
     <?php endforeach; ?>

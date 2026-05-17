@@ -207,6 +207,7 @@ $router->get('/admin/moderation/links',                        [ModerationContro
 $router->get('/admin/moderation/links/{id}',                   [ModerationController::class, 'linkDetail']);
 $router->post('/admin/moderation/links/{id}/disable',          [ModerationController::class, 'disable']);
 $router->post('/admin/moderation/links/{id}/restore',          [ModerationController::class, 'restore']);
+$router->post('/admin/moderation/links/{id}/block-domain',     [ModerationController::class, 'blockDomainFromLink']);
 $router->get('/admin/moderation/domains',                      [ModerationController::class, 'domains']);
 $router->post('/admin/moderation/domains',                     [ModerationController::class, 'addDomain']);
 $router->post('/admin/moderation/domains/{id}/toggle',         [ModerationController::class, 'toggleDomain']);

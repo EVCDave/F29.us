@@ -50,6 +50,7 @@ class AdminContactController
         $sql = "
             SELECT cm.id, cm.created_at, cm.status, cm.category, cm.subject,
                    cm.name, cm.email, cm.user_id,
+                   cm.related_short_link_id, cm.related_qr_code_id,
                    u.email AS user_email
             FROM   contact_messages cm
             LEFT JOIN users u ON u.id = cm.user_id
