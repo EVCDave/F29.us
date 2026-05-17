@@ -296,6 +296,26 @@ All checklist items are manual unless noted otherwise.
 - [ ] Server-side hidden-form tampering protections still work: a Free user POSTing `module_style=circle` still renders square output; a Free user POSTing a `static_logo` file still gets a 403
 - [ ] Preview and download still function with JavaScript fully disabled
 
+**Logo aspect-ratio preservation:**
+- [ ] A perfectly square logo (e.g. 1000×1000) still renders square inside the QR — same as before
+- [ ] A wide logo (e.g. 1000×500) on a 1024 px PNG with 25 % renders at 256×128, not 256×256 — visually wider than it is tall, centered, not stretched
+- [ ] A tall logo (e.g. 500×1000) on a 1024 px PNG with 25 % renders at 128×256, not 256×256 — visually taller than it is wide, centered, not stretched
+- [ ] Dynamic QR PNG preserves a tall logo's aspect ratio (square-modules path through endroid)
+- [ ] Dynamic QR SVG preserves a tall logo's aspect ratio
+- [ ] Dynamic QR PNG with `module_style = gapped_square` and a tall logo preserves aspect (custom PNG renderer)
+- [ ] Dynamic QR PNG with `module_style = circle` and a tall logo preserves aspect (custom PNG renderer)
+- [ ] Dynamic QR SVG with `gapped_square` / `circle` and a tall logo preserves aspect (custom SVG renderer)
+- [ ] Static QR PNG preserves a tall logo's aspect ratio (any module style)
+- [ ] Static QR SVG preserves a tall logo's aspect ratio (any module style)
+- [ ] Logo remains centered both horizontally AND vertically after aspect-ratio sizing
+- [ ] Plan `qr_logo_max_percent` is still respected — the rendered logo's longest side is at most `round(qrPixelSize * pct / 100)` px
+- [ ] A small native-size logo (e.g. 100×100 on a 4096 px QR with 25 %) is **not** upscaled — it renders at native 100×100, not 1024×1024
+- [ ] Logo + transparent background still renders correctly
+- [ ] Logo + custom colors still renders correctly
+- [ ] Logo + gapped square module style still renders correctly
+- [ ] Logo + circle module style still renders correctly
+- [ ] Upload validation rules unchanged: SVG logos still rejected, oversized still rejected, renamed text files still rejected, unentitled uploads still 403
+
 ### QR color customization
 
 **Entitlement gating:**
@@ -984,4 +1004,4 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 - [ ] Visiting `/` does not call Stripe or any external service
 - [ ] No inline JavaScript and no inline styles on the homepage view
 
-*Last updated: 2026-05-16 — Phase 38: static QR form progressive-enhancement JS — non-selected template sections and plan-unavailable style/logo sections are hidden after JS loads, while no-JS users still see the full form; server-side validation unchanged.*
+*Last updated: 2026-05-17 — QR logo aspect-ratio fix: `QrCodeService` now reads the source logo's native dimensions and renders it inside a square plan-percent bounding box without stretching. Applies to dynamic + static QR, all module styles, PNG + SVG, all canvas sizes.*

@@ -104,8 +104,20 @@ class QrCodeService
             $logoPath = self::resolveLogoPath($style);
             if (file_exists($logoPath)) {
                 $logoPercent = max(1.0, (float) ($style['logo_max_percent'] ?? 20));
-                $logoWidth   = max(1, (int) round($size * $logoPercent / 100));
-                $builder->logoPath($logoPath)->logoResizeToWidth($logoWidth);
+                $maxBox      = max(1, (int) round($size * $logoPercent / 100));
+                $dims        = self::logoRenderDimensions($logoPath, $maxBox);
+
+                // Set both width AND height so endroid renders the logo at the
+                // aspect-correct size; otherwise the LogoPlacer may stretch a
+                // non-square source to a square box.
+                $builder->logoPath($logoPath);
+                if ($dims !== null) {
+                    [$logoW, $logoH] = $dims;
+                    $builder->logoResizeToWidth($logoW)->logoResizeToHeight($logoH);
+                } else {
+                    // Source dimensions unreadable — fall back to width only.
+                    $builder->logoResizeToWidth($maxBox);
+                }
             }
         }
     }
@@ -198,15 +210,22 @@ class QrCodeService
             $logoPath = self::resolveLogoPath($style);
             if (file_exists($logoPath)) {
                 $logoPercent = max(1.0, (float) ($style['logo_max_percent'] ?? 20));
-                $logoWidth   = max(1, (int) round($outerSize * $logoPercent / 100));
-                $logoX       = ($outerSize - $logoWidth) / 2.0;
-                $logoY       = $logoX;
-                $mime        = $style['logo_mime_type'] ?? 'image/png';
-                $logoBytes   = @file_get_contents($logoPath);
+                $maxBox      = max(1, (int) round($outerSize * $logoPercent / 100));
+                $dims        = self::logoRenderDimensions($logoPath, $maxBox);
+                if ($dims === null) {
+                    // Fallback to the (square) bounding box if source dims are unreadable.
+                    $dims = [$maxBox, $maxBox];
+                }
+                [$logoW, $logoH] = $dims;
+                $logoX = ($outerSize - $logoW) / 2.0;
+                $logoY = ($outerSize - $logoH) / 2.0;
+
+                $mime      = $style['logo_mime_type'] ?? 'image/png';
+                $logoBytes = @file_get_contents($logoPath);
                 if ($logoBytes !== false) {
                     $b64 = base64_encode($logoBytes);
                     $parts[] = '<image x="' . self::fmt($logoX) . '" y="' . self::fmt($logoY)
-                             . '" width="' . $logoWidth . '" height="' . $logoWidth
+                             . '" width="' . $logoW . '" height="' . $logoH
                              . '" preserveAspectRatio="xMidYMid meet" '
                              . 'href="data:' . htmlspecialchars($mime, ENT_QUOTES, 'UTF-8')
                              . ';base64,' . $b64 . '"/>';
@@ -312,16 +331,22 @@ class QrCodeService
             $logoPath = self::resolveLogoPath($style);
             if (file_exists($logoPath)) {
                 $logoPercent = max(1.0, (float) ($style['logo_max_percent'] ?? 20));
-                $logoWidth   = max(1, (int) round($outerSize * $logoPercent / 100));
+                $maxBox      = max(1, (int) round($outerSize * $logoPercent / 100));
                 $logoSrc     = self::loadImage($logoPath);
                 if ($logoSrc !== null) {
-                    $logoX = (int) round(($outerSize - $logoWidth) / 2.0);
-                    $logoY = $logoX;
+                    $srcW = imagesx($logoSrc);
+                    $srcH = imagesy($logoSrc);
+                    // Aspect-ratio-preserving fit inside the maxBox × maxBox area.
+                    $scale = min($maxBox / $srcW, $maxBox / $srcH, 1.0);
+                    $dstW  = max(1, (int) round($srcW * $scale));
+                    $dstH  = max(1, (int) round($srcH * $scale));
+                    $logoX = (int) round(($outerSize - $dstW) / 2.0);
+                    $logoY = (int) round(($outerSize - $dstH) / 2.0);
                     imagecopyresampled(
                         $im, $logoSrc,
                         $logoX, $logoY, 0, 0,
-                        $logoWidth, $logoWidth,
-                        imagesx($logoSrc), imagesy($logoSrc)
+                        $dstW, $dstH,
+                        $srcW, $srcH
                     );
                     imagedestroy($logoSrc);
                 }
@@ -467,6 +492,47 @@ class QrCodeService
     {
         $s = number_format($v, 3, '.', '');
         return rtrim(rtrim($s, '0'), '.');
+    }
+
+    /**
+     * Compute the rendered logo dimensions inside a square `$maxBoxSize` × `$maxBoxSize`
+     * area, preserving the source image's aspect ratio. Never upscales beyond the
+     * source's native pixel dimensions — upscaling a small logo just makes it blurry.
+     *
+     * Examples (max box = 256):
+     *   1000×500  → 256×128
+     *    500×1000 → 128×256
+     *   1000×1000 → 256×256
+     *    200×100  → 200×100  (smaller than the max box; left at native size)
+     *
+     * Returns [width, height] in pixels (both >= 1). Returns null when the file
+     * cannot be read or has invalid dimensions, so callers can fall back gracefully.
+     */
+    private static function logoRenderDimensions(string $logoPath, int $maxBoxSize): ?array
+    {
+        if ($maxBoxSize < 1) {
+            return null;
+        }
+        $info = @getimagesize($logoPath);
+        if (!is_array($info) || empty($info[0]) || empty($info[1])) {
+            return null;
+        }
+        $sourceWidth  = (int) $info[0];
+        $sourceHeight = (int) $info[1];
+        if ($sourceWidth <= 0 || $sourceHeight <= 0) {
+            return null;
+        }
+
+        $scale = min(
+            $maxBoxSize / $sourceWidth,
+            $maxBoxSize / $sourceHeight,
+            1.0
+        );
+
+        return [
+            max(1, (int) round($sourceWidth  * $scale)),
+            max(1, (int) round($sourceHeight * $scale)),
+        ];
     }
 
     /**
