@@ -1107,6 +1107,8 @@ PNG download size is additionally validated against the same `[512, 1024, 2048, 
 
 **Filenames:** `f29-static-qr-{type}-{Ymd-His}-{size}px.png` and `f29-static-qr-{type}-{Ymd-His}.svg`. User-entered SSIDs / emails / names are **not** put in the filename.
 
+**Progressive form UI.** The static QR form uses progressive enhancement JavaScript: without JavaScript all template sections remain visible; with JavaScript only the selected template section and plan-available style/logo controls are shown. Server-side validation and entitlement checks remain authoritative — the JS is purely presentation. The script lives in [`public/assets/js/app.js`](public/assets/js/app.js) (no inline `<script>`, no inline event handlers — CSP-safe).
+
 **Static QR logo upload.** Entitled users (`can_upload_qr_logo = true`, i.e. Pro and Team by default) can upload a logo for a static QR code. The validation, allowed formats (PNG / JPG / WEBP), per-plan max size (`qr_logo_max_size_kb`), and coverage percent (`qr_logo_max_percent`) are reused from `QrStyleService::validateLogoUpload` so static and dynamic logos behave identically. Static logos force ECL to `H` exactly like dynamic logos.
 
 The static-logo lifecycle is **stateless and session-scoped**, not database-persisted:

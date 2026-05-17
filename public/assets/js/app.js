@@ -39,3 +39,53 @@ document.querySelectorAll('a[data-submit-form]').forEach(function (a) {
         if (form) form.submit();
     });
 });
+
+// ── Static QR form progressive enhancement ────────────────────────────────
+// Hides non-selected template sections and plan-unavailable style/logo
+// sections after JS loads. Server-side validation and entitlement checks
+// remain authoritative — this is presentation only.
+//
+// Required markup (rendered by app/Views/qr/static.php):
+//   <form data-static-qr-form>
+//     <input type="radio" name="type" value="text|wifi|email|vcard" data-static-template-radio>
+//     <fieldset data-static-template-section="text|wifi|email|vcard">…</fieldset>
+//     <div     data-static-style-section data-static-style-available="0|1">…</div>
+//     <fieldset data-static-logo-section  data-static-logo-available="0|1">…</fieldset>
+//   </form>
+(function initStaticQrForm() {
+    var root = document.querySelector('[data-static-qr-form]');
+    if (!root) return;
+
+    root.classList.add('js-enabled');
+
+    var radios       = Array.prototype.slice.call(root.querySelectorAll('[data-static-template-radio]'));
+    var sections     = Array.prototype.slice.call(root.querySelectorAll('[data-static-template-section]'));
+    var styleSection = root.querySelector('[data-static-style-section]');
+    var logoSection  = root.querySelector('[data-static-logo-section]');
+
+    function selectedType() {
+        for (var i = 0; i < radios.length; i++) {
+            if (radios[i].checked) return radios[i].value;
+        }
+        return 'text';
+    }
+
+    function updateVisibility() {
+        var type = selectedType();
+        for (var i = 0; i < sections.length; i++) {
+            sections[i].hidden = sections[i].getAttribute('data-static-template-section') !== type;
+        }
+        if (styleSection) {
+            styleSection.hidden = styleSection.getAttribute('data-static-style-available') !== '1';
+        }
+        if (logoSection) {
+            logoSection.hidden = logoSection.getAttribute('data-static-logo-available') !== '1';
+        }
+    }
+
+    radios.forEach(function (radio) {
+        radio.addEventListener('change', updateVisibility);
+    });
+
+    updateVisibility();
+})();

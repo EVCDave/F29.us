@@ -276,6 +276,26 @@ All checklist items are manual unless noted otherwise.
 - [ ] Missing/expired `static_logo_token` on the download form → download succeeds without a logo (no error)
 - [ ] Entitlement removed between preview and download → cached session logo is ignored on the download, output has no logo
 
+**Progressive form UI:**
+- [ ] With JavaScript disabled, every template section (Text/URL, Wi-Fi, Email, vCard) is visible and the form remains usable
+- [ ] With JavaScript disabled, the entitlement-disabled style/logo messages still render server-side as before
+- [ ] With JavaScript enabled, the form root has `class="js-enabled"`
+- [ ] With JavaScript enabled and **Text/URL** selected, only the Text/URL fieldset is visible (other three are `hidden`)
+- [ ] With JavaScript enabled and **Wi-Fi** selected, only the Wi-Fi fieldset is visible
+- [ ] With JavaScript enabled and **Email** selected, only the Email fieldset is visible
+- [ ] With JavaScript enabled and **vCard** selected, only the vCard fieldset is visible
+- [ ] Clicking a different template radio updates the visible section without a page reload
+- [ ] Free user (no `can_customize_qr_colors` and no `can_customize_qr_module_style`): the entire Style section is hidden after JS loads (`[data-static-style-section]` has `hidden`)
+- [ ] Free user: the Logo section is hidden after JS loads (`[data-static-logo-section]` has `hidden`)
+- [ ] Starter user (`can_customize_qr_colors` and/or `can_customize_qr_module_style` true; `can_upload_qr_logo` false): Style section is visible; Logo section is hidden after JS loads
+- [ ] Pro/Team user (`can_upload_qr_logo` true): both Style and Logo sections are visible after JS loads
+- [ ] Hidden sections are not keyboard-focusable (Tab skips over them — the `hidden` attribute removes them from sequential focus order)
+- [ ] No new `<script>` tag was added to any view
+- [ ] No new inline event handler attributes (`onclick`, `onchange`, …) were added
+- [ ] CSP-violation reports do not include the static QR page after this change
+- [ ] Server-side hidden-form tampering protections still work: a Free user POSTing `module_style=circle` still renders square output; a Free user POSTing a `static_logo` file still gets a 403
+- [ ] Preview and download still function with JavaScript fully disabled
+
 ### QR color customization
 
 **Entitlement gating:**
@@ -964,4 +984,4 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 - [ ] Visiting `/` does not call Stripe or any external service
 - [ ] No inline JavaScript and no inline styles on the homepage view
 
-*Last updated: 2026-05-16 — Phase 37: static QR logo upload added — session+filesystem token under `storage/static-qr-logos/`, validated via the existing `QrStyleService::validateLogoUpload`, expiring after 30 minutes; no database storage; reuses dynamic QR logo limits.*
+*Last updated: 2026-05-16 — Phase 38: static QR form progressive-enhancement JS — non-selected template sections and plan-unavailable style/logo sections are hidden after JS loads, while no-JS users still see the full form; server-side validation unchanged.*

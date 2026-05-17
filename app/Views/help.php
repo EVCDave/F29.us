@@ -118,7 +118,7 @@
             </p>
             <h3>Logo</h3>
             <p>
-                On supported plans, dynamic QR codes can have a logo image composited into the center.
+                On supported plans, QR codes can have a logo image composited into the center.
                 When a logo is enabled the error-correction level is raised automatically so the code
                 stays scannable. Static QR logos are not currently available — they need temporary
                 upload handling that is still in design.
