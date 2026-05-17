@@ -1058,4 +1058,52 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 - [ ] Visiting `/` does not call Stripe or any external service
 - [ ] No inline JavaScript and no inline styles on the homepage view
 
-*Last updated: 2026-05-17 — Public policy review for Remember Me: Privacy Policy "Cookies and Sessions" and account-data sections now disclose `f29_remember`, the 30-day persistent-login cookie, and that only the SHA-256 hash of the token is stored. Help page surfaces the optional checkbox under Account Settings. Terms Section 3 calls out shared-device responsibility. Acceptable Use / Abuse / Contact reviewed; no changes required.*
+### Contact Form
+
+**Public form:**
+- [ ] `/contact` loads while logged out — no redirect to `/login`
+- [ ] `/contact` loads while logged in
+- [ ] The old "A contact form and ticketing system are not yet implemented" stub is gone
+- [ ] Form fields: Name, Email, Category, Subject, Message
+- [ ] Logged-in user sees Name (display_name / first+last / email local-part) and Email prefilled, both still editable
+- [ ] Hidden honeypot input `name="website"` is present in markup and visually hidden via `.hp-field`, with `tabindex="-1"` and empty default value
+- [ ] Hidden `form_started_at` timestamp is present in markup
+- [ ] Submitting with blank fields shows validation errors for each required field
+- [ ] Invalid email format shows "Please enter a valid email address."
+- [ ] Invalid category (e.g. `?category=spam` tampered) is rejected with "Please choose a category."
+- [ ] Message over 5000 characters is rejected
+- [ ] Null-byte / control-char in any field is rejected with "One or more fields contain characters that are not allowed."
+- [ ] Filling the hidden `website` honeypot field → success page is shown but NO row is inserted in `contact_messages` and NO email is sent
+- [ ] Submitting less than ~3 seconds after page load → success page is shown but NO row is inserted and NO email is sent
+- [ ] Valid logged-out submission inserts a `contact_messages` row with `user_id = NULL`
+- [ ] Valid logged-in submission inserts a row with `user_id` populated
+- [ ] `ip_hash` is populated (HMAC via `LoginThrottleService::hashIp`); the raw IP is NOT stored anywhere
+- [ ] `user_agent` is populated, truncated to 1000 chars
+- [ ] `MAIL_ENABLED=false`: row is still stored; no crash; no email sent
+- [ ] `MAIL_ENABLED=true`: support inbox receives a notification with subject `[f29.us Contact] {Category}: {Subject}`, includes message ID, name, email, user ID (or "not logged in"), category, subject, message, submitted timestamp, user agent, IP hash, and a link to `/admin/contact-messages/{id}`
+- [ ] Rate limit by IP hash: 5 submissions in one hour from the same hashed IP → 6th is rejected with the rate-limit error and no row inserted
+- [ ] Rate limit by email: 3 submissions in one hour from the same email → 4th is rejected with the rate-limit error and no row inserted
+- [ ] After a successful submission the page shows the green confirmation card with the "Thanks — your message has been sent" copy
+- [ ] After a successful submission the support/abuse/privacy fallback email cards are still visible below the form
+- [ ] The "Reporting an abusive QR code?" warning card links to `/abuse`
+- [ ] `/privacy` discloses contact-form submissions in its data-collection section
+
+**Admin review:**
+- [ ] `/admin/contact-messages` requires the admin role — non-admins get the 403 page
+- [ ] Admin list shows up to 100 messages, newest first, with ID / date / status / category / name / email / subject / View link
+- [ ] Filter `status=new` returns only new messages; same for `reviewed` and `closed`; `?status=garbage` is silently ignored
+- [ ] Filter `category=billing` returns only billing-category messages; invalid categories silently ignored
+- [ ] Search by email or subject substring works
+- [ ] `/admin/contact-messages/{id}` shows full message body, headers, account link (when present), user agent, IP hash, status, and admin note field
+- [ ] Marking a message **reviewed** updates `status`, stamps `handled_at`, sets `handled_by_user_id` to the current admin
+- [ ] Marking **closed** does the same with `status = closed`
+- [ ] Reopening **as new** clears `handled_at` and `handled_by_user_id`
+- [ ] Saving an internal note stores it in `admin_note`; the value is never sent in any email and is not exposed on any public page
+- [ ] Internal note over 5000 characters is rejected with a clear error message; row is not modified
+- [ ] All admin POST endpoints (`/status`, `/note`) reject requests without a valid CSRF token with a 403
+- [ ] Admin home `/admin` shows a "New Contact Messages" stat tile, marked warn-style when > 0, and a "Contact Messages" button in a new Support section
+- [ ] Audit log contains `contact_message_status_updated` rows with `old_status` / `new_status` after a status change
+- [ ] Audit log contains `contact_message_note_updated` rows with `note_length` after a note save
+- [ ] Public `/{slug}` catch-all still resolves real short slugs after the new routes are registered (no shadowing)
+
+*Last updated: 2026-05-17 — Phase 40: public contact form at `/contact` with CSRF, honeypot, minimum-form-time, and per-IP / per-email rate limiting; submissions stored in `contact_messages`; admin review at `/admin/contact-messages` with status/note workflow; Privacy Policy updated.*

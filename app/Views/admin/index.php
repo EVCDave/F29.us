@@ -31,6 +31,10 @@
         <div class="admin-stat-value <?= $failedLogins24h > 20 ? 'admin-stat-value--warn' : '' ?>"><?= (int) $failedLogins24h ?></div>
         <div class="admin-stat-label">Failed Logins (24 h)</div>
     </div>
+    <div class="admin-stat-card <?= $newContactMessages > 0 ? 'admin-stat-card--warn' : '' ?>">
+        <div class="admin-stat-value <?= $newContactMessages > 0 ? 'admin-stat-value--warn' : '' ?>"><?= (int) $newContactMessages ?></div>
+        <div class="admin-stat-label">New Contact Messages</div>
+    </div>
 </div>
 
 <!-- ── Tools ──────────────────────────────────────────────────────────────── -->
@@ -52,6 +56,13 @@
 <div class="actions-group mb-8">
     <a href="/admin/moderation/links" class="btn btn-secondary">Moderated Links</a>
     <a href="/admin/moderation/domains" class="btn btn-secondary">Blocked Domains</a>
+</div>
+
+<h2 class="mb-3">Support</h2>
+<div class="actions-group mb-8">
+    <a href="/admin/contact-messages" class="btn btn-secondary <?= $newContactMessages > 0 ? 'text-warning btn-secondary-warn' : '' ?>">
+        Contact Messages<?= $newContactMessages > 0 ? ' (' . (int) $newContactMessages . ')' : '' ?>
+    </a>
 </div>
 
 <h2 class="mb-3">Visibility &amp; Diagnostics</h2>

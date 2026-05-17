@@ -141,6 +141,13 @@ td a { color: #0066cc; }
 .qr-download-form select { margin: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
+/* ── Contact form honeypot + message body display ─────────────────────────── */
+.hp-field { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
+.contact-message-body { white-space: pre-wrap; margin: 0; font-family: inherit; font-size: 0.95rem; }
+.status-new      { color: #92400e; font-weight: 500; }
+.status-reviewed { color: #1d4ed8; font-weight: 500; }
+.status-closed   { color: #6b7280; font-weight: 500; }
+
 /* ── Homepage ─────────────────────────────────────────────────────────────── */
 .home-hero { padding: 2.25rem 0 1.5rem; border-bottom: 1px solid #eee; margin-bottom: 2rem; }
 .home-hero-title { font-size: 2.1rem; line-height: 1.15; margin: 0 0 0.75rem; max-width: 760px; }

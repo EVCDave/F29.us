@@ -266,7 +266,7 @@ In cPanel → **Cron Jobs**, add a daily job to prune old login attempt rows:
 | `MAIL_SMTP_ENCRYPTION` | No | `tls` | `tls` (STARTTLS) or `ssl` |
 | `MAIL_SMTP_USERNAME` | No | — | SMTP authentication username |
 | `MAIL_SMTP_PASSWORD` | No | — | SMTP authentication password |
-| `MAIL_SUPPORT_ADDRESS` | No | *(falls back to `SUPPORT_EMAIL`)* | Support address included in security-alert notification emails |
+| `MAIL_SUPPORT_ADDRESS` | No | *(falls back to `SUPPORT_EMAIL`)* | Support inbox address used as both (a) the support address surfaced inside security-alert notification emails and (b) the **destination** for contact-form notifications when a user submits the public `/contact` form |
 | `MAIL_ADMIN_ADDRESS` | No | *(empty)* | Address to notify when a user submits a plan-change request; leave blank to disable |
 | `STRIPE_ENABLED` | No | `false` | Set `true` to activate Stripe billing. When `false`, all Stripe paths are inactive. |
 | `STRIPE_MODE` | No | `test` | `test` or `live`. Required to be one of these values when `STRIPE_ENABLED=true`. |
@@ -344,7 +344,8 @@ Pricing (cents) is `NULL` for paid plans until billing is configured.
 | GET | `/privacy` | Privacy Policy |
 | GET | `/acceptable-use` | Acceptable Use Policy |
 | GET | `/abuse` | Report Abuse page |
-| GET | `/contact` | Contact page |
+| GET | `/contact` | Public contact form |
+| POST | `/contact` | Submit contact form — CSRF, honeypot, minimum-form-time and rate-limit (5/IP-hash/hour, 3/email/hour) protections; stores `contact_messages` row, mails `MAIL_SUPPORT_ADDRESS` when mail is enabled |
 | GET | `/help` | Help Center — explains dynamic vs static QR, styling, downloads, analytics, plans, account, billing, moderation, security, and an FAQ |
 | GET | `/verify-email` | Email verification link handler (token from email) |
 | GET | `/forgot-password` | Forgot password form |
@@ -1231,10 +1232,10 @@ The following public-facing policy pages are available at launch. All are **draf
 | Privacy Policy | `/privacy` | Data collected, scan analytics, IP hashing, cookies (including the optional 30-day `f29_remember` persistent-login cookie disclosure), no data sale, retention |
 | Acceptable Use Policy | `/acceptable-use` | Prohibited uses (phishing, malware, spam, deception, illegal content), enforcement, no automated scanning notice |
 | Report Abuse | `/abuse` | What to report, how to report, what to include, contact email |
-| Contact | `/contact` | Support, abuse, and privacy contact emails; note that ticketing is not implemented |
+| Contact | `/contact` | Public contact form (name / email / category / subject / message), CSRF-protected, with hidden honeypot + minimum-form-time + per-IP/per-email rate limits. Submissions land in `contact_messages` and trigger an email notification to the support address when `MAIL_ENABLED=true`. The page still shows support/abuse/privacy fallback emails. Admin review at `/admin/contact-messages` (admin role required). |
 | Help Center | `/help` | Plain-language explanation of dynamic vs static QR codes, styling, downloads, analytics, plans, account, billing, moderation, security, and an FAQ. Sidebar table of contents with anchored sections; no authentication, no form processing. |
 
-All six pages are linked in the site footer. No authentication is required. No form processing or database writes occur on any of these pages. `help` is included in [`config/reserved_slugs.php`](config/reserved_slugs.php) so users cannot register `help` as a custom short slug.
+All six pages are linked in the site footer. No authentication is required to view them. The **Contact** page includes a public form that writes to `contact_messages` and notifies the support inbox when mail is enabled; the other policy/help pages are informational only and do not process forms or write to the database. `help` is included in [`config/reserved_slugs.php`](config/reserved_slugs.php) so users cannot register `help` as a custom short slug.
 
 ### Policy email configuration
 
@@ -1302,6 +1303,7 @@ Set `MAIL_ENABLED=true` in `.env` and configure the SMTP variables. When `MAIL_E
 | Password changed | Account email (security alert) |
 | Link disabled by admin | Link owner |
 | Link restored by admin | Link owner |
+| Contact form submitted | Support inbox &mdash; `MAIL_SUPPORT_ADDRESS` (falls back to `SUPPORT_EMAIL`, then `support@f29.us`) |
 
 ### Architecture
 
