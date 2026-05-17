@@ -47,6 +47,60 @@ All checklist items are manual unless noted otherwise.
 - [ ] Set `status = 'suspended'` for a user in the DB; attempt login → blocked with suspension message
 - [ ] Reset to `status = 'active'`; login works again
 
+### Remember Me
+- [ ] `/login` shows a "Remember me for 30 days" checkbox below the password field
+- [ ] Logging in **without** the checkbox sets the normal `f29_sess` session cookie only; **no** `f29_remember` cookie is set and **no** new row appears in `remember_tokens`
+- [ ] Logging in **with** the checkbox sets a `f29_remember` cookie with expiry roughly 30 days in the future
+- [ ] `f29_remember` cookie is `HttpOnly` (not visible to `document.cookie` JS)
+- [ ] `f29_remember` cookie is `Secure` when `APP_URL` starts with `https://` (verify in browser devtools)
+- [ ] `f29_remember` cookie uses `SameSite=Lax`
+- [ ] Cookie value matches the regex `^[a-f0-9]{32}:[a-f0-9]{64}$` (32-hex selector + 64-hex secret)
+- [ ] A row is inserted into `remember_tokens` with `selector` = the 32-hex prefix; `token_hash` is the SHA-256 of the 64-hex secret, **never the raw secret**
+- [ ] `expires_at` ≈ now + 30 days; `created_at` = now; `last_used_at` is NULL on initial issue
+- [ ] `user_agent` column is populated (truncated at 255 chars); `ip_hash` is populated via the same hashing as login throttle
+- [ ] Closing the browser and reopening it (`f29_sess` cookie gone, `f29_remember` cookie still set) restores the session — dashboard loads without re-prompting for credentials
+- [ ] On successful restoration, the same `remember_tokens` row has a **new selector**, **new token_hash**, and an updated `last_used_at`; `expires_at` slides forward 30 days
+- [ ] After rotation, the **old** selector no longer matches any row; replaying the old cookie value just expires the cookie and does not log the user in
+- [ ] Tampered cookie (correct selector, wrong secret) → row deleted, cookie expired, no login
+- [ ] Malformed cookie value (not matching `^[a-f0-9]{32}:[a-f0-9]{64}$`) → cookie expired, no login, no DB query for the body
+- [ ] Unknown selector → cookie expired, no login
+- [ ] Expired token (`expires_at < NOW()`) → row deleted, cookie expired, no login
+- [ ] Logging out (`POST /logout`) deletes only the current cookie's `remember_tokens` row and expires the cookie; other devices' remember tokens are unaffected
+- [ ] After logout, the previously-set `f29_remember` cookie does not restore the session on the next page load
+- [ ] User with status = `suspended` and a remember-me token: cookie is rejected, token row deleted, no login
+- [ ] User deleted from `users` (cascade): `remember_tokens` rows for that user are removed by FK; if a stale cookie remains client-side, it resolves to no row and the cookie is expired on next visit
+- [ ] Email verification gating is unchanged: remember-me restores authentication only, not verification status
+- [ ] `php cleanup.php` reports `remember_tokens: deleted N expired row(s).` and rows with `expires_at < NOW()` are gone afterward
+- [ ] Login-throttle behavior is unchanged: 5 failed attempts on the same email still locks out, regardless of the remember-me checkbox state
+- [ ] CSRF is still enforced on `POST /login` and `POST /logout`
+- [ ] No Stripe / billing files were exercised by remember-me
+
+**Rotation grace window (concurrent restore):**
+- [ ] After a successful restore, the matching `remember_tokens` row has `previous_selector` = the OLD selector, `previous_token_hash` = the OLD token hash, and `previous_valid_until` ≈ now + 60 s
+- [ ] A second request that arrives with the OLD cookie within 60 s of the rotation still restores the session (matched via `previous_selector`)
+- [ ] During the grace-window restoration the row is **not** rotated again — `selector` / `token_hash` / `expires_at` / `last_used_at` are unchanged, and the browser's stale remember cookie is NOT expired
+- [ ] After ~60 s, sending the OLD cookie no longer logs the user in — the cookie is expired and no session is created
+- [ ] Sending a tampered cookie whose selector matches `selector` but whose secret hash doesn't match → row is DELETED and cookie expired (unchanged tamper handling)
+- [ ] Sending a cookie whose selector matches `previous_selector` but whose secret hash doesn't match → cookie is expired but the row is **NOT** deleted (a bad stale cookie must never revoke the valid current remember token)
+- [ ] Sending a cookie whose selector matches `previous_selector` after `previous_valid_until < NOW()` → cookie expired, row preserved, no login
+- [ ] `php cleanup.php` clears stale `previous_selector` / `previous_token_hash` / `previous_valid_until` fields on still-active rows whose grace window has closed
+- [ ] `php cleanup.php` still deletes rows where `expires_at < NOW()` (fully expired tokens)
+- [ ] Logging out from a tab whose cookie now matches only `previous_selector` still deletes the row (the logout DELETE covers both selector columns)
+
+**Public policy disclosures (Remember Me):**
+- [ ] `/privacy` "2. Data We Collect — Account data" lists the Remember Me persistent-login token (selector, hashed token, expiration, user-agent, hashed IP; raw token NOT stored)
+- [ ] `/privacy` "5. Cookies and Sessions" describes the `f29_remember` cookie alongside `f29_sess`, including its 30-day lifetime, HTTP-only / SameSite=Lax / Secure-on-HTTPS flags, that the value is a random selector + secret token (not email/password), and that only a SHA-256 hash of the secret is stored
+- [ ] `/privacy` "Cookies and Sessions" explains that logging out OR clearing browser cookies removes the remembered login, and that cleanup removes expired tokens
+- [ ] `/privacy` "Cookies and Sessions" states that Remember Me only restores authentication and does not skip email verification or other security checks
+- [ ] `/privacy` "Last updated" date reflects the most recent change
+- [ ] `/help` "Account Settings" section includes a "Remember me for 30 days" bullet describing the checkbox, that logout clears the remembered login for that browser, and the shared-device warning
+- [ ] `/terms` "3. Account Registration" includes the shared-device responsibility note for Remember Me and links to `/privacy`
+- [ ] `/terms` "Last updated" date reflects the most recent change
+- [ ] `/acceptable-use` reviewed; no Remember-Me-specific changes required (the AUP covers destination/content misuse, not authentication)
+- [ ] `/abuse` reviewed; no Remember-Me-specific changes required
+- [ ] `/contact` reviewed; no Remember-Me-specific changes required
+- [ ] No public page implies that passwords are stored in cookies, that the raw remember token is stored on the server, or that cookies are used for advertising
+
 ### Account settings — email update
 - [ ] `/account/settings` loads with current email pre-filled
 - [ ] Submitting new email with wrong current password shows error
@@ -1004,4 +1058,4 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 - [ ] Visiting `/` does not call Stripe or any external service
 - [ ] No inline JavaScript and no inline styles on the homepage view
 
-*Last updated: 2026-05-17 — QR logo aspect-ratio fix: `QrCodeService` now reads the source logo's native dimensions and renders it inside a square plan-percent bounding box without stretching. Applies to dynamic + static QR, all module styles, PNG + SVG, all canvas sizes.*
+*Last updated: 2026-05-17 — Public policy review for Remember Me: Privacy Policy "Cookies and Sessions" and account-data sections now disclose `f29_remember`, the 30-day persistent-login cookie, and that only the SHA-256 hash of the token is stored. Help page surfaces the optional checkbox under Account Settings. Terms Section 3 calls out shared-device responsibility. Acceptable Use / Abuse / Contact reviewed; no changes required.*
