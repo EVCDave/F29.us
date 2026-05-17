@@ -1148,7 +1148,7 @@ Pro and Team users can upload a logo image that is composited into the center of
 
 **Storage:** Logo files are stored at `storage/qr-logos/` (outside the public web root) with generated filenames (`qr-{id}-{random_hex}.{ext}`). Original filenames are stored in `logo_original_filename` for display and audit purposes only. Files are never served directly from a public URL.
 
-**Rendering:** `QrCodeService` reads the logo from the storage path and uses the endroid/qr-code Builder's `logoPath()` / `logoResizeToWidth()` methods to overlay the logo. Both PNG and SVG downloads include the logo when enabled.
+**Rendering:** `QrCodeService` reads the logo from the storage path and overlays it on the QR code. The logo is **aspect-ratio preserving**: the new private helper `QrCodeService::logoRenderDimensions($path, $maxBoxSize)` reads the source pixel dimensions and scales the logo to fit inside a `maxBoxSize × maxBoxSize` square, where `maxBoxSize = round(qrPixelSize * qr_logo_max_percent / 100)`. The logo is never upscaled beyond its native pixel dimensions. Both width and height are passed through to all three render paths (endroid square `logoResizeToWidth` + `logoResizeToHeight`, custom SVG `<image>`, custom PNG `imagecopyresampled`) so a 1000×500 logo on a 1024 px QR with 25 % renders at 256×128 centered, not stretched into 256×256. The same helper handles dynamic and static QR codes — they share `QrCodeService`. Both PNG and SVG downloads include the logo when enabled.
 
 **Error correction:** Logo-enabled QR codes automatically use ECL=H (highest). When the logo is removed, ECL reverts to Q (if custom colors remain) or M (default).
 
