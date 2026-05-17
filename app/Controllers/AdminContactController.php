@@ -26,7 +26,7 @@ class AdminContactController
         if ($statusFilter !== '' && !in_array($statusFilter, self::VALID_STATUSES, true)) {
             $statusFilter = '';
         }
-        if ($categoryFilter !== '' && !isset(ContactController::CATEGORIES[$categoryFilter])) {
+        if ($categoryFilter !== '' && !isset(ContactController::ALL_CATEGORIES[$categoryFilter])) {
             $categoryFilter = '';
         }
 
@@ -73,7 +73,7 @@ class AdminContactController
         View::render('admin/contact_messages', [
             'pageTitle'      => 'Contact Messages — Admin',
             'messages'       => $messages,
-            'categories'     => ContactController::CATEGORIES,
+            'categories'     => ContactController::ALL_CATEGORIES,
             'statusFilter'   => $statusFilter,
             'categoryFilter' => $categoryFilter,
             'search'         => $search,
@@ -95,7 +95,7 @@ class AdminContactController
         View::render('admin/contact_message_detail', [
             'pageTitle'  => 'Contact Message #' . $id . ' — Admin',
             'message'    => $row,
-            'categories' => ContactController::CATEGORIES,
+            'categories' => ContactController::ALL_CATEGORIES,
             'flash'      => $flash,
         ]);
     }

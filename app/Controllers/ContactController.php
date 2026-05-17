@@ -10,6 +10,10 @@ declare(strict_types=1);
  */
 class ContactController
 {
+    /**
+     * Categories shown in the /contact dropdown. Abuse reports intentionally
+     * go through /abuse instead of being a contact-form option.
+     */
     public const CATEGORIES = [
         'general'   => 'General question',
         'billing'   => 'Billing / subscription',
@@ -17,6 +21,16 @@ class ContactController
         'account'   => 'Account access',
         'problem'   => 'Report a problem',
         'other'     => 'Other',
+    ];
+
+    /**
+     * Every category that is allowed in the `contact_messages.category` column,
+     * including ones not surfaced on the public contact form (e.g. `abuse`,
+     * which is submitted via the /abuse form). Used by the admin filter +
+     * label map so all rows are recognized.
+     */
+    public const ALL_CATEGORIES = self::CATEGORIES + [
+        'abuse' => 'Abuse report',
     ];
 
     private const MIN_FORM_SECONDS         = 3;
@@ -185,14 +199,26 @@ class ContactController
         return $errors;
     }
 
+    /**
+     * Scoped to the categories shown on /contact so abuse reports submitted
+     * via /abuse (category='abuse') don't consume the contact-form quota and
+     * vice versa. AbuseController applies the symmetric rule with `category='abuse'`.
+     */
     private function isRateLimited(?string $ipHash, string $email): bool
     {
         $since = gmdate('Y-m-d H:i:s', time() - self::RATE_LIMIT_WINDOW_SECS);
         $pdo   = Database::get();
 
+        // Inline list — these are the keys of self::CATEGORIES at the top of
+        // this class. Kept literal so the EXPLAIN plan can use the
+        // idx_contact_messages_ip_created / idx_contact_messages_email_created
+        // indexes without a function call on `category`.
+        $categoryClause = "category IN ('general','billing','technical','account','problem','other')";
+
         if ($ipHash !== null) {
             $stmt = $pdo->prepare(
-                "SELECT COUNT(*) FROM contact_messages WHERE ip_hash = ? AND created_at >= ?"
+                "SELECT COUNT(*) FROM contact_messages
+                 WHERE ip_hash = ? AND {$categoryClause} AND created_at >= ?"
             );
             $stmt->execute([$ipHash, $since]);
             if ((int) $stmt->fetchColumn() >= self::RATE_LIMIT_PER_IP_HOUR) {
@@ -202,7 +228,8 @@ class ContactController
 
         if ($email !== '') {
             $stmt = $pdo->prepare(
-                "SELECT COUNT(*) FROM contact_messages WHERE email = ? AND created_at >= ?"
+                "SELECT COUNT(*) FROM contact_messages
+                 WHERE email = ? AND {$categoryClause} AND created_at >= ?"
             );
             $stmt->execute([$email, $since]);
             if ((int) $stmt->fetchColumn() >= self::RATE_LIMIT_PER_EMAIL_HR) {

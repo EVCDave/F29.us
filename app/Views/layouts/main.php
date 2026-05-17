@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= View::e($pageTitle ?? 'f29.us Dynamic QR') ?></title>
+    <title><?= View::e($pageTitle ?? 'F29 QR Code System') ?></title>
     <link rel="stylesheet" href="/assets/css/app.css">
 </head>
 <body>
 
 <nav class="nav">
     <div class="container">
-        <a href="/" class="nav-brand">F29 Dynamic QR Code System</a>
+        <a href="/" class="nav-brand">F29 QR Code System</a>
         <a href="/pricing" class="nav-link">Pricing</a>
 
         <?php if ($navUser): ?>

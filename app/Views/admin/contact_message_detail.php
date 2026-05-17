@@ -11,6 +11,20 @@ $categoryLabel = $categories[(string) $message['category']] ?? (string) $message
 <div class="flash flash-<?= View::e($flash['type']) ?> mb-4"><?= View::e($flash['text']) ?></div>
 <?php endif; ?>
 
+<?php if (((string) $message['category']) === 'abuse'): ?>
+<div class="card-warn mw-720 mb-4">
+    <p class="fw-medium mb-1">This message is an abuse report.</p>
+    <p class="text-88 mb-1">
+        Review the reported URL and destination carefully before taking moderation action.
+    </p>
+    <p class="text-2xs text-muted-2 mb-0">
+        Related admin pages:
+        <a href="/admin/moderation/links">Moderated Links</a> &middot;
+        <a href="/admin/moderation/domains">Blocked Domains</a>
+    </p>
+</div>
+<?php endif; ?>
+
 <table class="mw-720 mb-6">
     <tr>
         <th class="col-140">Status</th>

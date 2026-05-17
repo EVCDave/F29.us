@@ -61,7 +61,8 @@
     </thead>
     <tbody>
         <?php foreach ($messages as $m): ?>
-        <tr>
+        <?php $isAbuse = ((string) $m['category']) === 'abuse'; ?>
+        <tr<?= $isAbuse ? ' class="row-abuse"' : '' ?>>
             <td>#<?= (int) $m['id'] ?></td>
             <td class="text-muted nowrap"><?= View::e((string) $m['created_at']) ?></td>
             <td>
@@ -69,7 +70,13 @@
                     <?= View::e(ucfirst((string) $m['status'])) ?>
                 </span>
             </td>
-            <td><?= View::e($categories[(string) $m['category']] ?? (string) $m['category']) ?></td>
+            <td>
+                <?php if ($isAbuse): ?>
+                <span class="badge-abuse">Abuse report</span>
+                <?php else: ?>
+                <?= View::e($categories[(string) $m['category']] ?? (string) $m['category']) ?>
+                <?php endif; ?>
+            </td>
             <td><?= View::e((string) $m['name']) ?></td>
             <td>
                 <?= View::e((string) $m['email']) ?>

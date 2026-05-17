@@ -644,6 +644,71 @@ class NotificationService
         }
     }
 
+    // ── Abuse report: submitted ──────────────────────────────────────────────
+
+    /**
+     * Notify the abuse inbox when a user submits the public abuse-report form.
+     * Operates on the same `contact_messages` row that `contactMessageSubmitted`
+     * uses, but routes to `ABUSE_EMAIL` (fallback `abuse@f29.us`) and labels
+     * the subject as an abuse report.
+     */
+    public static function abuseReportSubmitted(int $contactMessageId): void
+    {
+        if (!MailerService::isEnabled()) {
+            return;
+        }
+
+        try {
+            $stmt = Database::get()->prepare("
+                SELECT id, user_id, name, email, category, subject, message,
+                       user_agent, ip_hash, created_at
+                FROM contact_messages
+                WHERE id = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$contactMessageId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                return;
+            }
+
+            $abuseAddress = $_ENV['ABUSE_EMAIL'] ?? 'abuse@f29.us';
+
+            $appUrl  = rtrim($_ENV['APP_URL'] ?? 'https://f29.us', '/');
+            $appUrlE = self::e($appUrl);
+
+            // "Abuse report: Phishing or credential theft" → strip the duplicate
+            // "Abuse report:" prefix so the email subject reads cleanly.
+            $rowSubject  = (string) $row['subject'];
+            $typeLabel   = preg_replace('/^Abuse report:\s*/i', '', $rowSubject);
+            $mailSubject = '[f29.us Abuse Report] ' . ($typeLabel !== '' ? $typeLabel : $rowSubject);
+
+            $userLine = $row['user_id'] !== null
+                ? '<strong>User ID:</strong> ' . (int) $row['user_id'] . '<br>'
+                : '<strong>User ID:</strong> (not logged in)<br>';
+
+            $messageBody = nl2br(self::e((string) $row['message']));
+
+            $bodyHtml = self::wrap(
+                "A new <strong>abuse report</strong> was submitted through the public form.<br><br>"
+                . '<strong>Message ID:</strong> ' . (int) $row['id'] . '<br>'
+                . '<strong>Name:</strong> ' . self::e((string) $row['name']) . '<br>'
+                . '<strong>Email:</strong> ' . self::e((string) $row['email']) . '<br>'
+                . $userLine
+                . '<strong>Subject:</strong> ' . self::e($rowSubject) . '<br>'
+                . '<strong>Submitted at:</strong> ' . self::e((string) $row['created_at']) . ' UTC<br>'
+                . '<strong>User agent:</strong> ' . self::e((string) ($row['user_agent'] ?? '(not provided)')) . '<br>'
+                . '<strong>IP hash:</strong> ' . self::e((string) ($row['ip_hash'] ?? '(not provided)')) . '<br><br>'
+                . '<strong>Report:</strong><br>' . $messageBody . '<br><br>'
+                . '<a href="' . $appUrlE . '/admin/contact-messages/' . (int) $row['id'] . '">Review in admin</a>'
+            );
+
+            MailerService::send($abuseAddress, 'Abuse', $mailSubject, $bodyHtml);
+        } catch (Throwable $e) {
+            error_log('[NotificationService] abuseReportSubmitted #' . $contactMessageId . ': ' . $e->getMessage());
+        }
+    }
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     private static function loadSubscriptionUser(int $userSubscriptionId): array|false

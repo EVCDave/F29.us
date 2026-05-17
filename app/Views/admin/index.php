@@ -35,6 +35,10 @@
         <div class="admin-stat-value <?= $newContactMessages > 0 ? 'admin-stat-value--warn' : '' ?>"><?= (int) $newContactMessages ?></div>
         <div class="admin-stat-label">New Contact Messages</div>
     </div>
+    <div class="admin-stat-card <?= $newAbuseReports > 0 ? 'admin-stat-card--warn' : '' ?>">
+        <div class="admin-stat-value <?= $newAbuseReports > 0 ? 'admin-stat-value--warn' : '' ?>"><?= (int) $newAbuseReports ?></div>
+        <div class="admin-stat-label">New Abuse Reports</div>
+    </div>
 </div>
 
 <!-- ── Tools ──────────────────────────────────────────────────────────────── -->
@@ -62,6 +66,9 @@
 <div class="actions-group mb-8">
     <a href="/admin/contact-messages" class="btn btn-secondary <?= $newContactMessages > 0 ? 'text-warning btn-secondary-warn' : '' ?>">
         Contact Messages<?= $newContactMessages > 0 ? ' (' . (int) $newContactMessages . ')' : '' ?>
+    </a>
+    <a href="/admin/contact-messages?category=abuse&amp;status=new" class="btn btn-secondary <?= $newAbuseReports > 0 ? 'text-warning btn-secondary-warn' : '' ?>">
+        Abuse Reports<?= $newAbuseReports > 0 ? ' (' . (int) $newAbuseReports . ')' : '' ?>
     </a>
 </div>
 

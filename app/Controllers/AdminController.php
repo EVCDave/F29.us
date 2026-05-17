@@ -33,7 +33,10 @@ class AdminController
         $failedLogins24h = (int) $stmt->fetchColumn();
 
         $newContactMessages = (int) $pdo->query(
-            "SELECT COUNT(*) FROM contact_messages WHERE status = 'new'"
+            "SELECT COUNT(*) FROM contact_messages WHERE status = 'new' AND category != 'abuse'"
+        )->fetchColumn();
+        $newAbuseReports = (int) $pdo->query(
+            "SELECT COUNT(*) FROM contact_messages WHERE status = 'new' AND category = 'abuse'"
         )->fetchColumn();
 
         View::render('admin/index', [
@@ -46,6 +49,7 @@ class AdminController
             'recentAuditCount'   => $recentAuditCount,
             'failedLogins24h'    => $failedLogins24h,
             'newContactMessages' => $newContactMessages,
+            'newAbuseReports'    => $newAbuseReports,
         ]);
     }
 
