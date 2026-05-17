@@ -595,6 +595,21 @@ Deletes rows older than **90 days** from `login_attempts`. Suggested cron (daily
 0 3 * * * php /path/to/f29.us/cleanup.php >> /path/to/storage/logs/cleanup.log 2>&1
 ```
 
+### Remember Me (persistent login)
+
+The login form has a **"Remember me for 30 days"** checkbox. When checked, a separate persistent-login token is issued in addition to the normal session.
+
+Implementation:
+
+- Token row lives in `remember_tokens` (migration `032_create_remember_tokens_table.php`). Schema: `selector CHAR(32)` (unique, used to locate the row), `token_hash CHAR(64)` (SHA-256 of the secret half — **the raw token is never stored**), `expires_at` 30 days out, plus `created_at`, `last_used_at`, optional `user_agent` (truncated to 255) and `ip_hash` (reuses `LoginThrottleService::hashIp` so no second secret is introduced). `ON DELETE CASCADE` to `users`.
+- Cookie name: **`f29_remember`**. Value: `selector:token` where selector is 32 hex chars and token is 64 hex chars. Flags: `HttpOnly`, `SameSite=Lax`, `Secure` when `APP_URL` starts with `https://`, expires 30 days out. Not readable from JavaScript.
+- Restoration runs once per request inside `AuthService::start()`, after `session_start()`. If there is no session user and the cookie is valid, the session is populated with `session_regenerate_id(true)` (fixation protection) and the token is **rotated** — new selector, new token, new `expires_at`, `last_used_at` stamped. Old cookie value is replaced.
+- **Rotation grace window:** during rotation the previous selector + token hash are stashed on the same row in `previous_selector` / `previous_token_hash` / `previous_valid_until` (migration `033_add_previous_remember_token_columns.php`) and kept valid for 60 seconds. A second request that arrives with the old cookie inside that window matches via `previous_selector`, has its session restored, and the cookie is **not** rotated again or expired — this prevents an accidental logout when concurrent tabs race to be the first to rotate. The previous fields are cleared by `cleanup.php` once their grace window has closed.
+- Suspended users cannot be restored: the matching token row is deleted and the cookie expired. Same for tampered cookies (selector matches but token hash doesn't), expired rows, malformed cookie values, and unknown selectors.
+- `AuthService::logout()` deletes only the current cookie's token row and expires the cookie, so logging out on one device does not invalidate other remembered devices.
+- `cleanup.php` calls `AuthService::deleteExpiredRememberTokens()` to remove rows where `expires_at < NOW()`. Run on the same daily cron as login-attempt cleanup.
+- Remember Me only restores **authentication**, not email verification. Routes that already gate behind verified email continue to behave the same.
+
 ### Input limits
 - QR name: maximum 200 characters (`mb_strlen`)
 - Destination URL: maximum 2048 characters
@@ -1213,7 +1228,7 @@ The following public-facing policy pages are available at launch. All are **draf
 | Page | Path | Contents |
 |------|------|----------|
 | Terms of Service | `/terms` | Account responsibility, QR/link rules, moderation rights, liability limitation, billing note |
-| Privacy Policy | `/privacy` | Data collected, scan analytics, IP hashing, cookies, no data sale, retention |
+| Privacy Policy | `/privacy` | Data collected, scan analytics, IP hashing, cookies (including the optional 30-day `f29_remember` persistent-login cookie disclosure), no data sale, retention |
 | Acceptable Use Policy | `/acceptable-use` | Prohibited uses (phishing, malware, spam, deception, illegal content), enforcement, no automated scanning notice |
 | Report Abuse | `/abuse` | What to report, how to report, what to include, contact email |
 | Contact | `/contact` | Support, abuse, and privacy contact emails; note that ticketing is not implemented |

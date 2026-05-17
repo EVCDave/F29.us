@@ -23,6 +23,9 @@ $retentionDays = 90;
 try {
     $deleted = LoginThrottleService::deleteOlderThan($retentionDays);
     echo date('Y-m-d H:i:s') . "  login_attempts: deleted {$deleted} row(s) older than {$retentionDays} days.\n";
+
+    $expired = AuthService::deleteExpiredRememberTokens();
+    echo date('Y-m-d H:i:s') . "  remember_tokens: deleted {$expired} expired row(s).\n";
 } catch (Throwable $e) {
     fwrite(STDERR, date('Y-m-d H:i:s') . "  ERROR: " . $e->getMessage() . "\n");
     exit(1);

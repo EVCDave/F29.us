@@ -26,6 +26,7 @@ class AuthController
 
         $email    = strtolower(trim($_POST['email']    ?? ''));
         $password = $_POST['password'] ?? '';
+        $remember = !empty($_POST['remember_me']);
         $ipHash   = LoginThrottleService::hashIp($_SERVER['REMOTE_ADDR'] ?? null);
 
         // DB-backed throttle: checked before touching credentials
@@ -37,7 +38,7 @@ class AuthController
             return;
         }
 
-        $result = AuthService::login($email, $password);
+        $result = AuthService::login($email, $password, $remember);
 
         // Record attempt regardless of outcome
         LoginThrottleService::record($email, $ipHash, $result['ok']);

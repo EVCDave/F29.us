@@ -1,21 +1,23 @@
-<?php $lastUpdated = 'May 15, 2026'; ?>
+<?php $lastUpdated = 'May 17, 2026'; ?>
 <div class="mw-720">
 
 <h1>Terms of Service</h1>
 
+<?php /*
 <div class="card-warn mb-6 text-sm">
     <strong>Draft notice:</strong> This document is a placeholder and has not been reviewed by legal counsel.
     It should be reviewed and updated before wider public launch.
 </div>
+*/ ?>
 
 <p class="text-sm text-muted mb-7">Last updated: <?= View::e($lastUpdated) ?></p>
 
 <h2>1. Acceptance of Terms</h2>
-<p>By accessing or using f29.us Dynamic QR ("the Service"), you agree to be bound by these Terms of Service.
+<p>By accessing or using <?= htmlspecialchars(getenv('APP_NAME') ?: 'f29.us', ENT_QUOTES, 'UTF-8') ?> ("the Service"), you agree to be bound by these Terms of Service.
 If you do not agree, do not use the Service.</p>
 
 <h2>2. Description of Service</h2>
-<p>f29.us Dynamic QR provides dynamic QR code generation and short-link management. Registered users can
+<p><?= htmlspecialchars(getenv('APP_NAME') ?: 'f29.us', ENT_QUOTES, 'UTF-8') ?> provides dynamic QR code generation and short-link management. Registered users can
 create QR codes that redirect to a destination URL of their choosing and update that destination at any time
 without reprinting the QR code.</p>
 
@@ -24,6 +26,7 @@ without reprinting the QR code.</p>
 for maintaining the security of your credentials and for all activity that occurs under your account.</p>
 <p>You agree to provide accurate information during registration and to keep it up to date. You may not share
 your account with others or create accounts for the purpose of evading service restrictions.</p>
+<p>The login page offers an optional &ldquo;Remember me for 30 days&rdquo; feature that keeps you signed in on the current browser after your session ends. If you use this option on a shared or public device, you are responsible for logging out when you are finished. See the <a href="/privacy">Privacy Policy</a> for details on what is stored.</p>
 
 <h2>4. QR Codes and Short Links</h2>
 <p>You may create QR codes subject to the limits of your plan. Each QR code is backed by a short link
@@ -38,7 +41,7 @@ deletion of archived QR codes is not currently available.</p>
 <h2>5. Your Responsibility for Destination URLs</h2>
 <p>You are solely responsible for the destination URLs you set. You must not direct QR codes or short links
 to content that violates these Terms or the <a href="/acceptable-use">Acceptable Use Policy</a>.</p>
-<p>f29.us does not pre-screen destination URLs. However, we reserve the right to disable any link at our
+<p><?= htmlspecialchars(getenv('APP_NAME') ?: 'f29.us', ENT_QUOTES, 'UTF-8') ?> does not pre-screen destination URLs. However, we reserve the right to disable any link at our
 discretion if we believe it violates these Terms or applicable law.</p>
 
 <h2>6. Uploaded Logos and Branding Assets</h2>
@@ -77,7 +80,7 @@ The Service may be unavailable due to maintenance, technical issues, or circumst
 We are not liable for losses resulting from downtime or data unavailability.</p>
 
 <h2>11. Limitation of Liability</h2>
-<p>To the fullest extent permitted by applicable law, f29.us is not liable for any indirect, incidental,
+<p>To the fullest extent permitted by applicable law, <?= htmlspecialchars(getenv('APP_NAME') ?: 'f29.us', ENT_QUOTES, 'UTF-8') ?> is not liable for any indirect, incidental,
 special, consequential, or punitive damages arising out of or relating to your use of the Service. Our
 total liability for any claim arising from the Service is limited to the amount you paid us in the six
 months prior to the claim, if any.</p>

@@ -32,6 +32,12 @@
         >
     </div>
     <div class="form-group">
+        <label class="checkbox-label">
+            <input type="checkbox" name="remember_me" value="1">
+            Remember me for 30 days
+        </label>
+    </div>
+    <div class="form-group">
         <button type="submit" class="btn">Login</button>
     </div>
 </form>

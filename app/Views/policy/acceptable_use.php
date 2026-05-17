@@ -3,16 +3,17 @@
 
 <h1>Acceptable Use Policy</h1>
 
+<?php /*
 <div class="card-warn mb-6 text-sm">
     <strong>Draft notice:</strong> This document is a placeholder and has not been reviewed by legal counsel.
     It should be reviewed and updated before wider public launch.
 </div>
+*/ ?>
 
 <p class="text-sm text-muted mb-7">Last updated: <?= View::e($lastUpdated) ?></p>
 
 <h2>1. Overview</h2>
-<p>This Acceptable Use Policy ("AUP") describes what you may and may not do with the f29.us Dynamic QR
-Service. It applies to all users. Violations may result in link disabling, account suspension, or
+<p>This Acceptable Use Policy ("AUP") describes what you may and may not do with the <?= htmlspecialchars(getenv('APP_NAME') ?: 'f29.us', ENT_QUOTES, 'UTF-8') ?>. It applies to all users. Violations may result in link disabling, account suspension, or
 permanent termination.</p>
 
 <h2>2. Prohibited Destinations and Content</h2>
@@ -43,7 +44,7 @@ permanent termination.</p>
 </ul>
 
 <h2>4. Enforcement</h2>
-<p>f29.us may, without prior notice where urgent action is required:</p>
+<p><?= htmlspecialchars(getenv('APP_NAME') ?: 'f29.us', ENT_QUOTES, 'UTF-8') ?> may, without prior notice where urgent action is required:</p>
 <ul class="ul-content">
     <li>Disable individual short links that are found to violate this AUP</li>
     <li>Add offending domains to the service-wide blocked-domain list</li>
@@ -53,12 +54,12 @@ permanent termination.</p>
 an ongoing abuse response or is otherwise impractical.</p>
 
 <h2>5. No Automated Malware Scanning</h2>
-<p>f29.us does not currently perform automated scanning of destination URLs for malware or phishing.
+<p><?= htmlspecialchars(getenv('APP_NAME') ?: 'f29.us', ENT_QUOTES, 'UTF-8') ?> does not currently perform automated scanning of destination URLs for malware or phishing.
 Users are responsible for ensuring their destinations comply with this policy. We rely on user reports
 and manual review to identify violations.</p>
 
 <h2>6. Reporting Violations</h2>
-<p>If you encounter a f29.us short link being used for phishing, malware, or other abuse, please
+<p>If you encounter a <?= htmlspecialchars(getenv('APP_NAME') ?: 'f29.us', ENT_QUOTES, 'UTF-8') ?> short link being used for phishing, malware, or other abuse, please
 <a href="/abuse">report it</a>.</p>
 
 <h2>7. Changes to This Policy</h2>

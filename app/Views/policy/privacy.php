@@ -1,17 +1,19 @@
-<?php $lastUpdated = 'May 15, 2026'; ?>
+<?php $lastUpdated = 'May 17, 2026'; ?>
 <div class="mw-720">
 
 <h1>Privacy Policy</h1>
 
+<?php /*
 <div class="card-warn mb-6 text-sm">
     <strong>Draft notice:</strong> This document is a placeholder and has not been reviewed by legal counsel.
     It should be reviewed and updated before wider public launch.
 </div>
+*/?>
 
 <p class="text-sm text-muted mb-7">Last updated: <?= View::e($lastUpdated) ?></p>
 
 <h2>1. Overview</h2>
-<p>This Privacy Policy describes what data f29.us Dynamic QR collects, how it is used, and how it is
+<p>This Privacy Policy describes what data <?= htmlspecialchars(getenv('APP_NAME') ?: 'f29.us', ENT_QUOTES, 'UTF-8') ?> collects, how it is used, and how it is
 protected. We aim to collect only what is necessary to operate the Service.</p>
 
 <h2>2. Data We Collect</h2>
@@ -22,6 +24,7 @@ protected. We aim to collect only what is necessary to operate the Service.</p>
     <li>Password — stored as a bcrypt hash; your raw password is never stored or logged</li>
     <li>Account status, role, and timestamps (created, last login)</li>
     <li>Optional profile fields you choose to provide: first name, last name, display name, company name, phone number, and timezone</li>
+    <li>Persistent-login (Remember Me) tokens — when you check &ldquo;Remember me for 30 days&rdquo; at login, we store a random selector, a hashed copy of the secret token, an expiration time, the browser&rsquo;s user-agent string, and an HMAC-hashed IP. The raw token is never stored; only the cookie sent to your browser contains it. See section 5 for details.</li>
 </ul>
 
 <h3>QR code and short-link data</h3>
@@ -71,9 +74,22 @@ source) without storing identifiable IP addresses in plain text.</p>
 <p>Login attempt records also use HMAC-hashed IPs for the same purpose.</p>
 
 <h2>5. Cookies and Sessions</h2>
-<p>We use a single session cookie named <code>f29_sess</code> to maintain your authenticated session.
-The cookie is HTTP-only, uses <code>SameSite=Lax</code>, and is set to expire when you close your browser
-(session lifetime). We do not use tracking cookies or third-party advertising cookies.</p>
+<p>We use cookies to keep you signed in and to protect your account. We do not use tracking cookies or third-party advertising cookies, and we do not share cookie data with advertisers.</p>
+
+<h3>Session cookie</h3>
+<p>The session cookie is named <code>f29_sess</code>. It is HTTP-only, uses <code>SameSite=Lax</code>, is marked <code>Secure</code> when the site is served over HTTPS, and is set to expire when you close your browser (session lifetime). It is required for the site to recognize that you are logged in during an active browser session.</p>
+
+<h3>&ldquo;Remember me for 30 days&rdquo; cookie</h3>
+<p>If you check &ldquo;Remember me for 30 days&rdquo; during login, we also set a separate persistent authentication cookie named <code>f29_remember</code>. This cookie can keep you signed in for up to 30 days even after your browser session ends.</p>
+<ul class="ul-content">
+    <li>The cookie value is a random selector and secret token generated on the server. It does not contain your email address or password.</li>
+    <li>The cookie is HTTP-only, uses <code>SameSite=Lax</code>, and is marked <code>Secure</code> when the site is served over HTTPS. It is not readable by JavaScript.</li>
+    <li>We store only a SHA-256 hash of the secret token in our database, alongside metadata such as the expiration time, the browser&rsquo;s user-agent string, and an HMAC-hashed IP. The raw secret is never stored.</li>
+    <li>When the cookie is used to restore your session, the token is rotated (a new secret is issued); the previous value is briefly accepted for a short concurrency grace window before being discarded.</li>
+    <li>You can clear this cookie at any time by <strong>logging out</strong> &mdash; that deletes the stored token for that browser &mdash; or by clearing your browser cookies. Expired tokens are also removed automatically by a scheduled cleanup job.</li>
+    <li>Choosing &ldquo;Remember me&rdquo; only restores authentication. It does not skip email verification, password-change, or any other security check.</li>
+</ul>
+
 <p>No persistent cookies are set for unauthenticated visitors viewing public pages or following QR code
 redirects.</p>
 

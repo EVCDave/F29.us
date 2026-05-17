@@ -206,6 +206,7 @@
                 <li><strong>Password</strong> — change your password. Requires your current password.</li>
                 <li><strong>Email verification</strong> — new accounts and email changes send a verification link; some features stay limited until the address is verified.</li>
                 <li><strong>Password reset</strong> — if you're locked out, use <a href="/forgot-password">Forgot password</a> to receive a one-time reset link.</li>
+                <li><strong>Remember me for 30 days</strong> — the login page includes an optional <em>"Remember me for 30 days"</em> checkbox. When selected, f29.us can restore your login after your browser session ends. Logging out clears the remembered login for that browser; logging out on one device does not sign you out elsewhere. If you're using a shared computer, leave the checkbox unchecked.</li>
                 <li><strong>Security</strong> — review session and security-relevant settings on <a href="/account/security">Account Security</a>.</li>
             </ul>
         </section>
