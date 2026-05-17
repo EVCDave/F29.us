@@ -1,6 +1,7 @@
 <?php
-$type = $input['type'] ?? 'text';
-$ok   = ($result['ok'] ?? false) === true;
+$type     = $input['type'] ?? 'text';
+$ok       = ($result['ok'] ?? false) === true;
+$canStyle = ($canColors ?? false) || ($canModuleStyle ?? false);
 
 /** Build the hidden inputs that re-submit the validated state from preview → download. */
 $hiddenInputs = static function (array $input, ?string $logoToken = null): string {
@@ -56,7 +57,7 @@ $hiddenInputs = static function (array $input, ?string $logoToken = null): strin
 </div>
 <?php endif; ?>
 
-<form method="post" action="/qr/static/preview" enctype="multipart/form-data">
+<form method="post" action="/qr/static/preview" enctype="multipart/form-data" data-static-qr-form>
     <?= CsrfService::field() ?>
     <?php if (!empty($logoToken)): ?>
     <input type="hidden" name="static_logo_token" value="<?= View::e($logoToken) ?>">
@@ -70,7 +71,8 @@ $hiddenInputs = static function (array $input, ?string $logoToken = null): strin
         ?>
         <label class="checkbox-label">
             <input type="radio" name="type" value="<?= View::e($value) ?>"
-                   <?= $type === $value ? 'checked' : '' ?>>
+                   <?= $type === $value ? 'checked' : '' ?>
+                   data-static-template-radio>
             <?= View::e($label) ?>
         </label>
         <?php endforeach; ?>
@@ -82,7 +84,7 @@ $hiddenInputs = static function (array $input, ?string $logoToken = null): strin
     </p>
 
     <!-- ── Text / URL ───────────────────────────────────────────────────── -->
-    <fieldset class="mw-720 mb-6">
+    <fieldset class="mw-720 mb-6" data-static-template-section="text">
         <legend><strong>Text / URL</strong></legend>
         <div class="mb-3">
             <label for="content">Content</label>
@@ -94,7 +96,7 @@ $hiddenInputs = static function (array $input, ?string $logoToken = null): strin
     </fieldset>
 
     <!-- ── Wi-Fi ────────────────────────────────────────────────────────── -->
-    <fieldset class="mw-720 mb-6">
+    <fieldset class="mw-720 mb-6" data-static-template-section="wifi">
         <legend><strong>Wi-Fi</strong></legend>
         <div class="mb-3">
             <label for="ssid">Network name (SSID)</label>
@@ -126,7 +128,7 @@ $hiddenInputs = static function (array $input, ?string $logoToken = null): strin
     </fieldset>
 
     <!-- ── Email ────────────────────────────────────────────────────────── -->
-    <fieldset class="mw-720 mb-6">
+    <fieldset class="mw-720 mb-6" data-static-template-section="email">
         <legend><strong>Email</strong></legend>
         <div class="mb-3">
             <label for="email_to">Recipient email</label>
@@ -146,7 +148,7 @@ $hiddenInputs = static function (array $input, ?string $logoToken = null): strin
     </fieldset>
 
     <!-- ── vCard ────────────────────────────────────────────────────────── -->
-    <fieldset class="mw-720 mb-6">
+    <fieldset class="mw-720 mb-6" data-static-template-section="vcard">
         <legend><strong>vCard (contact card)</strong></legend>
         <p class="text-2xs text-muted-2 mb-3">Fill in at least one field.</p>
         <div class="mb-3 d-flex gap-2 flex-wrap">
@@ -197,6 +199,7 @@ $hiddenInputs = static function (array $input, ?string $logoToken = null): strin
     </fieldset>
 
     <!-- ── Style ────────────────────────────────────────────────────────── -->
+    <div data-static-style-section data-static-style-available="<?= $canStyle ? '1' : '0' ?>">
     <h2 class="mb-3">3. Style</h2>
     <fieldset class="mw-720 mb-6" <?= !$canColors ? 'disabled' : '' ?>>
         <legend><strong>Colors and background</strong></legend>
@@ -245,9 +248,12 @@ $hiddenInputs = static function (array $input, ?string $logoToken = null): strin
         <input type="hidden" name="module_style" value="square">
         <?php endif; ?>
     </fieldset>
+    </div><!-- /data-static-style-section -->
 
     <!-- ── Logo ─────────────────────────────────────────────────────────── -->
-    <fieldset class="mw-720 mb-6">
+    <fieldset class="mw-720 mb-6"
+              data-static-logo-section
+              data-static-logo-available="<?= ($canLogo ?? false) ? '1' : '0' ?>">
         <legend><strong>Logo (optional)</strong></legend>
 
         <?php if (!($canLogo ?? false)): ?>
