@@ -640,7 +640,20 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 
 **Static assets:**
 - `public/assets/css/app.css` — all application CSS; no external CSS CDNs
-- `public/assets/js/app.js` — all application JavaScript; handles `data-confirm` form confirmations, `data-copy-target` clipboard copy, `data-bar-pct` bar chart widths, and `data-submit-form` link-to-form submission
+- `public/assets/js/app.js` — all application JavaScript; handles `data-confirm` form confirmations, `data-copy-target` clipboard copy, `data-bar-pct` bar chart widths, `data-submit-form` link-to-form submission, and the static-QR form progressive-enhancement
+- `public/assets/images/logo.png` — primary site logo used in the header (`.nav-brand` + `.brand-logo`), the homepage hero (`.hero-logo`), and the auth pages (login / register / forgot-password / reset-password) via `.auth-brand` + `.auth-logo`. Served locally from `/assets/images/logo.png` — no external CDN. Width and height attributes are set in markup to minimise layout shift; CSS controls actual rendered size via the per-context class.
+
+**Brand colors** (defined as CSS custom properties in the `:root` block at the top of `app.css`, chosen to match the logo):
+
+| Token | Value | Used by |
+| --- | --- | --- |
+| `--color-brand-dark`        | `#07111A` | Nav / header background; admin stat values; analytics bar fill; `.badge-current` pill; active tab background; `.text-dark` utility |
+| `--color-brand-dark-soft`   | `#0B1824` | Reserved for future surface variants |
+| `--color-brand-blue`        | `#4F83AD` | `.btn` primary background + border (login, create QR, primary CTAs) |
+| `--color-brand-blue-hover`  | `#3F6F96` | `.btn:hover` |
+| `--color-brand-blue-active` | `#345D80` | `.btn:active` |
+
+Primary buttons use `color: #fff` on `--color-brand-blue` (contrast ≈ 4.6:1 → WCAG AA). Nav links use the existing light-gray-on-dark treatment unchanged. Keyboard focus ring: `outline: 3px solid rgba(79, 131, 173, 0.35); outline-offset: 2px;` on `.btn:focus-visible`. The four `#1a1a2e` references inside `NotificationService.php` are inline styles inside transactional HTML emails (email clients strip external CSS) and are intentionally left alone — they are not part of the site UI.
 
 ### Download error handling
 QR library failures (e.g. `composer install` not yet run) are caught, logged server-side, and return a safe 403 message rather than leaking stack traces.

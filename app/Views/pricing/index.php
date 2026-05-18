@@ -134,7 +134,7 @@ $fv = static function (array $planFeatures, string $key): string {
             <?php elseif ($stripeEnabled): ?>
                 <?php if ($hasMonthly || $hasYearly): ?>
                 <?php if ($hasMonthly): ?>
-                <form method="post" action="/account/subscription/checkout" class="mb-1">
+                <form method="post" action="/account/subscription/checkout" class="mb-2">
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
                     <input type="hidden" name="billing_cycle" value="monthly">

@@ -1250,4 +1250,36 @@ Complete this section using `STRIPE_MODE=test` before switching to live. All web
 - [ ] No raw IP exposed anywhere in the new admin views or notifications
 - [ ] No Stripe / billing files were touched by Phase 42
 
-*Last updated: 2026-05-17 — Phase 42: admin QR / link moderation workflow — link browser gained `domain` and `has_abuse_reports` filters plus scan-total and abuse-count columns, link detail gained scan windows / destination history / related abuse reports / audit log / Block-Domain action, abuse reports auto-link to `short_links` + `qr_codes` via migration 035 columns, controlled-list disable reasons.*
+### Site Branding / Logo
+
+- [ ] Every page renders the site header logo at `/assets/images/logo.png` inside `.nav-brand` with `.brand-logo` (height 36 px desktop, 32 px ≤640 px viewport)
+- [ ] Header brand link still points to `/` and is keyboard-focusable
+- [ ] Header brand link carries `aria-label="F29 QR Code System home"`; the `<img>` is `alt=""` + `aria-hidden="true"` because the adjacent `.brand-text` ("F29 QR Code System") is the accessible name
+- [ ] Hiding the visible brand text via custom CSS would still leave a screen-reader-accessible link name (the `aria-label`)
+- [ ] On a narrow viewport (≤640 px) the header stays one row and remains usable; the logo + brand-text wrap without overlapping the nav links
+- [ ] `/` shows the homepage hero with `.hero-logo` above the H1; the H1 ("QR codes you can change after you print them.") is still visible and is the primary heading
+- [ ] `.hero-logo` image carries meaningful alt text ("F29 QR Code System")
+- [ ] `/login` shows a centered `.auth-brand` block with `.auth-logo` above the H1, max-width 110 px
+- [ ] `/register` shows the same auth logo block
+- [ ] `/forgot-password` shows the auth logo block above the H1 (both the form state and the "reset link sent" success state share the same H1, so the logo appears in both)
+- [ ] `/reset-password` shows the auth logo block above the H1 (renders in the form, success, and invalid-token states)
+- [ ] All logo `<img>` tags include `width` and `height` attributes; comparing initial paint to fully loaded shows no perceptible layout shift on the homepage or auth pages
+- [ ] No inline `style=` attribute was added in any of: layout `main.php`, `home.php`, `auth/login.php`, `auth/register.php`, `auth/forgot_password.php`, `auth/reset_password.php`
+- [ ] No new `<script>` tag was added in any of the above; no `on*` event handlers added
+- [ ] CSP-violation reports stay empty (`script-src 'self'`, `style-src 'self'`, `img-src 'self' data:` already cover the local logo)
+- [ ] No external image CDN host appears in the markup (`grep -R "src=\"http" app/Views/` returns nothing for these views)
+- [ ] Footer still lists Help · Terms · Privacy · Acceptable Use · Report Abuse · Contact
+- [ ] Visiting `/assets/images/logo.png` directly returns the PNG (HTTP 200, `Content-Type: image/png`)
+- [ ] Nav / header background uses the logo-aligned dark color `#07111A` (via `var(--color-brand-dark)`) instead of the previous `#1a1a2e`
+- [ ] Primary buttons (`.btn`) use the logo-aligned blue `#4F83AD` (via `var(--color-brand-blue)`) for background AND border
+- [ ] `.btn:hover` darkens to `#3F6F96`; `.btn:active` darkens further to `#345D80` — both visibly distinct from the resting state
+- [ ] White button text is readable on the blue background (WCAG AA passes for normal-weight body text)
+- [ ] Navigation link text remains readable on the new dark background
+- [ ] Keyboard focus on `.btn` shows the new 3 px translucent-blue outline (`.btn:focus-visible`)
+- [ ] `grep -F '#1a1a2e' public/assets/css/app.css` returns no matches — every CSS reference is now a `var()` call
+- [ ] `.btn-secondary` (white background, brand-dark text) still looks correct on every page where it's used (admin dashboards, list "Filter" buttons, download buttons)
+- [ ] `.btn-danger` semantics unchanged — destructive actions still render red, not blue
+- [ ] No inline `style="..."` attributes were added to any view file
+- [ ] The four `#1a1a2e` references that remain inside `NotificationService.php` are inline styles in HTML email templates only and do not affect the web UI
+
+*Last updated: 2026-05-17 — Phase 43A: brand colors retuned to match the new logo. `:root` custom properties introduced (`--color-brand-dark` `#07111A`, `--color-brand-blue` `#4F83AD` + hover/active variants); nav background and `.btn` palette swapped accordingly; remaining dark-on-light usages (stat values, bar, current-plan badge, active tab, `.text-dark` utility) unified on `var(--color-brand-dark)`. No #1a1a2e references remain in `app.css`.*

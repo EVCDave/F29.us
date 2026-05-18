@@ -2,6 +2,10 @@
 
 <!-- ── Hero ─────────────────────────────────────────────────────────────── -->
 <section class="home-hero">
+    <img src="/assets/images/logo.png"
+         alt="F29 QR Code System"
+         class="hero-logo"
+         width="180" height="180">
     <h1 class="home-hero-title">QR codes you can change after you print them.</h1>
     <p class="home-hero-sub">
         Create dynamic QR codes with editable destinations, scan analytics, custom styling,
