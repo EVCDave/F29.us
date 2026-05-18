@@ -11,7 +11,11 @@
 
 <nav class="nav">
     <div class="container">
-        <a href="/" class="nav-brand">F29 QR Code System</a>
+        <a href="/" class="nav-brand" aria-label="F29 QR Code System home">
+            <img src="/assets/images/logo.png" alt="" aria-hidden="true"
+                 class="brand-logo" width="44" height="44">
+            <span class="brand-text">F29 QR Code System</span>
+        </a>
         <a href="/pricing" class="nav-link">Pricing</a>
 
         <?php if ($navUser): ?>

@@ -1,3 +1,7 @@
+<div class="auth-brand">
+    <img src="/assets/images/logo.png" alt="F29 QR Code System"
+         class="auth-logo" width="110" height="110">
+</div>
 <h1>Login</h1>
 
 <?php if (!empty($errors)): ?>
