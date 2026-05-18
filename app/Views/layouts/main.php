@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= View::e($pageTitle ?? 'F29 QR Code System') ?></title>
-    <link rel="stylesheet" href="/assets/css/app.css">
+    <link rel="stylesheet" href="/assets/css/app.css?v=<?= @filemtime(__DIR__ . '/../../../public/assets/css/app.css') ?: '1' ?>">
 </head>
 <body>
 
@@ -76,6 +76,6 @@ $_unverified = $navUser
     </div>
 </footer>
 
-<script src="/assets/js/app.js" defer></script>
+<script src="/assets/js/app.js?v=<?= @filemtime(__DIR__ . '/../../../public/assets/js/app.js') ?: '1' ?>" defer></script>
 </body>
 </html>
