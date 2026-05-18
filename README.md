@@ -323,10 +323,10 @@ cleanup.php           CLI: prune old login_attempts rows (run via cron)
 
 | Plan | Internal name | QR codes | Analytics retention |
 |------|--------------|----------|-------------------|
-| Free | `free_v1` | 5 | 30 days |
-| Starter | `starter_v1` | 50 | 90 days |
+| Free | `free_v1` | 3 | 30 days |
+| Starter | `starter_v1` | 20 | 90 days |
 | Pro | `pro_v1` | 250 | 365 days |
-| Team | `team_v1` | 1,000 | 365 days |
+| Team | `team_v1` | 1,000 | 730 days |
 
 Pricing (cents) is `NULL` for paid plans until billing is configured.
 
