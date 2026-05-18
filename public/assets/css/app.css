@@ -160,6 +160,8 @@ td a { color: #0066cc; }
 .actions-group { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
 .qr-download-form { display: inline-flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0; }
 .qr-download-form select { margin: 0; }
+.subscribe-stack { display: inline-flex; flex-direction: column; align-items: stretch; gap: 0.6rem; }
+.subscribe-stack form { margin: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* ── Contact form honeypot + message body display ─────────────────────────── */
