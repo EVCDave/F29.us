@@ -77,7 +77,7 @@ class SubscriptionHistoryController
         )->fetchAll(PDO::FETCH_ASSOC);
 
         View::render('admin/subscriptions', [
-            'pageTitle'     => 'Admin: Subscriptions — f29.us Dynamic QR',
+            'pageTitle'     => 'Admin: Subscriptions — F29 QR Codes System',
             'subscriptions' => $subscriptions,
             'plans'         => $plans,
             'userEmail'     => $userEmail,

@@ -359,8 +359,9 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
                 <?php endif; ?>
             <?php elseif ($stripeEnabled): ?>
                 <?php if ($hasMonthly || $hasYearly): ?>
+                <div class="subscribe-stack">
                 <?php if ($hasMonthly): ?>
-                <form method="post" action="/account/subscription/checkout" class="mb-1">
+                <form method="post" action="/account/subscription/checkout">
                     <?= CsrfService::field() ?>
                     <input type="hidden" name="plan_id" value="<?= $pid ?>">
                     <input type="hidden" name="billing_cycle" value="monthly">
@@ -375,6 +376,7 @@ $showUsage       = $maxQr !== null || $analyticsRetain !== null || $canSvg !== n
                     <button type="submit" class="btn btn-sm">Subscribe Yearly</button>
                 </form>
                 <?php endif; ?>
+                </div>
                 <?php else: ?>
                 <span class="btn-disabled btn-disabled-sm text-83">Online checkout<br>not configured</span>
                 <?php endif; ?>

@@ -57,7 +57,7 @@ class AuditLogController
         $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         View::render('admin/audit_logs', [
-            'pageTitle'  => 'Admin: Audit Logs — f29.us Dynamic QR',
+            'pageTitle'  => 'Admin: Audit Logs — F29 QR Codes System',
             'logs'       => $logs,
             'action'     => $action,
             'entityType' => $entityType,
@@ -98,7 +98,7 @@ class AuditLogController
         }
 
         View::render('admin/audit_log_detail', [
-            'pageTitle' => 'Admin: Audit Log #' . $logId . ' — f29.us Dynamic QR',
+            'pageTitle' => 'Admin: Audit Log #' . $logId . ' — F29 QR Codes System',
             'log'       => $log,
             'meta'      => $meta,
         ]);

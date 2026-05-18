@@ -45,7 +45,7 @@ class SubscriptionRequestController
         unset($_SESSION['flash']);
 
         View::render('admin/subscription_requests', [
-            'pageTitle' => 'Admin: Subscription Requests — f29.us Dynamic QR',
+            'pageTitle' => 'Admin: Subscription Requests — F29 QR Codes System',
             'requests'  => $requests,
             'status'    => $status,
             'flash'     => $flash,
@@ -276,7 +276,7 @@ class SubscriptionRequestController
         $request = $this->loadRequest($requestId);
 
         View::render('admin/subscription_request_detail', [
-            'pageTitle' => 'Admin: Request #' . $requestId . ' — f29.us Dynamic QR',
+            'pageTitle' => 'Admin: Request #' . $requestId . ' — F29 QR Codes System',
             'request'   => $request,
             'flash'     => $flash,
         ]);

@@ -114,7 +114,7 @@ class ModerationController
         unset($_SESSION['flash']);
 
         View::render('admin/moderation/links', [
-            'pageTitle'    => 'Admin: Moderated Links — f29.us Dynamic QR',
+            'pageTitle'    => 'Admin: Moderated Links — F29 QR Codes System',
             'links'        => $links,
             'statusFilter' => $statusFilter,
             'ownerFilter'  => $ownerFilter,
@@ -207,7 +207,7 @@ class ModerationController
         unset($_SESSION['flash']);
 
         View::render('admin/moderation/link_detail', [
-            'pageTitle'            => 'Admin: Link #' . $shortLinkId . ' — f29.us Dynamic QR',
+            'pageTitle'            => 'Admin: Link #' . $shortLinkId . ' — F29 QR Codes System',
             'link'                 => $link,
             'totalScans'           => $totalScans,
             'scans24h'             => $scans24h,
@@ -343,7 +343,7 @@ class ModerationController
         unset($_SESSION['flash']);
 
         View::render('admin/moderation/domains', [
-            'pageTitle' => 'Admin: Blocked Domains — f29.us Dynamic QR',
+            'pageTitle' => 'Admin: Blocked Domains — F29 QR Codes System',
             'domains'   => $domains,
             'flash'     => $flash,
         ]);

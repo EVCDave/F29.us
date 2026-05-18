@@ -12,7 +12,7 @@ class EmailVerificationController
         $result = EmailVerificationService::verifyToken($rawToken);
 
         View::render('auth/verify_email', [
-            'pageTitle' => 'Email Verification — f29.us Dynamic QR',
+            'pageTitle' => 'Email Verification — F29 QR Codes System',
             'success'   => $result['success'],
             'message'   => $result['message'],
             'purpose'   => $result['purpose'],
@@ -36,7 +36,7 @@ class EmailVerificationController
         unset($_SESSION['flash']);
 
         View::render('account/verify_email', [
-            'pageTitle' => 'Verify Your Email — f29.us Dynamic QR',
+            'pageTitle' => 'Verify Your Email — F29 QR Codes System',
             'user'      => $user,
             'flash'     => $flash,
         ], 'main');

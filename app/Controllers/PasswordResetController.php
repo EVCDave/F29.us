@@ -8,7 +8,7 @@ class PasswordResetController
     public function forgotPage(array $params = []): void
     {
         View::render('auth/forgot_password', [
-            'pageTitle' => 'Forgot Password — f29.us Dynamic QR',
+            'pageTitle' => 'Forgot Password — F29 QR Codes System',
             'submitted' => false,
             'error'     => '',
         ]);
@@ -22,7 +22,7 @@ class PasswordResetController
 
         if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             View::render('auth/forgot_password', [
-                'pageTitle' => 'Forgot Password — f29.us Dynamic QR',
+                'pageTitle' => 'Forgot Password — F29 QR Codes System',
                 'submitted' => false,
                 'error'     => 'Please enter a valid email address.',
             ]);
@@ -33,7 +33,7 @@ class PasswordResetController
 
         // Always show the same message regardless of whether the account exists
         View::render('auth/forgot_password', [
-            'pageTitle' => 'Forgot Password — f29.us Dynamic QR',
+            'pageTitle' => 'Forgot Password — F29 QR Codes System',
             'submitted' => true,
             'error'     => '',
         ]);
@@ -47,7 +47,7 @@ class PasswordResetController
         $context  = PasswordResetService::getValidTokenContext($rawToken);
 
         View::render('auth/reset_password', [
-            'pageTitle' => 'Reset Password — f29.us Dynamic QR',
+            'pageTitle' => 'Reset Password — F29 QR Codes System',
             'valid'     => $context !== null,
             'token'     => $rawToken,
             'error'     => '',
@@ -68,7 +68,7 @@ class PasswordResetController
         if (!$result['ok']) {
             // Re-check token validity so form shows or hides the password fields correctly
             View::render('auth/reset_password', [
-                'pageTitle' => 'Reset Password — f29.us Dynamic QR',
+                'pageTitle' => 'Reset Password — F29 QR Codes System',
                 'valid'     => PasswordResetService::getValidTokenContext($rawToken) !== null,
                 'token'     => $rawToken,
                 'error'     => $result['message'],
@@ -78,7 +78,7 @@ class PasswordResetController
         }
 
         View::render('auth/reset_password', [
-            'pageTitle' => 'Reset Password — f29.us Dynamic QR',
+            'pageTitle' => 'Reset Password — F29 QR Codes System',
             'valid'     => false,
             'token'     => '',
             'error'     => '',
