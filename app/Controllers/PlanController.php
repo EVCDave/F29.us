@@ -22,7 +22,7 @@ class PlanController
         $plans = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         View::render('admin/plans', [
-            'pageTitle' => 'Admin: Plans — f29.us Dynamic QR',
+            'pageTitle' => 'Admin: Plans — F29 QR Codes System',
             'plans'     => $plans,
         ]);
     }
@@ -34,7 +34,7 @@ class PlanController
         $this->requireAdmin();
 
         View::render('admin/plan_create', [
-            'pageTitle' => 'Admin: Create Plan — f29.us Dynamic QR',
+            'pageTitle' => 'Admin: Create Plan — F29 QR Codes System',
             'errors'    => [],
             'old'       => [],
         ]);
@@ -51,7 +51,7 @@ class PlanController
 
         if (!empty($errors)) {
             View::render('admin/plan_create', [
-                'pageTitle' => 'Admin: Create Plan — f29.us Dynamic QR',
+                'pageTitle' => 'Admin: Create Plan — F29 QR Codes System',
                 'errors'    => $errors,
                 'old'       => $_POST,
             ]);
@@ -113,7 +113,7 @@ class PlanController
         [$subTotal, $subActive] = $this->loadSubCounts($planId);
 
         View::render('admin/plan_edit', [
-            'pageTitle' => 'Admin: Edit Plan — f29.us Dynamic QR',
+            'pageTitle' => 'Admin: Edit Plan — F29 QR Codes System',
             'plan'      => $plan,
             'subTotal'  => $subTotal,
             'subActive' => $subActive,
@@ -137,7 +137,7 @@ class PlanController
         if (!empty($errors)) {
             [$subTotal, $subActive] = $this->loadSubCounts($planId);
             View::render('admin/plan_edit', [
-                'pageTitle' => 'Admin: Edit Plan — f29.us Dynamic QR',
+                'pageTitle' => 'Admin: Edit Plan — F29 QR Codes System',
                 'plan'      => $plan,
                 'subTotal'  => $subTotal,
                 'subActive' => $subActive,
@@ -203,7 +203,7 @@ class PlanController
         $plan   = $this->loadPlan($planId);
 
         View::render('admin/plan_clone', [
-            'pageTitle' => 'Admin: Clone Plan — f29.us Dynamic QR',
+            'pageTitle' => 'Admin: Clone Plan — F29 QR Codes System',
             'plan'      => $plan,
             'errors'    => [],
             'old'       => [
@@ -253,7 +253,7 @@ class PlanController
 
         if (!empty($errors)) {
             View::render('admin/plan_clone', [
-                'pageTitle' => 'Admin: Clone Plan — f29.us Dynamic QR',
+                'pageTitle' => 'Admin: Clone Plan — F29 QR Codes System',
                 'plan'      => $sourcePlan,
                 'errors'    => $errors,
                 'old'       => $_POST,
@@ -814,7 +814,7 @@ class PlanController
         [$subTotal, $subActive] = $this->loadSubCounts($planId);
 
         View::render('admin/plan_detail', [
-            'pageTitle'          => 'Admin: Plan — ' . $plan['display_name'] . ' — f29.us Dynamic QR',
+            'pageTitle'          => 'Admin: Plan — ' . $plan['display_name'] . ' — F29 QR Codes System',
             'plan'               => $plan,
             'features'           => $features,
             'subTotal'           => $subTotal,

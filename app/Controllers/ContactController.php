@@ -272,7 +272,7 @@ class ContactController
     private function render(array $state): void
     {
         View::render('policy/contact', [
-            'pageTitle'      => 'Contact — f29.us Dynamic QR',
+            'pageTitle'      => 'Contact — F29 QR Codes System',
             'categories'     => self::CATEGORIES,
             'input'          => $state['input']     ?? $this->prefillFromUser(),
             'errors'         => $state['errors']    ?? [],

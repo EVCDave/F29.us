@@ -14,7 +14,7 @@ class AuthController
         }
 
         View::render('auth/login', [
-            'pageTitle' => 'Login — f29.us Dynamic QR',
+            'pageTitle' => 'Login — F29 QR Codes System',
             'errors'    => [],
             'oldEmail'  => '',
         ]);
@@ -62,7 +62,7 @@ class AuthController
         }
 
         View::render('auth/register', [
-            'pageTitle' => 'Create an Account — f29.us Dynamic QR',
+            'pageTitle' => 'Create an Account — F29 QR Codes System',
             'errors'    => [],
             'oldEmail'  => '',
             'oldProfile' => [],
@@ -99,7 +99,7 @@ class AuthController
 
         if (!empty($profileErrors)) {
             View::render('auth/register', [
-                'pageTitle'  => 'Create an Account — f29.us Dynamic QR',
+                'pageTitle'  => 'Create an Account — F29 QR Codes System',
                 'errors'     => $profileErrors,
                 'oldEmail'   => strtolower(trim($email)),
                 'oldProfile' => $raw,
@@ -111,7 +111,7 @@ class AuthController
 
         if (!$result['ok']) {
             View::render('auth/register', [
-                'pageTitle'  => 'Create an Account — f29.us Dynamic QR',
+                'pageTitle'  => 'Create an Account — F29 QR Codes System',
                 'errors'     => $result['errors'],
                 'oldEmail'   => strtolower(trim($email)),
                 'oldProfile' => $raw,
@@ -144,7 +144,7 @@ class AuthController
     private function renderLogin(array $errors, string $oldEmail): void
     {
         View::render('auth/login', [
-            'pageTitle' => 'Login — f29.us Dynamic QR',
+            'pageTitle' => 'Login — F29 QR Codes System',
             'errors'    => $errors,
             'oldEmail'  => $oldEmail,
         ]);

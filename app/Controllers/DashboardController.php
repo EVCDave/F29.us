@@ -41,7 +41,7 @@ class DashboardController
         $billingBanner = $dashSub ? BillingStatusService::bannerForSubscription($dashSub) : null;
 
         View::render('dashboard', [
-            'pageTitle'    => 'Dashboard — f29.us Dynamic QR',
+            'pageTitle'    => 'Dashboard — F29 QR Codes System',
             'user'         => AuthService::currentUser(),
             'counts'       => [
                 'total'    => (int) ($counts['total']    ?? 0),

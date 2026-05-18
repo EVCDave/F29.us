@@ -53,7 +53,7 @@ class QrController
         unset($_SESSION['flash']);
 
         View::render('qr/index', [
-            'pageTitle' => 'My QR Codes — f29.us Dynamic QR',
+            'pageTitle' => 'My QR Codes — F29 QR Codes System',
             'qrCodes'   => $qrCodes,
             'baseUrl'   => $this->qrBaseUrl(),
             'search'    => $search,
@@ -77,7 +77,7 @@ class QrController
         $limitReached = !QrQuotaService::canCreateForUser($userId);
 
         View::render('qr/create', [
-            'pageTitle'     => 'Create QR Code — f29.us Dynamic QR',
+            'pageTitle'     => 'Create QR Code — F29 QR Codes System',
             'errors'        => [],
             'oldValues'     => [],
             'canCustomSlug' => EntitlementService::isEnabled($userId, 'can_use_custom_slug'),
@@ -140,7 +140,7 @@ class QrController
 
         if (!empty($errors)) {
             View::render('qr/create', [
-                'pageTitle'     => 'Create QR Code — f29.us Dynamic QR',
+                'pageTitle'     => 'Create QR Code — F29 QR Codes System',
                 'errors'        => $errors,
                 'oldValues'     => compact('name', 'destUrl', 'customSlug'),
                 'canCustomSlug' => $canCustom,
@@ -192,7 +192,7 @@ class QrController
             }
             if ($e instanceof PDOException && $e->getCode() === '23000') {
                 View::render('qr/create', [
-                    'pageTitle'     => 'Create QR Code — f29.us Dynamic QR',
+                    'pageTitle'     => 'Create QR Code — F29 QR Codes System',
                     'errors'        => ['That slug was just taken. Please try a different one or leave it blank for auto-generation.'],
                     'oldValues'     => compact('name', 'destUrl', 'customSlug'),
                     'canCustomSlug' => $canCustom,
@@ -241,7 +241,7 @@ class QrController
         $pngSizes = $this->allowedPngDownloadSizesForUser($userId);
 
         View::render('qr/detail', [
-            'pageTitle'          => View::e($qr['name']) . ' — f29.us Dynamic QR',
+            'pageTitle'          => View::e($qr['name']) . ' — F29 QR Codes System',
             'qr'                 => $qr,
             'shortUrl'           => $this->qrBaseUrl() . '/' . $qr['slug'],
             'canEditDestination' => EntitlementService::isEnabled($userId, 'can_edit_destination'),
@@ -269,7 +269,7 @@ class QrController
         $qr = $this->loadOwnedQrCode($qrId, $userId);
 
         View::render('qr/edit', [
-            'pageTitle'          => 'Edit QR Code — f29.us Dynamic QR',
+            'pageTitle'          => 'Edit QR Code — F29 QR Codes System',
             'qr'                 => $qr,
             'errors'             => [],
             'oldName'            => $qr['name'],
@@ -318,7 +318,7 @@ class QrController
 
         if (!empty($errors)) {
             View::render('qr/edit', [
-                'pageTitle'          => 'Edit QR Code — f29.us Dynamic QR',
+                'pageTitle'          => 'Edit QR Code — F29 QR Codes System',
                 'qr'                 => $qr,
                 'errors'             => $errors,
                 'oldName'            => $newName,
@@ -766,7 +766,7 @@ class QrController
         }
 
         View::render('qr/analytics', [
-            'pageTitle'          => $qr['name'] . ' — Analytics — f29.us Dynamic QR',
+            'pageTitle'          => $qr['name'] . ' — Analytics — F29 QR Codes System',
             'qr'                 => $qr,
             'shortUrl'           => $this->qrBaseUrl() . '/' . $qr['slug'],
             'retentionDays'      => $retentionDays,
@@ -861,7 +861,7 @@ class QrController
         } catch (Throwable) {}
 
         View::render('qr/style', [
-            'pageTitle'      => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
+            'pageTitle'      => 'Customize QR — ' . View::e($qr['name']) . ' — F29 QR Codes System',
             'qr'             => $qr,
             'style'          => $style,
             'canCustomize'   => $canCustomize,
@@ -916,7 +916,7 @@ class QrController
             } catch (Throwable) {}
 
             View::render('qr/style', [
-                'pageTitle'      => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
+                'pageTitle'      => 'Customize QR — ' . View::e($qr['name']) . ' — F29 QR Codes System',
                 'qr'             => $qr,
                 'style'          => array_merge($style, [
                     'foreground_color'       => $foreground,
@@ -1031,7 +1031,7 @@ class QrController
             } catch (Throwable) {}
 
             View::render('qr/style', [
-                'pageTitle'      => 'Customize QR — ' . View::e($qr['name']) . ' — f29.us Dynamic QR',
+                'pageTitle'      => 'Customize QR — ' . View::e($qr['name']) . ' — F29 QR Codes System',
                 'qr'             => $qr,
                 'style'          => $style,
                 'canCustomize'   => EntitlementService::isEnabled($userId, 'can_customize_qr_colors'),

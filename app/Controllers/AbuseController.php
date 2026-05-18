@@ -398,7 +398,7 @@ class AbuseController
     private function render(array $state): void
     {
         View::render('policy/abuse', [
-            'pageTitle'     => 'Report Abuse — f29.us Dynamic QR',
+            'pageTitle'     => 'Report Abuse — F29 QR Codes System',
             'abuseTypes'    => self::ABUSE_TYPES,
             'input'         => $state['input']     ?? $this->prefillFromUser(),
             'errors'        => $state['errors']    ?? [],

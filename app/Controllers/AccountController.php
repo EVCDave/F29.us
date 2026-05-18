@@ -116,7 +116,7 @@ class AccountController
             && BillingStatusService::isStripeBacked($activeSub);
 
         View::render('account/subscription', [
-            'pageTitle'          => 'My Subscription — f29.us Dynamic QR',
+            'pageTitle'          => 'My Subscription — F29 QR Codes System',
             'activeSub'          => $activeSub,
             'currentPlanId'      => $currentPlanId,
             'plans'              => $plans,

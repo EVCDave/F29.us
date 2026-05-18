@@ -50,7 +50,7 @@ class AccountSecurityController
         unset($_SESSION['flash']);
 
         View::render('account/security', [
-            'pageTitle'       => 'Account Security — f29.us Dynamic QR',
+            'pageTitle'       => 'Account Security — F29 QR Codes System',
             'user'            => $user,
             'securityEvents'  => $securityEvents,
             'loginAttempts'   => $loginAttempts,

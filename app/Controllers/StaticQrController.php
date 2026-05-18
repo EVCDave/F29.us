@@ -477,7 +477,7 @@ class StaticQrController
             : $defaultSize;
 
         View::render('qr/static', [
-            'pageTitle'        => 'Static QR Generator — f29.us Dynamic QR',
+            'pageTitle'        => 'Static QR Generator — F29 QR Codes System',
             'input'            => $input,
             'result'           => $result,
             'errors'           => $errors,

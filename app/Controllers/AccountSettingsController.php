@@ -31,7 +31,7 @@ class AccountSettingsController
         unset($_SESSION['flash']);
 
         View::render('account/settings', [
-            'pageTitle' => 'Account Settings — f29.us Dynamic QR',
+            'pageTitle' => 'Account Settings — F29 QR Codes System',
             'user'      => $user,
             'flash'     => $flash,
         ]);

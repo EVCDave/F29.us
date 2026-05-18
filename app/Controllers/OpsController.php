@@ -16,7 +16,7 @@ class OpsController
         $adminEmail = $adminUser['email'] ?? '';
 
         View::render('admin/ops', [
-            'pageTitle'  => 'Admin: Operations — f29.us Dynamic QR',
+            'pageTitle'  => 'Admin: Operations — F29 QR Codes System',
             'checks'     => $checks,
             'flash'      => $flash,
             'adminEmail' => $adminEmail,

@@ -54,7 +54,7 @@ class AdminController
         )->fetchColumn();
 
         View::render('admin/index', [
-            'pageTitle'             => 'Admin — f29.us Dynamic QR',
+            'pageTitle'             => 'Admin — F29 QR Codes System',
             'totalUsers'            => $totalUsers,
             'totalQr'               => $totalQr,
             'totalPlans'            => $totalPlans,

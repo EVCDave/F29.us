@@ -72,7 +72,7 @@ class PricingController
         $currentSubscriptionIsStripeBacked ??= false;
 
         View::render('pricing/index', [
-            'pageTitle'          => 'Pricing — f29.us Dynamic QR',
+            'pageTitle'          => 'Pricing — F29 QR Codes System',
             'plans'              => $plans,
             'features'           => $features,
             'currentUser'        => $currentUser,
